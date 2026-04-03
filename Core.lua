@@ -5,8 +5,12 @@ addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\fonts\\PTSansNarrow-Bo
 
 addon.SLOT_WIDTH = 150
 addon.SLOT_HEIGHT = 20
-addon.GROUP_PADDING = 8
+addon.SLOT_GAP = 2
+addon.GROUP_GAP = 6
+addon.GROUP_HEADER_HEIGHT = 16
 addon.TITLE_HEIGHT = 28
+
+local playerRealm = nil
 
 local defaults = {
     profile = {
@@ -105,21 +109,43 @@ function addon:ToggleMainFrame()
     end
 end
 
--- Strip realm suffix for same-realm comparisons
+--------------------------------------------------------------------------------
+-- Name handling
+--------------------------------------------------------------------------------
+
+function addon:GetPlayerRealm()
+    if not playerRealm then
+        playerRealm = GetNormalizedRealmName()
+    end
+
+    return playerRealm
+end
+
+-- Normalize a name: strip realm suffix if it matches the player's realm.
+-- Cross-realm names keep their realm suffix.
 function addon:NormalizeName(name)
     if not name then
         return nil
     end
 
     local dashPos = name:find("-")
-    if dashPos then
+    if not dashPos then
+        return name
+    end
+
+    local realm = name:sub(dashPos + 1)
+    if realm == self:GetPlayerRealm() then
         return name:sub(1, dashPos - 1)
     end
 
     return name
 end
 
--- Build a lookup table of current raid members: normalizedName -> { name, class, role, subgroup, raidIndex }
+--------------------------------------------------------------------------------
+-- Raid roster
+--------------------------------------------------------------------------------
+
+-- Build a lookup table of current raid members: normalizedName -> info
 function addon:GetRaidRoster()
     local roster = {}
     local count = GetNumGroupMembers()
@@ -147,27 +173,26 @@ function addon:GetRaidRoster()
     return roster
 end
 
--- Get the text from a grid slot, trimmed
+--------------------------------------------------------------------------------
+-- Grid slot data access
+--------------------------------------------------------------------------------
+
 function addon:GetSlotText(slotIndex)
     local slot = self.slots[slotIndex]
     if not slot then
         return ""
     end
 
-    local text = slot.editBox:GetText()
-
-    return strtrim(text or "")
+    return slot.playerName or ""
 end
 
--- Set the text of a grid slot
 function addon:SetSlotText(slotIndex, text)
     local slot = self.slots[slotIndex]
     if not slot then
         return
     end
 
-    slot.editBox:SetText(text or "")
-    slot.editBox:SetCursorPosition(0)
+    slot.playerName = text or ""
 end
 
 -- Get all 40 slot texts as a table
@@ -206,4 +231,24 @@ function addon:TryAutoSave()
     if self.autoSave and self.selectedLayout then
         self:SaveToSelectedLayout()
     end
+end
+
+-- Add a name to the first empty grid slot
+function addon:AddNameToGrid(name)
+    if not name or name == "" then
+        return
+    end
+
+    for i = 1, 40 do
+        if self:GetSlotText(i) == "" then
+            self:SetSlotText(i, name)
+            self:RefreshSlot(i)
+            self:RefreshUnassigned()
+            self:TryAutoSave()
+
+            return
+        end
+    end
+
+    self:Print("No empty slots available.")
 end

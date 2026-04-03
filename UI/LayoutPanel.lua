@@ -242,13 +242,13 @@ StaticPopupDialogs["RGM_SAVE_LAYOUT"] = {
     hasEditBox = true,
     editBoxWidth = 200,
     OnAccept = function(self)
-        local name = self.editBox:GetText()
+        local name = self.EditBox:GetText()
         if name and strtrim(name) ~= "" then
             addon:SaveNewLayout(strtrim(name))
         end
     end,
     OnShow = function(self)
-        self.editBox:SetFocus()
+        self.EditBox:SetFocus()
     end,
     timeout = 0,
     whileDead = true,

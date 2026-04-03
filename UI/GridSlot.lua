@@ -3,12 +3,17 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 local FONT = addon.FONT
 local SLOT_WIDTH = addon.SLOT_WIDTH
 local SLOT_HEIGHT = addon.SLOT_HEIGHT
-local GROUP_PADDING = addon.GROUP_PADDING
+local SLOT_GAP = addon.SLOT_GAP
+local GROUP_GAP = addon.GROUP_GAP
+local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
 local ROLE_ICON_SIZE = 16
 
+local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
+local COLOR_EMPTY_TEXT = { r = 0.4, g = 0.4, b = 0.4, a = 0.5 }
 local COLOR_GRAY = { r = 0.7, g = 0.7, b = 0.7 }
 local COLOR_BORDER_NORMAL = { r = 0, g = 0, b = 0 }
 local COLOR_BORDER_UNMATCHED = { r = 0.5, g = 0.25, b = 0.3 }
+local COLOR_DRAG_HIGHLIGHT = { r = 0.4, g = 0.6, b = 1, a = 0.3 }
 
 local ROLE_ATLAS = {
     TANK = "groupfinder-icon-role-large-tank",
@@ -16,98 +21,134 @@ local ROLE_ATLAS = {
     DAMAGER = "groupfinder-icon-role-large-dps",
 }
 
-local dragSource = nil
-
-local function GetSlotGroup(slotIndex)
-
-    return math.ceil(slotIndex / 5)
-end
-
-local function GetSlotPosition(slotIndex)
-
-    return ((slotIndex - 1) % 5) + 1
-end
+-- Global drag state
+addon.dragSource = nil
+addon.dragSourceType = nil -- "slot" or "unassigned"
+addon.dragSourceName = nil
 
 local function CreateSlotFrame(parent, slotIndex)
-    local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent, "BackdropTemplate")
+    local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent)
     slot:SetSize(SLOT_WIDTH, SLOT_HEIGHT)
     slot.slotIndex = slotIndex
+    slot.playerName = ""
 
-    -- Background
-    slot.bg = slot:CreateTexture(nil, "BACKGROUND")
-    slot.bg:SetAllPoints()
-    slot.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+    slot:EnableMouse(true)
+    slot:RegisterForDrag("LeftButton")
 
-    -- Border (1px outset, like RCC)
+    -- Border (1px outset, drawn behind everything)
     slot.borderTex = slot:CreateTexture(nil, "BORDER")
     slot.borderTex:SetPoint("TOPLEFT", -1, 1)
     slot.borderTex:SetPoint("BOTTOMRIGHT", 1, -1)
     slot.borderTex:SetColorTexture(0, 0, 0, 1)
 
-    -- EditBox
-    local editBox = CreateFrame("EditBox", nil, slot)
-    editBox:SetPoint("TOPLEFT", 2, -1)
-    editBox:SetPoint("BOTTOMRIGHT", -(ROLE_ICON_SIZE + 4), 1)
-    editBox:SetFont(FONT, 16, "OUTLINE")
-    editBox:SetAutoFocus(false)
-    editBox:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-    editBox:SetMaxLetters(30)
-    editBox.slotIndex = slotIndex
+    -- Background
+    slot.bg = slot:CreateTexture(nil, "BACKGROUND")
+    slot.bg:SetAllPoints()
+    slot.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
 
-    editBox:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()
-        addon:RefreshSlot(slotIndex)
-        addon:RefreshUnassigned()
-        addon:TryAutoSave()
-    end)
+    -- Name text
+    slot.nameText = slot:CreateFontString(nil, "ARTWORK")
+    slot.nameText:SetFont(FONT, 14, "OUTLINE")
+    slot.nameText:SetPoint("LEFT", 4, 0)
+    slot.nameText:SetPoint("RIGHT", -(ROLE_ICON_SIZE + 4), 0)
+    slot.nameText:SetJustifyH("LEFT")
+    slot.nameText:SetWordWrap(false)
 
-    editBox:SetScript("OnEscapePressed", function(self)
-        self:ClearFocus()
-    end)
-
-    editBox:SetScript("OnEditFocusLost", function()
-        addon:RefreshSlot(slotIndex)
-        addon:RefreshUnassigned()
-        addon:TryAutoSave()
-    end)
-
-    slot.editBox = editBox
+    -- Faded "Empty" text
+    slot.emptyText = slot:CreateFontString(nil, "ARTWORK")
+    slot.emptyText:SetFont(FONT, 12, "OUTLINE")
+    slot.emptyText:SetPoint("CENTER")
+    slot.emptyText:SetText("Empty")
+    slot.emptyText:SetTextColor(COLOR_EMPTY_TEXT.r, COLOR_EMPTY_TEXT.g, COLOR_EMPTY_TEXT.b, COLOR_EMPTY_TEXT.a)
 
     -- Role icon
-    local roleIcon = slot:CreateTexture(nil, "ARTWORK")
-    roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
-    roleIcon:SetPoint("RIGHT", -2, 0)
-    roleIcon:Hide()
-    slot.roleIcon = roleIcon
+    slot.roleIcon = slot:CreateTexture(nil, "ARTWORK")
+    slot.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+    slot.roleIcon:SetPoint("RIGHT", -2, 0)
+    slot.roleIcon:Hide()
 
-    -- Drag-and-drop
-    slot:EnableMouse(true)
-    slot:RegisterForDrag("LeftButton")
+    -- Drag hover highlight
+    slot.dragHighlight = slot:CreateTexture(nil, "OVERLAY")
+    slot.dragHighlight:SetAllPoints()
+    slot.dragHighlight:SetColorTexture(COLOR_DRAG_HIGHLIGHT.r, COLOR_DRAG_HIGHLIGHT.g, COLOR_DRAG_HIGHLIGHT.b, COLOR_DRAG_HIGHLIGHT.a)
+    slot.dragHighlight:SetBlendMode("ADD")
+    slot.dragHighlight:Hide()
 
+    -- Right-click to remove name
+    slot:SetScript("OnMouseDown", function(self, button)
+        if button == "RightButton" and self.playerName ~= "" then
+            self.playerName = ""
+            addon:RefreshSlot(self.slotIndex)
+            addon:RefreshUnassigned()
+            addon:TryAutoSave()
+        end
+    end)
+
+    -- Drag start
     slot:SetScript("OnDragStart", function(self)
-        dragSource = self
+        if self.playerName == "" then
+            return
+        end
+
+        addon.dragSource = self
+        addon.dragSourceType = "slot"
+        addon.dragSourceName = self.playerName
         self:SetAlpha(0.5)
     end)
 
+    -- Drag stop
     slot:SetScript("OnDragStop", function(self)
         self:SetAlpha(1)
-        if not dragSource then
+
+        if not addon.dragSource then
             return
         end
 
         local target = FindSlotUnderCursor()
-        if target and target ~= dragSource then
-            SwapSlotContents(dragSource.slotIndex, target.slotIndex)
+        if target and target ~= addon.dragSource then
+            if addon.dragSourceType == "slot" then
+                SwapSlotContents(addon.dragSource.slotIndex, target.slotIndex)
+            elseif addon.dragSourceType == "unassigned" then
+                addon:DropNameOnSlot(target.slotIndex, addon.dragSourceName)
+            end
         end
 
-        dragSource = nil
+        ClearDragState()
+    end)
+
+    -- Hover highlight during drag
+    slot:SetScript("OnEnter", function(self)
+        if addon.dragSource and addon.dragSource ~= self then
+            self.dragHighlight:Show()
+        end
+    end)
+
+    slot:SetScript("OnLeave", function(self)
+        self.dragHighlight:Hide()
     end)
 
     return slot
 end
 
--- Find which slot frame the cursor is hovering over
+function ClearDragState()
+    if addon.dragSource then
+        addon.dragSource:SetAlpha(1)
+    end
+
+    -- Hide all drag highlights
+    for i = 1, 40 do
+        local slot = addon.slots[i]
+        if slot then
+            slot.dragHighlight:Hide()
+        end
+    end
+
+    addon.dragSource = nil
+    addon.dragSourceType = nil
+    addon.dragSourceName = nil
+end
+
 function FindSlotUnderCursor()
     for i = 1, 40 do
         local slot = addon.slots[i]
@@ -119,7 +160,6 @@ function FindSlotUnderCursor()
     return nil
 end
 
--- Swap text between two slots
 function SwapSlotContents(indexA, indexB)
     local textA = addon:GetSlotText(indexA)
     local textB = addon:GetSlotText(indexB)
@@ -131,7 +171,6 @@ function SwapSlotContents(indexA, indexB)
     addon:TryAutoSave()
 end
 
--- Accept a drop from the unassigned panel
 function addon:DropNameOnSlot(slotIndex, name)
     self:SetSlotText(slotIndex, name)
     self:RefreshSlot(slotIndex)
@@ -145,31 +184,33 @@ function addon:RefreshSlot(slotIndex)
         return
     end
 
-    local text = self:GetSlotText(slotIndex)
-    local editBox = slot.editBox
+    local text = slot.playerName or ""
     local roleIcon = slot.roleIcon
 
     if text == "" then
-        editBox:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-        slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+        slot.nameText:SetText("")
+        slot.emptyText:Show()
+        slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
         slot.borderTex:SetColorTexture(COLOR_BORDER_NORMAL.r, COLOR_BORDER_NORMAL.g, COLOR_BORDER_NORMAL.b, 1)
         roleIcon:Hide()
 
         return
     end
 
+    slot.emptyText:Hide()
+    slot.nameText:SetText(text)
+
     local roster = self:GetRaidRoster()
-    local normalized = self:NormalizeName(text)
-    local member = roster[normalized]
+    local member = roster[text]
 
     if member then
         -- In raid — class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
-            editBox:SetTextColor(classColor.r, classColor.g, classColor.b)
+            slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
             slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.25)
         else
-            editBox:SetTextColor(1, 1, 1)
+            slot.nameText:SetTextColor(1, 1, 1)
             slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
         end
 
@@ -185,7 +226,7 @@ function addon:RefreshSlot(slotIndex)
         end
     else
         -- Not in raid — gray text, red-tinted border
-        editBox:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
+        slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
         slot.borderTex:SetColorTexture(COLOR_BORDER_UNMATCHED.r, COLOR_BORDER_UNMATCHED.g, COLOR_BORDER_UNMATCHED.b, 1)
         roleIcon:Hide()
@@ -199,32 +240,33 @@ function addon:RefreshAllSlots()
 end
 
 -- Create the 8-group x 5-slot grid layout
--- Layout: 4 rows of 2 groups side by side
+-- 4 rows of 2 groups side by side, compact spacing
 function addon:CreateGrid(parent)
     local colWidth = SLOT_WIDTH + 10
-    local groupHeaderHeight = 18
+    local groupSlotHeight = 5 * SLOT_HEIGHT + 4 * SLOT_GAP -- 5 slots with gaps between them
 
     for g = 1, 8 do
-        -- Grid position: groups 1,3,5,7 on left; 2,4,6,8 on right
-        local col = ((g - 1) % 2)       -- 0 = left, 1 = right
-        local row = math.floor((g - 1) / 2) -- 0..3
+        local col = ((g - 1) % 2)
+        local row = math.floor((g - 1) / 2)
 
-        local groupOffsetX = col * (colWidth + GROUP_PADDING)
-        local groupOffsetY = -(row * (5 * SLOT_HEIGHT + groupHeaderHeight + GROUP_PADDING + 6))
+        local groupOffsetX = col * (colWidth + 4)
+        local groupOffsetY = -(row * (groupSlotHeight + GROUP_HEADER_HEIGHT + GROUP_GAP))
 
-        -- Group header
+        -- Group header — small, centered, faded
         local header = parent:CreateFontString(nil, "ARTWORK")
-        header:SetFont(FONT, 16, "OUTLINE")
-        header:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, groupOffsetY)
+        header:SetFont(FONT, 12, "OUTLINE")
         header:SetText("Group " .. g)
-        header:SetTextColor(1, 1, 1, 1)
+        header:SetTextColor(0.5, 0.5, 0.5, 0.7)
+
+        local headerCenterX = groupOffsetX + (SLOT_WIDTH / 2)
+        header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)
 
         -- Slots
         for p = 1, 5 do
             local slotIndex = (g - 1) * 5 + p
             local slot = CreateSlotFrame(parent, slotIndex)
 
-            local slotOffsetY = groupOffsetY - groupHeaderHeight - ((p - 1) * SLOT_HEIGHT)
+            local slotOffsetY = groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP))
             slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
 
             self.slots[slotIndex] = slot

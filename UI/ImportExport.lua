@@ -13,25 +13,30 @@ local FORMAT_HORIZONTAL = 2
 local FORMAT_VERTICAL = 3
 local FORMAT_ENCODED = 4
 
-local formatNames = {
-    [FORMAT_PAIRED] = "Paired Columns",
-    [FORMAT_HORIZONTAL] = "Horizontal",
-    [FORMAT_VERTICAL] = "Vertical",
-    [FORMAT_ENCODED] = "Encoded String",
-}
+local SEPARATOR = "    " -- 4 spaces
+local EMPTY_PLACEHOLDER = "-"
+
+-- Slot value for export: use "-" placeholder for empty slots so column
+-- structure is preserved when re-importing
+local function ExportName(name)
+    if not name or name == "" then
+        return EMPTY_PLACEHOLDER
+    end
+
+    return name
+end
 
 -- Export formatting functions
 
 local function ExportPaired(slots)
     local lines = {}
-    -- Groups 1&2, 3&4, 5&6, 7&8
     for pair = 0, 3 do
         local g1 = pair * 2 + 1
         local g2 = pair * 2 + 2
         for p = 1, 5 do
-            local name1 = slots[(g1 - 1) * 5 + p] or ""
-            local name2 = slots[(g2 - 1) * 5 + p] or ""
-            table.insert(lines, name1 .. "\t" .. name2)
+            local name1 = ExportName(slots[(g1 - 1) * 5 + p])
+            local name2 = ExportName(slots[(g2 - 1) * 5 + p])
+            table.insert(lines, name1 .. SEPARATOR .. name2)
         end
         if pair < 3 then
             table.insert(lines, "")
@@ -43,14 +48,12 @@ end
 
 local function ExportHorizontal(slots)
     local lines = {}
-    -- 5 rows, 8 columns (each column = a group)
     for p = 1, 5 do
         local cols = {}
         for g = 1, 8 do
-            local name = slots[(g - 1) * 5 + p] or ""
-            table.insert(cols, name)
+            table.insert(cols, ExportName(slots[(g - 1) * 5 + p]))
         end
-        table.insert(lines, table.concat(cols, "\t"))
+        table.insert(lines, table.concat(cols, SEPARATOR))
     end
 
     return table.concat(lines, "\n")
@@ -60,8 +63,7 @@ local function ExportVertical(slots)
     local lines = {}
     for g = 1, 8 do
         for p = 1, 5 do
-            local name = slots[(g - 1) * 5 + p] or ""
-            table.insert(lines, name)
+            table.insert(lines, ExportName(slots[(g - 1) * 5 + p]))
         end
         if g < 8 then
             table.insert(lines, "")
@@ -88,13 +90,24 @@ local function SplitLines(text)
     return lines
 end
 
-local function SplitTabs(line)
+-- Split a line on whitespace. WoW character names never contain spaces
+-- so any whitespace is a column boundary.
+local function SplitColumns(line)
     local parts = {}
-    for part in line:gmatch("[^\t]+") do
-        table.insert(parts, strtrim(part))
+    for part in line:gmatch("%S+") do
+        table.insert(parts, part)
     end
 
     return parts
+end
+
+-- Convert imported cell value: treat "-" placeholder as empty
+local function ImportName(value)
+    if not value or value == "" or value == EMPTY_PLACEHOLDER then
+        return ""
+    end
+
+    return value
 end
 
 local function TryImportEncoded(text)
@@ -112,7 +125,6 @@ local function TryImportEncoded(text)
         return nil
     end
 
-    -- Normalize to 40-slot table
     local result = {}
     for i = 1, 40 do
         result[i] = slots[i] or ""
@@ -127,23 +139,22 @@ local function TryImportText(text)
         return nil
     end
 
-    -- Detect format by structure
-    local firstLineParts = SplitTabs(lines[1])
+    local firstLineParts = SplitColumns(lines[1])
 
-    -- Horizontal: 5 lines with 8 tab-separated columns
+    -- Horizontal: 5 lines with 8 columns
     if #lines >= 5 and #firstLineParts >= 8 then
         local slots = {}
         for p = 1, 5 do
-            local parts = SplitTabs(lines[p])
+            local parts = SplitColumns(lines[p])
             for g = 1, 8 do
-                slots[(g - 1) * 5 + p] = parts[g] or ""
+                slots[(g - 1) * 5 + p] = ImportName(parts[g])
             end
         end
 
         return slots
     end
 
-    -- Paired: lines with 2 tab-separated columns, groups of 5
+    -- Paired: lines with 2 columns, groups of 5
     if #firstLineParts == 2 then
         local slots = {}
         local nameLines = {}
@@ -160,9 +171,9 @@ local function TryImportText(text)
                 local g2 = pair * 2 + 2
                 for p = 1, 5 do
                     local lineIdx = pair * 5 + p
-                    local parts = SplitTabs(nameLines[lineIdx])
-                    slots[(g1 - 1) * 5 + p] = parts[1] or ""
-                    slots[(g2 - 1) * 5 + p] = parts[2] or ""
+                    local parts = SplitColumns(nameLines[lineIdx])
+                    slots[(g1 - 1) * 5 + p] = ImportName(parts[1])
+                    slots[(g2 - 1) * 5 + p] = ImportName(parts[2])
                 end
             end
 
@@ -170,7 +181,7 @@ local function TryImportText(text)
         end
     end
 
-    -- Vertical: one name per line, groups of 5
+    -- Vertical: one name per line
     local allNames = {}
     for _, line in ipairs(lines) do
         local trimmed = strtrim(line)
@@ -182,10 +193,9 @@ local function TryImportText(text)
     if #allNames >= 1 then
         local slots = {}
         for i = 1, math.min(40, #allNames) do
-            slots[i] = allNames[i]
+            slots[i] = ImportName(allNames[i])
         end
 
-        -- Fill remaining
         for i = #allNames + 1, 40 do
             slots[i] = ""
         end
@@ -237,19 +247,23 @@ local function CreateModalFrame(title, width, height)
     titleBar.text:SetText(title)
     titleBar.text:SetTextColor(1, 1, 1, 1)
 
-    local close = addon.CreateStyledButton(titleBar, 20, 20, "X")
-    close:SetPoint("RIGHT", -4, 0)
-    close:SetScript("OnClick", function()
-        frame:Hide()
-    end)
+    -- Close button — Blizzard template for ElvUI compat
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
 
     return frame
 end
 
 local function CreateMultiLineEditBox(parent)
+    -- Background behind the scroll area
+    local bg = parent:CreateTexture(nil, "BACKGROUND")
+    bg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 10))
+    bg:SetPoint("BOTTOMRIGHT", -10, 50)
+    bg:SetColorTexture(0, 0, 0, 1)
+
     local scrollFrame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 10))
-    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 50)
+    scrollFrame:SetPoint("TOPLEFT", bg, "TOPLEFT", 4, -4)
+    scrollFrame:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT", -22, 4)
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)
@@ -260,8 +274,18 @@ local function CreateMultiLineEditBox(parent)
     editBox:SetScript("OnEscapePressed", function(self)
         self:ClearFocus()
     end)
+    editBox:SetScript("OnEditFocusGained", function(self)
+        self:HighlightText()
+    end)
 
     scrollFrame:SetScrollChild(editBox)
+    scrollFrame.bg = bg
+
+    -- Catch clicks in the empty area below text and redirect to editBox
+    scrollFrame:EnableMouse(true)
+    scrollFrame:SetScript("OnMouseDown", function()
+        editBox:SetFocus()
+    end)
 
     return scrollFrame, editBox
 end
@@ -280,48 +304,64 @@ function addon:ShowExportWindow()
     self.exportFrame = frame
     self.exportFormat = FORMAT_PAIRED
 
-    -- Format radio buttons
+    -- Format buttons (styled buttons, not radio buttons)
+    local formatButtons = {}
+    local formats = {
+        { id = FORMAT_PAIRED, label = "Paired" },
+        { id = FORMAT_HORIZONTAL, label = "Horizontal" },
+        { id = FORMAT_VERTICAL, label = "Vertical" },
+        { id = FORMAT_ENCODED, label = "Encoded" },
+    }
+
     local prevBtn = nil
-    for fmt = FORMAT_PAIRED, FORMAT_ENCODED do
-        local radioBtn = CreateFrame("CheckButton", "RGMExportRadio" .. fmt, frame, "UIRadioButtonTemplate")
+    for _, fmt in ipairs(formats) do
+        local btn = addon.CreateStyledButton(frame, 80, 20, fmt.label)
+        btn.label:SetFont(FONT, 10, "OUTLINE")
+
         if prevBtn then
-            radioBtn:SetPoint("LEFT", prevBtn, "RIGHT", 80, 0)
+            btn:SetPoint("LEFT", prevBtn, "RIGHT", 4, 0)
         else
-            radioBtn:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 6))
+            btn:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 6))
         end
-        radioBtn:SetSize(16, 16)
-        radioBtn:SetChecked(fmt == FORMAT_PAIRED)
 
-        local label = radioBtn:CreateFontString(nil, "ARTWORK")
-        label:SetFont(FONT, 10, "OUTLINE")
-        label:SetPoint("LEFT", radioBtn, "RIGHT", 2, 0)
-        label:SetText(formatNames[fmt])
-        label:SetTextColor(0.8, 0.8, 0.8, 1)
+        btn.formatId = fmt.id
+        formatButtons[fmt.id] = btn
 
-        radioBtn:SetScript("OnClick", function()
-            self.exportFormat = fmt
-            -- Uncheck others
-            for f = FORMAT_PAIRED, FORMAT_ENCODED do
-                local rb = _G["RGMExportRadio" .. f]
-                if rb then
-                    rb:SetChecked(f == fmt)
-                end
-            end
-            self:UpdateExportText()
+        btn:SetScript("OnClick", function(self)
+            addon.exportFormat = self.formatId
+            addon:UpdateExportFormatButtons()
+            addon:UpdateExportText()
         end)
 
-        prevBtn = radioBtn
+        prevBtn = btn
     end
+
+    self.exportFormatButtons = formatButtons
 
     -- Text area
     local scrollFrame, editBox = CreateMultiLineEditBox(frame)
     scrollFrame:ClearAllPoints()
-    scrollFrame:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 30))
+    scrollFrame:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 32))
     scrollFrame:SetPoint("BOTTOMRIGHT", -30, 10)
     self.exportEditBox = editBox
 
+    self:UpdateExportFormatButtons()
     frame:Show()
     self:UpdateExportText()
+end
+
+function addon:UpdateExportFormatButtons()
+    if not self.exportFormatButtons then
+        return
+    end
+
+    for id, btn in pairs(self.exportFormatButtons) do
+        if id == self.exportFormat then
+            btn.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
+        else
+            btn.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+        end
+    end
 end
 
 function addon:UpdateExportText()
@@ -359,12 +399,12 @@ function addon:ShowImportWindow()
     end
 
     local frame = CreateModalFrame("Import Layout", 500, 400)
+    frame:SetFrameLevel(frame:GetFrameLevel() + 20)
     self.importFrame = frame
 
     local scrollFrame, editBox = CreateMultiLineEditBox(frame)
     self.importEditBox = editBox
 
-    -- Import button
     local importBtn = addon.CreateStyledButton(frame, 80, 24, "Import")
     importBtn:SetPoint("BOTTOMRIGHT", -10, 10)
     importBtn:SetScript("OnClick", function()
@@ -383,13 +423,13 @@ StaticPopupDialogs["RGM_IMPORT_LAYOUT"] = {
     hasEditBox = true,
     editBoxWidth = 200,
     OnAccept = function(self)
-        local name = self.editBox:GetText()
+        local name = self.EditBox:GetText()
         if name and strtrim(name) ~= "" then
             addon:FinishImport(strtrim(name))
         end
     end,
     OnShow = function(self)
-        self.editBox:SetFocus()
+        self.EditBox:SetFocus()
     end,
     timeout = 0,
     whileDead = true,
@@ -405,7 +445,6 @@ function addon:DoImport()
         return
     end
 
-    -- Try encoded first
     local slots = TryImportEncoded(text)
     if not slots then
         slots = TryImportText(text)

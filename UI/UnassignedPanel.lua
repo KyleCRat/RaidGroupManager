@@ -47,14 +47,17 @@ local function CreateEntryRow(parent, index)
         if not self.playerName then
             return
         end
+
+        addon.dragSource = self
+        addon.dragSourceType = "unassigned"
+        addon.dragSourceName = self.playerName
         self:SetAlpha(0.5)
-        self.dragging = true
     end)
 
     row:SetScript("OnDragStop", function(self)
         self:SetAlpha(1)
-        self.dragging = false
-        if not self.playerName then
+
+        if not addon.dragSource then
             return
         end
 
@@ -62,26 +65,31 @@ local function CreateEntryRow(parent, index)
         for i = 1, 40 do
             local slot = addon.slots[i]
             if slot and slot:IsMouseOver() then
-                addon:DropNameOnSlot(i, self.playerName)
+                addon:DropNameOnSlot(i, addon.dragSourceName)
+                ClearDragState()
 
                 return
             end
         end
+
+        ClearDragState()
     end)
 
     return row
 end
 
 function addon:CreateUnassignedPanel(parent)
-    -- Mode toggle
-    local toggleBtn = self.CreateStyledButton(parent, 50, 18, "Raid")
-    toggleBtn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-
+    -- Header
     local headerText = parent:CreateFontString(nil, "ARTWORK")
     headerText:SetFont(FONT, 12, "OUTLINE")
     headerText:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -2)
     headerText:SetText("Unassigned")
     headerText:SetTextColor(1, 1, 1, 1)
+
+    -- Mode toggle button
+    local toggleBtn = self.CreateStyledButton(parent, 40, 16, "Raid")
+    toggleBtn.label:SetFont(FONT, 10, "OUTLINE")
+    toggleBtn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
 
     self.unassignedMode = MODE_RAID
 
@@ -94,13 +102,14 @@ function addon:CreateUnassignedPanel(parent)
             self.unassignedMode = MODE_RAID
             btn.label:SetText("Raid")
         end
+
         self:RefreshUnassigned()
     end)
 
     -- Scroll frame for entries
     local scrollFrame = CreateFrame("ScrollFrame", "RGMUnassignedScroll", parent, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 0, -22)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 0)
+    scrollFrame:SetPoint("TOPLEFT", 0, -20)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 30)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetSize(scrollFrame:GetWidth(), 1)
@@ -112,6 +121,46 @@ function addon:CreateUnassignedPanel(parent)
     for i = 1, MAX_ROWS do
         self.unassignedRows[i] = CreateEntryRow(content, i)
     end
+
+    -- Name input field + Add button at the bottom
+    local addEditBox = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
+    addEditBox:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
+    addEditBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -44, 0)
+    addEditBox:SetHeight(20)
+    addEditBox:SetFont(FONT, 12, "OUTLINE")
+    addEditBox:SetAutoFocus(false)
+    addEditBox:SetTextColor(1, 1, 1, 1)
+    addEditBox:SetMaxLetters(40)
+    addEditBox:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    addEditBox:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+    addEditBox:SetBackdropBorderColor(0, 0, 0, 1)
+    addEditBox:SetTextInsets(4, 4, 0, 0)
+
+    addEditBox:SetScript("OnEnterPressed", function(self)
+        local name = strtrim(self:GetText())
+        if name ~= "" then
+            addon:AddNameToGrid(addon:NormalizeName(name))
+            self:SetText("")
+        end
+    end)
+
+    addEditBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
+
+    local addBtn = self.CreateStyledButton(parent, 40, 20, "Add")
+    addBtn:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    addBtn:SetScript("OnClick", function()
+        local name = strtrim(addEditBox:GetText())
+        if name ~= "" then
+            addon:AddNameToGrid(addon:NormalizeName(name))
+            addEditBox:SetText("")
+        end
+    end)
 end
 
 -- Build the set of names currently assigned in the grid
@@ -120,7 +169,7 @@ local function GetAssignedNames()
     for i = 1, 40 do
         local text = addon:GetSlotText(i)
         if text ~= "" then
-            assigned[addon:NormalizeName(text)] = true
+            assigned[text] = true
         end
     end
 
@@ -152,7 +201,7 @@ function addon:GetUnassignedGuildMembers()
     local numGuild = GetNumGuildMembers()
 
     for i = 1, numGuild do
-        local name, rankName, rankIndex, level, _, _, _, _, _, _, classFile = GetGuildRosterInfo(i)
+        local name, _, rankIndex, level, _, _, _, _, _, _, classFile = GetGuildRosterInfo(i)
         if name and level >= playerLevel then
             local normalized = self:NormalizeName(name)
             if not assigned[normalized] then
@@ -225,7 +274,6 @@ function addon:RefreshUnassigned()
         end
     end
 
-    -- Resize content for scroll
     local totalHeight = math.max(1, #entries * ROW_HEIGHT)
     self.unassignedContent:SetHeight(totalHeight)
 end

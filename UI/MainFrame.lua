@@ -1,7 +1,7 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
 local FRAME_WIDTH = 700
-local FRAME_HEIGHT = 650
+local FRAME_HEIGHT = 600
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
 local FONT = addon.FONT
 local BUTTON_HEIGHT = 24
@@ -9,7 +9,7 @@ local BUTTON_PADDING = 6
 local BOTTOM_BAR_HEIGHT = 40
 
 local GRID_WIDTH = 330
-local UNASSIGNED_WIDTH = 130
+local UNASSIGNED_WIDTH = 140
 local LAYOUT_WIDTH = 200
 
 local BACKDROP = {
@@ -67,7 +67,7 @@ function addon:CreateMainFrame()
     frame:SetBackdrop(BACKDROP)
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
-    frame:SetFrameStrata("MEDIUM")
+    frame:SetFrameStrata("HIGH")
     frame:SetClampedToScreen(true)
     frame:Hide()
 
@@ -102,45 +102,48 @@ function addon:CreateMainFrame()
     titleBar.text:SetText("Raid Group Manager")
     titleBar.text:SetTextColor(1, 1, 1, 1)
 
-    -- Close button
-    local close = CreateStyledButton(titleBar, 20, 20, "X")
-    close:SetPoint("RIGHT", -4, 0)
-    close:SetScript("OnClick", function()
-        frame:Hide()
-    end)
+    -- Close button — use Blizzard template so ElvUI can skin it
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
 
-    -- Content area references
     frame.titleBar = titleBar
     self.mainFrame = frame
 
+    -- Content area starts below title bar
+    local contentTop = -(TITLE_HEIGHT + 4)
+
+    -- Helper text at top of body
+    local helperText = frame:CreateFontString(nil, "ARTWORK")
+    helperText:SetFont(FONT, 12, "OUTLINE")
+    helperText:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, contentTop)
+    helperText:SetText("Drag slots to swap players")
+    helperText:SetTextColor(0.5, 0.5, 0.5, 0.7)
+
+    local gridTop = contentTop - 16
+
     -- Grid area (left)
     local gridArea = CreateFrame("Frame", nil, frame)
-    gridArea:SetPoint("TOPLEFT", 10, -(TITLE_HEIGHT + 8))
-    gridArea:SetSize(GRID_WIDTH, FRAME_HEIGHT - TITLE_HEIGHT - BOTTOM_BAR_HEIGHT - 16)
+    gridArea:SetPoint("TOPLEFT", 10, gridTop)
+    gridArea:SetSize(GRID_WIDTH, FRAME_HEIGHT - TITLE_HEIGHT - BOTTOM_BAR_HEIGHT - 32)
     frame.gridArea = gridArea
-
-    -- Helper text
-    local helperText = gridArea:CreateFontString(nil, "ARTWORK")
-    helperText:SetFont(FONT, 12, "OUTLINE")
-    helperText:SetPoint("BOTTOMLEFT", gridArea, "TOPLEFT", 0, 2)
-    helperText:SetText("Drag slots to swap players")
-    helperText:SetTextColor(0.5, 0.5, 0.5, 1)
 
     -- Create grid slots
     self:CreateGrid(gridArea)
 
-    -- Unassigned panel (center-right)
+    -- Unassigned panel (center-right) — bottom aligns with grid
     local unassignedArea = CreateFrame("Frame", nil, frame)
-    unassignedArea:SetPoint("TOPLEFT", gridArea, "TOPRIGHT", 10, 0)
-    unassignedArea:SetSize(UNASSIGNED_WIDTH, FRAME_HEIGHT - TITLE_HEIGHT - BOTTOM_BAR_HEIGHT - 16)
+    unassignedArea:SetPoint("TOPLEFT", gridArea, "TOPRIGHT", 10, 16)
+    unassignedArea:SetPoint("BOTTOM", gridArea, "BOTTOM", 0, 0)
+    unassignedArea:SetWidth(UNASSIGNED_WIDTH)
     frame.unassignedArea = unassignedArea
 
     self:CreateUnassignedPanel(unassignedArea)
 
-    -- Layout panel (far right)
+    -- Layout panel (far right) — bottom aligns with grid
     local layoutArea = CreateFrame("Frame", nil, frame)
     layoutArea:SetPoint("TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
-    layoutArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, BOTTOM_BAR_HEIGHT + 8)
+    layoutArea:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
+    layoutArea:SetPoint("BOTTOM", gridArea, "BOTTOM", 0, 0)
     frame.layoutArea = layoutArea
 
     self:CreateLayoutPanel(layoutArea)
@@ -152,32 +155,32 @@ function addon:CreateMainFrame()
     bottomBar:SetHeight(BUTTON_HEIGHT)
     frame.bottomBar = bottomBar
 
-    local btnLoadRoster = CreateStyledButton(bottomBar, 120, BUTTON_HEIGHT, "Load Roster")
+    local btnLoadRoster = CreateStyledButton(bottomBar, 100, BUTTON_HEIGHT, "Load Roster")
     btnLoadRoster:SetPoint("LEFT")
     btnLoadRoster:SetScript("OnClick", function()
         self:LoadCurrentRoster()
     end)
 
-    local btnApply = CreateStyledButton(bottomBar, 80, BUTTON_HEIGHT, "Apply")
+    local btnApply = CreateStyledButton(bottomBar, 60, BUTTON_HEIGHT, "Apply")
     btnApply:SetPoint("LEFT", btnLoadRoster, "RIGHT", BUTTON_PADDING, 0)
     btnApply:SetScript("OnClick", function()
         self:StartApply()
     end)
     self.applyButton = btnApply
 
-    local btnSave = CreateStyledButton(bottomBar, 60, BUTTON_HEIGHT, "Save")
+    local btnSave = CreateStyledButton(bottomBar, 50, BUTTON_HEIGHT, "Save")
     btnSave:SetPoint("LEFT", btnApply, "RIGHT", BUTTON_PADDING, 0)
     btnSave:SetScript("OnClick", function()
         self:PromptSaveLayout()
     end)
 
-    local btnExport = CreateStyledButton(bottomBar, 60, BUTTON_HEIGHT, "Export")
+    local btnExport = CreateStyledButton(bottomBar, 55, BUTTON_HEIGHT, "Export")
     btnExport:SetPoint("LEFT", btnSave, "RIGHT", BUTTON_PADDING, 0)
     btnExport:SetScript("OnClick", function()
         self:ShowExportWindow()
     end)
 
-    local btnImport = CreateStyledButton(bottomBar, 60, BUTTON_HEIGHT, "Import")
+    local btnImport = CreateStyledButton(bottomBar, 55, BUTTON_HEIGHT, "Import")
     btnImport:SetPoint("LEFT", btnExport, "RIGHT", BUTTON_PADDING, 0)
     btnImport:SetScript("OnClick", function()
         self:ShowImportWindow()
@@ -204,7 +207,6 @@ function addon:LoadCurrentRoster()
         return
     end
 
-    -- Track how many players are in each group so far
     local groupCounts = {}
     for g = 1, 8 do
         groupCounts[g] = 0

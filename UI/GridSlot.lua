@@ -35,14 +35,8 @@ local function CreateSlotFrame(parent, slotIndex)
     slot:EnableMouse(true)
     slot:RegisterForDrag("LeftButton")
 
-    -- Border (1px outset, drawn behind everything)
-    slot.borderTex = slot:CreateTexture(nil, "BORDER")
-    slot.borderTex:SetPoint("TOPLEFT", -1, 1)
-    slot.borderTex:SetPoint("BOTTOMRIGHT", 1, -1)
-    slot.borderTex:SetColorTexture(0, 0, 0, 1)
-
-    -- Background
-    slot.bg = slot:CreateTexture(nil, "BACKGROUND")
+    -- Background fill (above border so it's visible)
+    slot.bg = slot:CreateTexture(nil, "BORDER")
     slot.bg:SetAllPoints()
     slot.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
     slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
@@ -191,7 +185,6 @@ function addon:RefreshSlot(slotIndex)
         slot.nameText:SetText("")
         slot.emptyText:Show()
         slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
-        slot.borderTex:SetColorTexture(COLOR_BORDER_NORMAL.r, COLOR_BORDER_NORMAL.g, COLOR_BORDER_NORMAL.b, 1)
         roleIcon:Hide()
 
         return
@@ -208,13 +201,11 @@ function addon:RefreshSlot(slotIndex)
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
             slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-            slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.25)
+            slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.5)
         else
             slot.nameText:SetTextColor(1, 1, 1)
             slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
         end
-
-        slot.borderTex:SetColorTexture(COLOR_BORDER_NORMAL.r, COLOR_BORDER_NORMAL.g, COLOR_BORDER_NORMAL.b, 1)
 
         -- Role icon
         local atlas = ROLE_ATLAS[member.role]
@@ -228,7 +219,7 @@ function addon:RefreshSlot(slotIndex)
         -- Not in raid — gray text, red-tinted border
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
-        slot.borderTex:SetColorTexture(COLOR_BORDER_UNMATCHED.r, COLOR_BORDER_UNMATCHED.g, COLOR_BORDER_UNMATCHED.b, 1)
+        -- slot.borderTex:SetColorTexture(COLOR_BORDER_UNMATCHED.r, COLOR_BORDER_UNMATCHED.g, COLOR_BORDER_UNMATCHED.b, 1)
         roleIcon:Hide()
     end
 end
@@ -250,7 +241,7 @@ function addon:CreateGrid(parent)
         local row = math.floor((g - 1) / 2)
 
         local groupOffsetX = col * (colWidth + 4)
-        local groupOffsetY = -(row * (groupSlotHeight + GROUP_HEADER_HEIGHT + GROUP_GAP))
+        local groupOffsetY = math.floor(-(row * (groupSlotHeight + GROUP_HEADER_HEIGHT + GROUP_GAP)))
 
         -- Group header — small, centered, faded
         local header = parent:CreateFontString(nil, "ARTWORK")
@@ -258,7 +249,7 @@ function addon:CreateGrid(parent)
         header:SetText("Group " .. g)
         header:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
-        local headerCenterX = groupOffsetX + (SLOT_WIDTH / 2)
+        local headerCenterX = math.floor(groupOffsetX + (SLOT_WIDTH / 2))
         header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)
 
         -- Slots
@@ -266,7 +257,7 @@ function addon:CreateGrid(parent)
             local slotIndex = (g - 1) * 5 + p
             local slot = CreateSlotFrame(parent, slotIndex)
 
-            local slotOffsetY = groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP))
+            local slotOffsetY = math.floor(groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP)))
             slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
 
             self.slots[slotIndex] = slot

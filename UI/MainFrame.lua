@@ -8,9 +8,9 @@ local BUTTON_HEIGHT = 24
 local BUTTON_PADDING = 6
 local BOTTOM_BAR_HEIGHT = 40
 
-local GRID_WIDTH = 330
-local UNASSIGNED_WIDTH = 140
-local LAYOUT_WIDTH = 200
+local GRID_WIDTH = 314
+local UNASSIGNED_WIDTH = 160
+local LAYOUT_WIDTH = 160
 
 local BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8x8",
@@ -55,6 +55,34 @@ local function CreateStyledButton(parent, width, height, label)
 end
 
 addon.CreateStyledButton = CreateStyledButton
+
+local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
+
+local function CreateCloseButton(parent, targetFrame)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(14, 14)
+
+    btn.icon = btn:CreateTexture(nil, "ARTWORK")
+    btn.icon:SetAllPoints()
+    btn.icon:SetTexture(CLOSE_TEXTURE)
+    btn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+
+    btn:SetScript("OnEnter", function()
+        btn.icon:SetVertexColor(1, 1, 1, 1)
+    end)
+
+    btn:SetScript("OnLeave", function()
+        btn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+    end)
+
+    btn:SetScript("OnClick", function()
+        targetFrame:Hide()
+    end)
+
+    return btn
+end
+
+addon.CreateCloseButton = CreateCloseButton
 
 function addon:CreateMainFrame()
     if self.mainFrame then
@@ -102,9 +130,9 @@ function addon:CreateMainFrame()
     titleBar.text:SetText("Raid Group Manager")
     titleBar.text:SetTextColor(1, 1, 1, 1)
 
-    -- Close button — use Blizzard template so ElvUI can skin it
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    -- Close button
+    local close = CreateCloseButton(titleBar, frame)
+    close:SetPoint("RIGHT", -6, 1)
 
     frame.titleBar = titleBar
     self.mainFrame = frame
@@ -121,18 +149,28 @@ function addon:CreateMainFrame()
 
     local gridTop = contentTop - 16
 
-    -- Grid area (left)
+    -- Exact grid content height:
+    -- 4 group rows x (header + 5 slots + 4 gaps) + 3 inter-group gaps
+    local SLOT_HEIGHT = addon.SLOT_HEIGHT
+    local SLOT_GAP = addon.SLOT_GAP
+    local GROUP_GAP = addon.GROUP_GAP
+    local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
+    local groupHeight = GROUP_HEADER_HEIGHT + (5 * SLOT_HEIGHT) + (4 * SLOT_GAP)
+    local gridHeight = (4 * groupHeight) + (3 * GROUP_GAP)
+
+    -- Grid area (left) — sized to exact grid content
     local gridArea = CreateFrame("Frame", nil, frame)
     gridArea:SetPoint("TOPLEFT", 10, gridTop)
-    gridArea:SetSize(GRID_WIDTH, FRAME_HEIGHT - TITLE_HEIGHT - BOTTOM_BAR_HEIGHT - 32)
+    gridArea:SetSize(GRID_WIDTH, gridHeight)
     frame.gridArea = gridArea
 
     -- Create grid slots
     self:CreateGrid(gridArea)
 
-    -- Unassigned panel (center-right) — bottom aligns with grid
+    -- Panels span from helper text level to grid bottom
+    -- Unassigned panel (center-right)
     local unassignedArea = CreateFrame("Frame", nil, frame)
-    unassignedArea:SetPoint("TOPLEFT", gridArea, "TOPRIGHT", 10, 16)
+    unassignedArea:SetPoint("TOPLEFT", frame, "TOPLEFT", GRID_WIDTH + 20, contentTop)
     unassignedArea:SetPoint("BOTTOM", gridArea, "BOTTOM", 0, 0)
     unassignedArea:SetWidth(UNASSIGNED_WIDTH)
     frame.unassignedArea = unassignedArea

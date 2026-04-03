@@ -247,9 +247,9 @@ local function CreateModalFrame(title, width, height)
     titleBar.text:SetText(title)
     titleBar.text:SetTextColor(1, 1, 1, 1)
 
-    -- Close button — Blizzard template for ElvUI compat
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    -- Close button
+    local close = addon.CreateCloseButton(titleBar, frame)
+    close:SetPoint("RIGHT", -6, 1)
 
     return frame
 end

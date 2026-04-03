@@ -1,4 +1,5 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
+local LPP = LibStub("LibPixelPerfect-1.0")
 
 local FRAME_WIDTH = 700
 local FRAME_HEIGHT = 600
@@ -149,14 +150,15 @@ function addon:CreateMainFrame()
 
     local gridTop = contentTop - 16
 
-    -- Exact grid content height:
-    -- 4 group rows x (header + 5 slots + 4 gaps) + 3 inter-group gaps
-    local SLOT_HEIGHT = addon.SLOT_HEIGHT
-    local SLOT_GAP = addon.SLOT_GAP
-    local GROUP_GAP = addon.GROUP_GAP
-    local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
-    local groupHeight = GROUP_HEADER_HEIGHT + (5 * SLOT_HEIGHT) + (4 * SLOT_GAP)
-    local gridHeight = (4 * groupHeight) + (3 * GROUP_GAP)
+    -- Exact grid content height — pixel-perfect to match CreateGrid
+    local PS = LPP.PScale
+    local slotHeight = PS(addon.SLOT_HEIGHT)
+    local slotGap = PS(addon.SLOT_GAP)
+    local groupGap = PS(addon.GROUP_GAP)
+    local headerHeight = PS(addon.GROUP_HEADER_HEIGHT)
+    local groupSlotHeight = 5 * slotHeight + 4 * slotGap
+    local groupStride = headerHeight + groupSlotHeight + groupGap
+    local gridHeight = 4 * groupStride - groupGap
 
     -- Grid area (left) — sized to exact grid content
     local gridArea = CreateFrame("Frame", nil, frame)

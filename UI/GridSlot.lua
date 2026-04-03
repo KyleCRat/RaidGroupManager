@@ -1,4 +1,5 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
+local LPP = LibStub("LibPixelPerfect-1.0")
 
 local FONT = addon.FONT
 local SLOT_WIDTH = addon.SLOT_WIDTH
@@ -230,17 +231,27 @@ function addon:RefreshAllSlots()
 end
 
 -- Create the 8-group x 5-slot grid layout
--- 4 rows of 2 groups side by side, compact spacing
+-- Create the 8-group x 5-slot grid layout
+-- 4 rows of 2 groups side by side, pixel-perfect spacing
 function addon:CreateGrid(parent)
-    local colWidth = SLOT_WIDTH + 10
-    local groupHeight = GROUP_HEADER_HEIGHT + (5 * SLOT_HEIGHT) + (4 * SLOT_GAP)
-    local groupStride = groupHeight + GROUP_GAP
+    local PS = LPP.PScale
+
+    local slotWidth = PS(SLOT_WIDTH)
+    local slotHeight = PS(SLOT_HEIGHT)
+    local slotGap = PS(SLOT_GAP)
+    local groupGap = PS(GROUP_GAP)
+    local headerHeight = PS(GROUP_HEADER_HEIGHT)
+    local colWidth = PS(SLOT_WIDTH + 10)
+    local colSpacing = PS(4)
+
+    local groupSlotHeight = 5 * slotHeight + 4 * slotGap
+    local groupStride = headerHeight + groupSlotHeight + groupGap
 
     for g = 1, 8 do
         local col = (g - 1) % 2
         local row = (g - 1 - col) / 2
 
-        local groupOffsetX = col * (colWidth + 4)
+        local groupOffsetX = col * (colWidth + colSpacing)
         local groupOffsetY = -(row * groupStride)
 
         -- Group header — small, centered, faded
@@ -249,7 +260,7 @@ function addon:CreateGrid(parent)
         header:SetText("Group " .. g)
         header:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
-        local headerCenterX = groupOffsetX + (SLOT_WIDTH / 2)
+        local headerCenterX = groupOffsetX + (slotWidth / 2)
         header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)
 
         -- Slots
@@ -257,7 +268,9 @@ function addon:CreateGrid(parent)
             local slotIndex = (g - 1) * 5 + p
             local slot = CreateSlotFrame(parent, slotIndex)
 
-            local slotOffsetY = groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP))
+            LPP.PSize(slot, SLOT_WIDTH, SLOT_HEIGHT)
+
+            local slotOffsetY = groupOffsetY - headerHeight - ((p - 1) * (slotHeight + slotGap))
             slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
 
             self.slots[slotIndex] = slot

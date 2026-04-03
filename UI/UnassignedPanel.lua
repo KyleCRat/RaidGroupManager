@@ -106,10 +106,22 @@ function addon:CreateUnassignedPanel(parent)
         self:RefreshUnassigned()
     end)
 
+    -- Dark background container for scroll area
+    local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    scrollBg:SetPoint("TOPLEFT", 0, -20)
+    scrollBg:SetPoint("BOTTOMRIGHT", 0, 30)
+    scrollBg:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    scrollBg:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
+    scrollBg:SetBackdropBorderColor(0, 0, 0, 1)
+
     -- Scroll frame for entries
-    local scrollFrame = CreateFrame("ScrollFrame", "RGMUnassignedScroll", parent, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 0, -20)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 30)
+    local scrollFrame = CreateFrame("ScrollFrame", "RGMUnassignedScroll", scrollBg, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 2, -2)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 2)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetSize(scrollFrame:GetWidth(), 1)

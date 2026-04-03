@@ -219,7 +219,6 @@ function addon:RefreshSlot(slotIndex)
         -- Not in raid — gray text, red-tinted border
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
-        -- slot.borderTex:SetColorTexture(COLOR_BORDER_UNMATCHED.r, COLOR_BORDER_UNMATCHED.g, COLOR_BORDER_UNMATCHED.b, 1)
         roleIcon:Hide()
     end
 end
@@ -234,14 +233,15 @@ end
 -- 4 rows of 2 groups side by side, compact spacing
 function addon:CreateGrid(parent)
     local colWidth = SLOT_WIDTH + 10
-    local groupSlotHeight = 5 * SLOT_HEIGHT + 4 * SLOT_GAP -- 5 slots with gaps between them
+    local groupHeight = GROUP_HEADER_HEIGHT + (5 * SLOT_HEIGHT) + (4 * SLOT_GAP)
+    local groupStride = groupHeight + GROUP_GAP
 
     for g = 1, 8 do
-        local col = ((g - 1) % 2)
-        local row = math.floor((g - 1) / 2)
+        local col = (g - 1) % 2
+        local row = (g - 1 - col) / 2
 
         local groupOffsetX = col * (colWidth + 4)
-        local groupOffsetY = math.floor(-(row * (groupSlotHeight + GROUP_HEADER_HEIGHT + GROUP_GAP)))
+        local groupOffsetY = -(row * groupStride)
 
         -- Group header — small, centered, faded
         local header = parent:CreateFontString(nil, "ARTWORK")
@@ -249,7 +249,7 @@ function addon:CreateGrid(parent)
         header:SetText("Group " .. g)
         header:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
-        local headerCenterX = math.floor(groupOffsetX + (SLOT_WIDTH / 2))
+        local headerCenterX = groupOffsetX + (SLOT_WIDTH / 2)
         header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)
 
         -- Slots
@@ -257,7 +257,7 @@ function addon:CreateGrid(parent)
             local slotIndex = (g - 1) * 5 + p
             local slot = CreateSlotFrame(parent, slotIndex)
 
-            local slotOffsetY = math.floor(groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP)))
+            local slotOffsetY = groupOffsetY - GROUP_HEADER_HEIGHT - ((p - 1) * (SLOT_HEIGHT + SLOT_GAP))
             slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
 
             self.slots[slotIndex] = slot

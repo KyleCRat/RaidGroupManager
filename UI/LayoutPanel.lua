@@ -27,15 +27,29 @@ local function CreateLayoutRow(parent, index)
     row.nameText = row:CreateFontString(nil, "ARTWORK")
     row.nameText:SetFont(FONT, 12, "OUTLINE")
     row.nameText:SetPoint("LEFT", 4, 0)
-    row.nameText:SetPoint("RIGHT", -24, 0)
+    row.nameText:SetPoint("RIGHT", -22, 0)
     row.nameText:SetJustifyH("LEFT")
     row.nameText:SetWordWrap(false)
     row.nameText:SetTextColor(1, 1, 1, 1)
 
-    -- Delete button
-    local deleteBtn = addon.CreateStyledButton(row, 18, 18, "X")
-    deleteBtn:SetPoint("RIGHT", -2, 0)
-    deleteBtn.label:SetFont(FONT, 10, "OUTLINE")
+    -- Delete button (same close texture as frame close button)
+    local deleteBtn = CreateFrame("Button", nil, row)
+    deleteBtn:SetSize(14, 14)
+    deleteBtn:SetPoint("RIGHT", -4, 0)
+
+    deleteBtn.icon = deleteBtn:CreateTexture(nil, "ARTWORK")
+    deleteBtn.icon:SetAllPoints()
+    deleteBtn.icon:SetTexture("Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close")
+    deleteBtn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+
+    deleteBtn:SetScript("OnEnter", function()
+        deleteBtn.icon:SetVertexColor(1, 1, 1, 1)
+    end)
+
+    deleteBtn:SetScript("OnLeave", function()
+        deleteBtn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+    end)
+
     deleteBtn:SetScript("OnClick", function()
         if row.layoutIndex then
             addon:DeleteLayout(row.layoutIndex)
@@ -148,10 +162,22 @@ function addon:CreateLayoutPanel(parent)
         addon.autoSave = self:GetChecked()
     end)
 
+    -- Dark background container for scroll area
+    local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    scrollBg:SetPoint("TOPLEFT", 0, -22)
+    scrollBg:SetPoint("BOTTOMRIGHT", 0, 0)
+    scrollBg:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    scrollBg:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
+    scrollBg:SetBackdropBorderColor(0, 0, 0, 1)
+
     -- Scroll frame for layout list
-    local scrollFrame = CreateFrame("ScrollFrame", "RGMLayoutScroll", parent, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 0, -22)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 0)
+    local scrollFrame = CreateFrame("ScrollFrame", "RGMLayoutScroll", scrollBg, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 2, -2)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 2)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetSize(scrollFrame:GetWidth(), 1)

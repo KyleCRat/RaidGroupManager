@@ -1,0 +1,27 @@
+## Interface: 120001
+## Title: Raid Group Manager
+## Notes: Organize and apply raid group layouts
+## Author: Yvairel
+## Version: 12.0.1-1
+## SavedVariables: RaidGroupManagerDB
+
+# Libraries
+Libs/LibStub/LibStub.lua
+Libs/CallbackHandler-1.0/CallbackHandler-1.0.xml
+Libs/AceAddon-3.0/AceAddon-3.0.xml
+Libs/AceDB-3.0/AceDB-3.0.xml
+Libs/AceConsole-3.0/AceConsole-3.0.xml
+Libs/AceEvent-3.0/AceEvent-3.0.xml
+Libs/AceSerializer-3.0/AceSerializer-3.0.xml
+Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua
+Libs/LibDBIcon-1.0/LibDBIcon-1.0/lib.xml
+
+# Addon files
+Core.lua
+MinimapButton.lua
+GroupAssignment.lua
+UI/MainFrame.lua
+UI/GridSlot.lua
+UI/UnassignedPanel.lua
+UI/LayoutPanel.lua
+UI/ImportExport.lua

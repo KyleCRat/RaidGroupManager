@@ -27,5 +27,5 @@
 |  [  empty  ]  [  empty  ]  |                       |  [ Layoutname       ] | |
 |  [  empty  ]  [  empty  ]  | [Enter name    ][Add] |  [ Layoutname       ] v |
 |------------------------------------------------------------------------------|
-|  [Load Roster] [Apply] [Save] [Export] [Import]                              |
+|  [Load Roster] [Apply] [Save] [Split] [Split]             [Export] [Import]  |
 --------------------------------------------------------------------------------

@@ -252,3 +252,218 @@ function addon:AddNameToGrid(name)
 
     self:Print("No empty slots available.")
 end
+
+--------------------------------------------------------------------------------
+-- Group splitting
+--------------------------------------------------------------------------------
+
+local MYTHIC_DIFFICULTY_ID = 16
+
+local function IsMythicDifficulty()
+    local _, _, difficultyID = GetInstanceInfo()
+
+    return difficultyID == MYTHIC_DIFFICULTY_ID
+end
+
+local function CollectPlayersFromGroups(groups)
+    local players = {}
+    for _, g in ipairs(groups) do
+        for p = 1, 5 do
+            local slotIndex = (g - 1) * 5 + p
+            local name = addon:GetSlotText(slotIndex)
+            if name ~= "" then
+                table.insert(players, name)
+            end
+        end
+    end
+
+    return players
+end
+
+local function ClearGroups(groups)
+    for _, g in ipairs(groups) do
+        for p = 1, 5 do
+            local slotIndex = (g - 1) * 5 + p
+            addon:SetSlotText(slotIndex, "")
+        end
+    end
+end
+
+local function PlacePlayersInGroups(players, groups)
+    local idx = 1
+    for _, g in ipairs(groups) do
+        for p = 1, 5 do
+            if idx > #players then
+
+                return
+            end
+
+            local slotIndex = (g - 1) * 5 + p
+            addon:SetSlotText(slotIndex, players[idx])
+            idx = idx + 1
+        end
+    end
+end
+
+local function GroupsNeeded(count)
+    return math.ceil(count / 5)
+end
+
+--------------------------------------------------------------------------------
+-- Role detection for balanced splits
+--------------------------------------------------------------------------------
+
+-- Melee DPS specialization IDs
+local MELEE_DPS_SPECS = {
+    [71]  = true, [72]  = true,                   -- Arms, Fury Warrior
+    [259] = true, [260] = true, [261] = true,     -- Assassination, Outlaw, Subtlety Rogue
+    [251] = true, [252] = true,                   -- Frost, Unholy Death Knight
+    [577] = true,                                 -- Havoc Demon Hunter
+    [269] = true,                                 -- Windwalker Monk
+    [70]  = true,                                 -- Retribution Paladin
+    [103] = true,                                 -- Feral Druid
+    [263] = true,                                 -- Enhancement Shaman
+    [255] = true,                                 -- Survival Hunter
+}
+
+-- Fallback: classes where DPS is melee when spec ID is unavailable
+local DEFAULT_MELEE_CLASSES = {
+    WARRIOR = true,
+    ROGUE = true,
+    DEATHKNIGHT = true,
+    DEMONHUNTER = true,
+    MONK = true,
+    PALADIN = true,
+}
+
+-- Returns "TANK", "HEALER", "MELEE", or "RANGED"
+local function GetCombatRole(member)
+    if member.role == "TANK" then
+
+        return "TANK"
+    end
+
+    if member.role == "HEALER" then
+
+        return "HEALER"
+    end
+
+    -- DPS — check spec ID for melee vs ranged
+    local specID = GetInspectSpecialization("raid" .. member.raidIndex)
+    if specID and specID > 0 then
+        if MELEE_DPS_SPECS[specID] then
+
+            return "MELEE"
+        end
+
+        return "RANGED"
+    end
+
+    -- Spec unavailable — fall back to class
+    if DEFAULT_MELEE_CLASSES[member.class] then
+
+        return "MELEE"
+    end
+
+    return "RANGED"
+end
+
+local ROLE_ORDER = { "TANK", "HEALER", "MELEE", "RANGED" }
+
+-- Split a list of player names into two role-balanced sides.
+-- Each role bucket is alternated evenly between sideA and sideB.
+local function SplitByRole(players, roster)
+    local buckets = { TANK = {}, HEALER = {}, MELEE = {}, RANGED = {} }
+
+    for _, name in ipairs(players) do
+        local member = roster[name]
+        local combatRole
+        if member then
+            combatRole = GetCombatRole(member)
+        else
+            combatRole = "RANGED"
+        end
+        table.insert(buckets[combatRole], name)
+    end
+
+    local sideA, sideB = {}, {}
+    for _, role in ipairs(ROLE_ORDER) do
+        for i, name in ipairs(buckets[role]) do
+            if i % 2 == 1 then
+                table.insert(sideA, name)
+            else
+                table.insert(sideB, name)
+            end
+        end
+    end
+
+    return sideA, sideB
+end
+
+--------------------------------------------------------------------------------
+-- Split functions
+--------------------------------------------------------------------------------
+
+function addon:SplitOddEven()
+    local oddGroups, evenGroups, allGroups
+
+    if IsMythicDifficulty() then
+        oddGroups = { 1, 3 }
+        evenGroups = { 2, 4 }
+        allGroups = { 1, 2, 3, 4 }
+    else
+        oddGroups = { 1, 3, 5, 7 }
+        evenGroups = { 2, 4, 6, 8 }
+        allGroups = { 1, 2, 3, 4, 5, 6, 7, 8 }
+    end
+
+    local players = CollectPlayersFromGroups(allGroups)
+    local roster = self:GetRaidRoster()
+    ClearGroups(allGroups)
+
+    local oddPlayers, evenPlayers = SplitByRole(players, roster)
+
+    PlacePlayersInGroups(oddPlayers, oddGroups)
+    PlacePlayersInGroups(evenPlayers, evenGroups)
+
+    self:RefreshAllSlots()
+    self:RefreshUnassigned()
+    self:TryAutoSave()
+end
+
+function addon:SplitHalves()
+    local allGroups
+
+    if IsMythicDifficulty() then
+        allGroups = { 1, 2, 3, 4 }
+    else
+        allGroups = { 1, 2, 3, 4, 5, 6 }
+    end
+
+    local players = CollectPlayersFromGroups(allGroups)
+    local roster = self:GetRaidRoster()
+    ClearGroups(allGroups)
+
+    local firstPlayers, secondPlayers = SplitByRole(players, roster)
+
+    -- Pack each half into only as many groups as needed
+    local firstCount = GroupsNeeded(#firstPlayers)
+    local secondCount = GroupsNeeded(#secondPlayers)
+
+    local firstGroups = {}
+    for i = 1, firstCount do
+        firstGroups[i] = allGroups[i]
+    end
+
+    local secondGroups = {}
+    for i = 1, secondCount do
+        secondGroups[i] = allGroups[firstCount + i]
+    end
+
+    PlacePlayersInGroups(firstPlayers, firstGroups)
+    PlacePlayersInGroups(secondPlayers, secondGroups)
+
+    self:RefreshAllSlots()
+    self:RefreshUnassigned()
+    self:TryAutoSave()
+end

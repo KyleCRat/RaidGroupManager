@@ -17,17 +17,255 @@ local ROLE_TEXTURES = {
 local MODE_RAID = 1
 local MODE_GUILD = 2
 local MODE_ROLE = 3
+local MODE_ROSTER = 4
 
 local MODE_LABELS = {
     [MODE_RAID] = "Raid",
     [MODE_GUILD] = "Guild",
     [MODE_ROLE] = "Role",
+    [MODE_ROSTER] = "Roster",
 }
 
-local TAB_MODES = { MODE_RAID, MODE_GUILD, MODE_ROLE }
+local TAB_MODES = { MODE_RAID, MODE_GUILD, MODE_ROLE, MODE_ROSTER }
 
 local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
 local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
+
+--------------------------------------------------------------------------------
+-- Minimal JSON parser for wowutils roster imports
+--------------------------------------------------------------------------------
+
+local function ParseJSON(text)
+    local pos = 1
+    local len = #text
+
+    local function skip()
+        while pos <= len do
+            local b = text:byte(pos)
+            if b == 32 or b == 9 or b == 10 or b == 13 then
+                pos = pos + 1
+            else
+                break
+            end
+        end
+    end
+
+    local function expect(ch)
+        skip()
+        if text:byte(pos) ~= ch then
+            error("JSON: expected '" .. string.char(ch) .. "' at " .. pos)
+        end
+
+        pos = pos + 1
+    end
+
+    local parseValue
+
+    local function parseString()
+        expect(34)
+        local parts = {}
+
+        while pos <= len do
+            local b = text:byte(pos)
+
+            if b == 34 then
+                pos = pos + 1
+
+                return table.concat(parts)
+            end
+
+            if b == 92 then
+                pos = pos + 1
+                local esc = text:byte(pos)
+                if esc == 110 then table.insert(parts, "\n")
+                elseif esc == 116 then table.insert(parts, "\t")
+                elseif esc == 114 then table.insert(parts, "\r")
+                elseif esc == 117 then
+                    pos = pos + 5
+                else
+                    table.insert(parts, string.char(esc))
+                    pos = pos + 1
+                end
+            else
+                table.insert(parts, text:sub(pos, pos))
+                pos = pos + 1
+            end
+        end
+    end
+
+    local function parseNumber()
+        local start = pos
+        if text:byte(pos) == 45 then pos = pos + 1 end
+
+        while pos <= len and text:byte(pos) >= 48 and text:byte(pos) <= 57 do
+            pos = pos + 1
+        end
+
+        if pos <= len and text:byte(pos) == 46 then
+            pos = pos + 1
+
+            while pos <= len and text:byte(pos) >= 48 and text:byte(pos) <= 57 do
+                pos = pos + 1
+            end
+        end
+
+        return tonumber(text:sub(start, pos - 1))
+    end
+
+    local function parseArray()
+        expect(91)
+        local arr = {}
+        skip()
+
+        if text:byte(pos) == 93 then
+            pos = pos + 1
+
+            return arr
+        end
+
+        while true do
+            table.insert(arr, parseValue())
+            skip()
+
+            if text:byte(pos) == 44 then
+                pos = pos + 1
+            else
+                break
+            end
+        end
+
+        expect(93)
+
+        return arr
+    end
+
+    local function parseObject()
+        expect(123)
+        local obj = {}
+        skip()
+
+        if text:byte(pos) == 125 then
+            pos = pos + 1
+
+            return obj
+        end
+
+        while true do
+            local key = parseString()
+            expect(58)
+            obj[key] = parseValue()
+            skip()
+
+            if text:byte(pos) == 44 then
+                pos = pos + 1
+            else
+                break
+            end
+        end
+
+        expect(125)
+
+        return obj
+    end
+
+    parseValue = function()
+        skip()
+        local b = text:byte(pos)
+
+        if b == 34 then return parseString()
+        elseif b == 123 then return parseObject()
+        elseif b == 91 then return parseArray()
+        elseif b == 116 then pos = pos + 4; return true
+        elseif b == 102 then pos = pos + 5; return false
+        elseif b == 110 then pos = pos + 4; return nil
+        else return parseNumber()
+        end
+    end
+
+    return parseValue()
+end
+
+--------------------------------------------------------------------------------
+-- Wowutils roster parsing
+--------------------------------------------------------------------------------
+
+local CLASS_TOKEN_FROM_NAME = {
+    ["Death Knight"] = "DEATHKNIGHT",
+    ["Demon Hunter"] = "DEMONHUNTER",
+    ["Druid"]        = "DRUID",
+    ["Evoker"]       = "EVOKER",
+    ["Hunter"]       = "HUNTER",
+    ["Mage"]         = "MAGE",
+    ["Monk"]         = "MONK",
+    ["Paladin"]      = "PALADIN",
+    ["Priest"]       = "PRIEST",
+    ["Rogue"]        = "ROGUE",
+    ["Shaman"]       = "SHAMAN",
+    ["Warlock"]      = "WARLOCK",
+    ["Warrior"]      = "WARRIOR",
+}
+
+local ROLE_FROM_IMPORT = {
+    tank   = "TANK",
+    healer = "HEALER",
+    melee  = "MELEE",
+    ranged = "RANGED",
+}
+
+local function NormalizeRealm(realm)
+    return realm:gsub("%s+", "")
+end
+
+local function FindMainCharacter(member)
+    local mainId = member.mainCharacterId
+    if not mainId or not member.characters then
+        return nil
+    end
+
+    for _, char in ipairs(member.characters) do
+        local charId = char.name:lower() .. "-" .. NormalizeRealm(char.realm):lower()
+        if charId == mainId then
+            return char
+        end
+    end
+
+    return member.characters[1]
+end
+
+local function ParseWowUtilsRoster(jsonText)
+    local ok, data = pcall(ParseJSON, jsonText)
+    if not ok or type(data) ~= "table" or not data.members then
+        return nil
+    end
+
+    local roster = {}
+    local playerRealm = addon:GetPlayerRealm()
+
+    for _, member in ipairs(data.members) do
+        local char = FindMainCharacter(member)
+        if char then
+            local normalizedRealm = NormalizeRealm(char.realm)
+            local name = char.name:sub(1, 1):upper() .. char.name:sub(2)
+
+            if normalizedRealm:lower() ~= playerRealm:lower() then
+                name = name .. "-" .. normalizedRealm
+            end
+
+            table.insert(roster, {
+                normalizedName = name,
+                class = CLASS_TOKEN_FROM_NAME[char.playerClass] or "UNKNOWN",
+                role = ROLE_FROM_IMPORT[member.mainRole] or "RANGED",
+                displayName = member.displayName,
+            })
+        end
+    end
+
+    table.sort(roster, function(a, b)
+        return a.normalizedName < b.normalizedName
+    end)
+
+    return roster
+end
 
 local function CreateEntryRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
@@ -153,6 +391,7 @@ function addon:CreateUnassignedPanel(parent)
                 C_GuildInfo.GuildRoster()
             end
 
+            self:UpdateRosterImportButton()
             self:RefreshUnassigned()
         end)
 
@@ -162,10 +401,24 @@ function addon:CreateUnassignedPanel(parent)
 
     UpdateTabHighlights(self.unassignedTabs, MODE_RAID)
 
+    -- Roster import button (visible only in Roster mode)
+    local importRosterBtn = self.CreateStyledButton(parent, parent:GetWidth(), 18, "Import Roster from WowUtils")
+    importRosterBtn.label:SetFont(FONT, 10, "OUTLINE")
+    importRosterBtn:SetPoint("TOPLEFT", 0, -20)
+    importRosterBtn:SetPoint("TOPRIGHT", 0, -20)
+    importRosterBtn:Hide()
+
+    importRosterBtn:SetScript("OnClick", function()
+        self:ShowRosterImportWindow()
+    end)
+
+    self.importRosterBtn = importRosterBtn
+
     -- Dark background container for scroll area
     local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     scrollBg:SetPoint("TOPLEFT", 0, -20)
     scrollBg:SetPoint("BOTTOMRIGHT", 0, 30)
+    self.unassignedScrollBg = scrollBg
     scrollBg:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -305,6 +558,12 @@ function addon:RefreshUnassigned()
         return
     end
 
+    if self.unassignedMode == MODE_ROSTER then
+        self:RefreshUnassignedRosterMode()
+
+        return
+    end
+
     local entries
     if self.unassignedMode == MODE_GUILD then
         entries = self:GetUnassignedGuildMembers()
@@ -399,4 +658,201 @@ function addon:RefreshUnassignedRoleMode()
 
     local totalHeight = math.max(1, #entries * ROW_HEIGHT)
     self.unassignedContent:SetHeight(totalHeight)
+end
+
+--------------------------------------------------------------------------------
+-- Roster mode
+--------------------------------------------------------------------------------
+
+function addon:UpdateRosterImportButton()
+    if not self.importRosterBtn then
+        return
+    end
+
+    if self.unassignedMode == MODE_ROSTER then
+        self.importRosterBtn:Show()
+        self.unassignedScrollBg:SetPoint("TOPLEFT", 0, -40)
+    else
+        self.importRosterBtn:Hide()
+        self.unassignedScrollBg:SetPoint("TOPLEFT", 0, -20)
+    end
+end
+
+function addon:RefreshUnassignedRosterMode()
+    local roster = self.db.profile.importedRoster or {}
+    local assigned = {}
+
+    for i = 1, 40 do
+        if self:IsSlotPlayer(i) then
+            assigned[self:GetSlotText(i)] = true
+        end
+    end
+
+    local entries = {}
+    for _, entry in ipairs(roster) do
+        if not assigned[entry.normalizedName] then
+            table.insert(entries, entry)
+        end
+    end
+
+    for i = 1, MAX_ROWS do
+        local row = self.unassignedRows[i]
+        local entry = entries[i]
+
+        if entry then
+            row.nameText:SetText(entry.normalizedName)
+            row.playerName = entry.normalizedName
+            row.template = nil
+
+            local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
+            if classColor then
+                row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+                row.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.25)
+            else
+                row.nameText:SetTextColor(0.5, 0.5, 0.5)
+                row.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+            end
+
+            local texture = entry.role and ROLE_TEXTURES[entry.role]
+            if texture then
+                row.roleIcon:SetTexture(texture)
+                row.roleIcon:Show()
+            else
+                row.roleIcon:Hide()
+            end
+
+            row:Show()
+        else
+            row:Hide()
+            row.playerName = nil
+            row.template = nil
+        end
+    end
+
+    local totalHeight = math.max(1, #entries * ROW_HEIGHT)
+    self.unassignedContent:SetHeight(totalHeight)
+end
+
+--------------------------------------------------------------------------------
+-- Roster import modal
+--------------------------------------------------------------------------------
+
+local ROSTER_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+}
+
+function addon:ShowRosterImportWindow()
+    if self.rosterImportFrame then
+        self.rosterImportFrame:Show()
+        self.rosterImportEditBox:SetText("")
+        self.rosterImportEditBox:SetFocus()
+
+        return
+    end
+
+    local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    frame:SetSize(500, 400)
+    frame:SetPoint("CENTER")
+    frame:SetBackdrop(ROSTER_BACKDROP)
+    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
+    frame:SetBackdropBorderColor(0, 0, 0, 1)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+
+    local titleBar = CreateFrame("Frame", nil, frame)
+    titleBar:SetPoint("TOPLEFT", 1, -1)
+    titleBar:SetPoint("TOPRIGHT", -1, -1)
+    titleBar:SetHeight(addon.TITLE_HEIGHT)
+    titleBar:EnableMouse(true)
+
+    titleBar:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then
+            frame:StartMoving()
+        end
+    end)
+
+    titleBar:SetScript("OnMouseUp", function()
+        frame:StopMovingOrSizing()
+    end)
+
+    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
+    titleBar.bg:SetAllPoints()
+    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
+
+    titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
+    titleBar.text:SetFont(FONT, 16, "OUTLINE")
+    titleBar.text:SetPoint("LEFT", 8, 0)
+    titleBar.text:SetText("Import Roster from Wowutils via JSON")
+    titleBar.text:SetTextColor(1, 1, 1, 1)
+
+    local close = addon.CreateCloseButton(titleBar, frame)
+    close:SetPoint("RIGHT", -6, 1)
+
+    -- Edit box area
+    local editBg = frame:CreateTexture(nil, "BACKGROUND")
+    editBg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 10))
+    editBg:SetPoint("BOTTOMRIGHT", -10, 50)
+    editBg:SetColorTexture(0, 0, 0, 1)
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", editBg, "TOPLEFT", 4, -4)
+    scrollFrame:SetPoint("BOTTOMRIGHT", editBg, "BOTTOMRIGHT", -22, 4)
+
+    local editBox = CreateFrame("EditBox", nil, scrollFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetAutoFocus(false)
+    editBox:SetFont(FONT, 12, "OUTLINE")
+    editBox:SetTextColor(1, 1, 1, 1)
+    editBox:SetWidth(scrollFrame:GetWidth())
+
+    editBox:SetScript("OnEscapePressed", function(eb)
+        eb:ClearFocus()
+    end)
+
+    scrollFrame:SetScrollChild(editBox)
+    scrollFrame:EnableMouse(true)
+
+    scrollFrame:SetScript("OnMouseDown", function()
+        editBox:SetFocus()
+    end)
+
+    self.rosterImportEditBox = editBox
+    self.rosterImportFrame = frame
+
+    local importBtn = addon.CreateStyledButton(frame, 80, 24, "Import")
+    importBtn:SetPoint("BOTTOMRIGHT", -10, 10)
+    importBtn:SetScript("OnClick", function()
+        self:DoRosterImport()
+    end)
+
+    frame:Show()
+    editBox:SetFocus()
+end
+
+function addon:DoRosterImport()
+    local text = self.rosterImportEditBox:GetText()
+    if not text or strtrim(text) == "" then
+        self:Print("Nothing to import.")
+
+        return
+    end
+
+    local roster = ParseWowUtilsRoster(text)
+    if not roster then
+        self:Print("Could not parse roster JSON. Check the format.")
+
+        return
+    end
+
+    self.db.profile.importedRoster = roster
+    self:Print("Imported " .. #roster .. " roster members.")
+    self:RefreshUnassigned()
+
+    if self.rosterImportFrame then
+        self.rosterImportFrame:Hide()
+    end
 end

@@ -18,6 +18,7 @@ local defaults = {
         layouts = {},
         framePosition = nil,
         gridState = nil,
+        importedRoster = {},
     },
 }
 

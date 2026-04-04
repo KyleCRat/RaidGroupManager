@@ -24,11 +24,10 @@ local MODE_LABELS = {
     [MODE_ROLE] = "Role",
 }
 
-local MODE_NEXT = {
-    [MODE_RAID] = MODE_GUILD,
-    [MODE_GUILD] = MODE_ROLE,
-    [MODE_ROLE] = MODE_RAID,
-}
+local TAB_MODES = { MODE_RAID, MODE_GUILD, MODE_ROLE }
+
+local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
+local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 
 local function CreateEntryRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
@@ -112,31 +111,56 @@ local function CreateEntryRow(parent, index)
     return row
 end
 
+local function UpdateTabHighlights(tabs, activeMode)
+    for mode, tab in pairs(tabs) do
+        local c = (mode == activeMode) and COLOR_TAB_ACTIVE or COLOR_TAB_INACTIVE
+        tab.bg:SetVertexColor(c.r, c.g, c.b, c.a)
+    end
+end
+
 function addon:CreateUnassignedPanel(parent)
-    -- Header
-    local headerText = parent:CreateFontString(nil, "ARTWORK")
-    headerText:SetFont(FONT, 12, "OUTLINE")
-    headerText:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -2)
-    headerText:SetText("Unassigned")
-    headerText:SetTextColor(1, 1, 1, 1)
-
-    -- Mode toggle button (Raid -> Guild -> Role -> Raid)
-    local toggleBtn = self.CreateStyledButton(parent, 40, 16, "Raid")
-    toggleBtn.label:SetFont(FONT, 10, "OUTLINE")
-    toggleBtn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-
+    -- Tab bar
     self.unassignedMode = MODE_RAID
+    self.unassignedTabs = {}
 
-    toggleBtn:SetScript("OnClick", function(btn)
-        self.unassignedMode = MODE_NEXT[self.unassignedMode]
-        btn.label:SetText(MODE_LABELS[self.unassignedMode])
+    local tabWidth = math.floor(parent:GetWidth() / #TAB_MODES)
+    local prevTab
 
-        if self.unassignedMode == MODE_GUILD then
-            C_GuildInfo.GuildRoster()
+    for _, mode in ipairs(TAB_MODES) do
+        local tab = CreateFrame("Button", nil, parent)
+        tab:SetSize(tabWidth, 18)
+
+        if prevTab then
+            tab:SetPoint("LEFT", prevTab, "RIGHT", 0, 0)
+        else
+            tab:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
         end
 
-        self:RefreshUnassigned()
-    end)
+        tab.bg = tab:CreateTexture(nil, "BACKGROUND")
+        tab.bg:SetAllPoints()
+        tab.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+
+        tab.label = tab:CreateFontString(nil, "OVERLAY")
+        tab.label:SetFont(FONT, 11, "OUTLINE")
+        tab.label:SetPoint("CENTER")
+        tab.label:SetText(MODE_LABELS[mode])
+
+        tab:SetScript("OnClick", function()
+            self.unassignedMode = mode
+            UpdateTabHighlights(self.unassignedTabs, mode)
+
+            if mode == MODE_GUILD then
+                C_GuildInfo.GuildRoster()
+            end
+
+            self:RefreshUnassigned()
+        end)
+
+        self.unassignedTabs[mode] = tab
+        prevTab = tab
+    end
+
+    UpdateTabHighlights(self.unassignedTabs, MODE_RAID)
 
     -- Dark background container for scroll area
     local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")

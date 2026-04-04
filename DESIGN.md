@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 | Raid Group Manager                                                         X |
 --------------------------------------------------------------------------------
-| Drag slots to swap players |  Unassigned   [raid]  |  Layouts      auto-save |
+| Drag slots to swap players |  [rai][gu][rol][ros]  |  Layouts      auto-save |
 |    Group 1      Group 2    |  [ playername    ] ^  |  [ Layoutname       ] ^ |
 |  [  empty  ]  [  empty  ]  |  [ playername    ] |  |  [ Layoutname       ] | |
 |  [  empty  ]  [  empty  ]  |  [ playername    ] |  |  [ Layoutname       ] | |

@@ -34,6 +34,8 @@ end
 
 function addon:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")
+    self:RegisterEvent("ENCOUNTER_START", "OnEncounterStart")
+    self:RegisterEvent("ENCOUNTER_END", "OnEncounterEnd")
 end
 
 function addon:OnRosterUpdate()
@@ -41,6 +43,43 @@ function addon:OnRosterUpdate()
         return
     end
 
+    self:RefreshAllSlots()
+    self:RefreshUnassigned()
+end
+
+function addon:OnEncounterStart()
+    if not self.mainFrame or not self.mainFrame:IsShown() then
+        return
+    end
+
+    self.hiddenByEncounter = true
+    self.mainFrame:Hide()
+end
+
+function addon:OnEncounterEnd()
+    if not self.hiddenByEncounter then
+        return
+    end
+
+    if not UnitIsDeadOrGhost("player") then
+        self:ReopenAfterEncounter()
+
+        return
+    end
+
+    self:RegisterEvent("PLAYER_UNGHOST", "OnPlayerAlive")
+    self:RegisterEvent("PLAYER_ALIVE", "OnPlayerAlive")
+end
+
+function addon:OnPlayerAlive()
+    self:UnregisterEvent("PLAYER_UNGHOST")
+    self:UnregisterEvent("PLAYER_ALIVE")
+    self:ReopenAfterEncounter()
+end
+
+function addon:ReopenAfterEncounter()
+    self.hiddenByEncounter = false
+    self.mainFrame:Show()
     self:RefreshAllSlots()
     self:RefreshUnassigned()
 end

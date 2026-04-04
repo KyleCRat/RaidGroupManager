@@ -21,7 +21,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
 local PRESETS = {
     {
-        name = "Mythic G1+2, 3+4",
+        name = "Mythic G1+2 G3+4",
         slots = {
             -- Group 1
             "~TANK-ANY", "~MELEE-ANY", "~MELEE-ANY", "~MELEE-ANY", "~MELEE-ANY",

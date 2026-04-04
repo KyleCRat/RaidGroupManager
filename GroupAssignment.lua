@@ -43,13 +43,14 @@ local function BuildRaidState()
 end
 
 -- Build desired state from grid: name -> { desiredGroup, desiredPosition }
+-- Skips template slots (only includes actual player names)
 local function BuildDesiredState()
     local desired = {}
     local seen = {}
 
     for i = 1, 40 do
-        local text = addon:GetSlotText(i)
-        if text ~= "" then
+        if addon:IsSlotPlayer(i) then
+            local text = addon:GetSlotText(i)
             local normalized = addon:NormalizeName(text)
             if not seen[normalized] then
                 seen[normalized] = true
@@ -64,6 +65,102 @@ local function BuildDesiredState()
     end
 
     return desired
+end
+
+--------------------------------------------------------------------------------
+-- Template resolution — match raid members to template slots before Apply
+--------------------------------------------------------------------------------
+
+function addon:ResolveTemplates()
+    local roster = self:GetRaidRoster()
+
+    -- Build set of names already explicitly assigned to player slots
+    local namedPlayers = {}
+    for i = 1, 40 do
+        if self:IsSlotPlayer(i) then
+            namedPlayers[self:GetSlotText(i)] = true
+        end
+    end
+
+    -- Build pool of available players (in raid but not in a named slot)
+    local available = {}
+    for name, member in pairs(roster) do
+        if not namedPlayers[name] then
+            table.insert(available, member)
+        end
+    end
+
+    -- Separate template slots into class-specific and generic (ANY)
+    local classTemplates = {}
+    local genericTemplates = {}
+    for i = 1, 40 do
+        if self:IsSlotTemplate(i) then
+            local template = self:GetSlotTemplate(i)
+            local entry = { index = i, template = template }
+            if template.class == "ANY" then
+                table.insert(genericTemplates, entry)
+            else
+                table.insert(classTemplates, entry)
+            end
+        end
+    end
+
+    if #classTemplates == 0 and #genericTemplates == 0 then
+
+        return
+    end
+
+    -- Pass 1: Match class+role templates (highest priority)
+    for _, ts in ipairs(classTemplates) do
+        local bestIdx = nil
+        for i, member in ipairs(available) do
+            local combatRole = self:GetCombatRole(member)
+            if member.class == ts.template.class and combatRole == ts.template.role then
+                bestIdx = i
+
+                break
+            end
+        end
+
+        if bestIdx then
+            self:SetSlotText(ts.index, available[bestIdx].normalizedName)
+            table.remove(available, bestIdx)
+        end
+        -- Unmatched class templates remain in place
+    end
+
+    -- Pass 2: Match generic role-only templates with remaining available players
+    for _, ts in ipairs(genericTemplates) do
+        local bestIdx = nil
+        for i, member in ipairs(available) do
+            local combatRole = self:GetCombatRole(member)
+            if combatRole == ts.template.role then
+                bestIdx = i
+
+                break
+            end
+        end
+
+        if bestIdx then
+            self:SetSlotText(ts.index, available[bestIdx].normalizedName)
+            table.remove(available, bestIdx)
+        end
+        -- Unmatched generic templates remain in place
+    end
+
+    self:RefreshAllSlots()
+    self:RefreshUnassigned()
+end
+
+function addon:HasTemplateSlots()
+    for i = 1, 40 do
+        if self:IsSlotTemplate(i) then
+
+            return true
+        end
+    end
+
+    return false
 end
 
 -- Check if any raid member is in combat
@@ -511,6 +608,11 @@ function addon:StartApply()
         self:Print("Cannot apply: players in combat — " .. names)
 
         return
+    end
+
+    -- Resolve any template slots to real players before planning
+    if self:HasTemplateSlots() then
+        self:ResolveTemplates()
     end
 
     -- Plan all moves up front

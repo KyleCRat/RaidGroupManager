@@ -25,6 +25,7 @@ function addon:OnInitialize()
     self.selectedLayout = nil
     self.autoSave = false
 
+    self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
     self:SetupMinimapButton()
 end
@@ -72,10 +73,18 @@ function addon:SlashCommand(input)
         return
     end
 
+    if cmd == "presets" then
+        self:InstallPresetLayouts(true)
+        self:RefreshLayoutList()
+
+        return
+    end
+
     if cmd == "help" then
         self:Print("Commands:")
         self:Print("  /rgm - Toggle the main window")
         self:Print("  /rgm apply <name> - Apply a saved layout")
+        self:Print("  /rgm presets - Add preset layouts to your list")
         self:Print("  /rgm help - Show this help")
 
         return
@@ -174,6 +183,33 @@ function addon:GetRaidRoster()
 end
 
 --------------------------------------------------------------------------------
+-- Template encoding
+-- Templates are stored as strings with a ~ prefix: "~ROLE-CLASS"
+-- e.g. "~TANK-WARRIOR", "~RANGED-SHAMAN"
+--------------------------------------------------------------------------------
+
+local TEMPLATE_PREFIX = "~"
+
+function addon:EncodeTemplate(class, role)
+    return TEMPLATE_PREFIX .. role .. "-" .. class
+end
+
+function addon:DecodeTemplate(text)
+    if not text or text:sub(1, 1) ~= TEMPLATE_PREFIX then
+
+        return nil
+    end
+
+    local role, class = text:sub(2):match("^(%u+)-(%u+)$")
+    if role and class then
+
+        return { role = role, class = class }
+    end
+
+    return nil
+end
+
+--------------------------------------------------------------------------------
 -- Grid slot data access
 --------------------------------------------------------------------------------
 
@@ -195,7 +231,31 @@ function addon:SetSlotText(slotIndex, text)
     slot.playerName = text or ""
 end
 
--- Get all 40 slot texts as a table
+function addon:IsSlotTemplate(slotIndex)
+    local text = self:GetSlotText(slotIndex)
+
+    return text:sub(1, 1) == TEMPLATE_PREFIX
+end
+
+function addon:GetSlotTemplate(slotIndex)
+    return self:DecodeTemplate(self:GetSlotText(slotIndex))
+end
+
+function addon:SetSlotTemplate(slotIndex, class, role)
+    self:SetSlotText(slotIndex, self:EncodeTemplate(class, role))
+end
+
+function addon:IsSlotEmpty(slotIndex)
+    return self:GetSlotText(slotIndex) == ""
+end
+
+function addon:IsSlotPlayer(slotIndex)
+    local text = self:GetSlotText(slotIndex)
+
+    return text ~= "" and text:sub(1, 1) ~= TEMPLATE_PREFIX
+end
+
+-- Get all 40 slot texts as a table (templates encoded as strings)
 function addon:GetGridState()
     local state = {}
     for i = 1, 40 do
@@ -208,8 +268,8 @@ end
 -- Load a layout's slot data into the grid
 function addon:LoadLayoutToGrid(layout)
     for i = 1, 40 do
-        local name = layout.slots and layout.slots[i] or ""
-        self:SetSlotText(i, name)
+        local text = layout.slots and layout.slots[i] or ""
+        self:SetSlotText(i, text)
     end
 
     self:RefreshAllSlots()
@@ -233,14 +293,14 @@ function addon:TryAutoSave()
     end
 end
 
--- Add a name to the first empty grid slot
+-- Add a name to the first empty grid slot (skips template slots)
 function addon:AddNameToGrid(name)
     if not name or name == "" then
         return
     end
 
     for i = 1, 40 do
-        if self:GetSlotText(i) == "" then
+        if self:IsSlotEmpty(i) then
             self:SetSlotText(i, name)
             self:RefreshSlot(i)
             self:RefreshUnassigned()
@@ -265,21 +325,23 @@ local function IsMythicDifficulty()
     return difficultyID == MYTHIC_DIFFICULTY_ID
 end
 
-local function CollectPlayersFromGroups(groups)
-    local players = {}
+-- Collect all non-empty slot contents (players and templates) from groups
+local function CollectSlotContents(groups)
+    local items = {}
     for _, g in ipairs(groups) do
         for p = 1, 5 do
             local slotIndex = (g - 1) * 5 + p
-            local name = addon:GetSlotText(slotIndex)
-            if name ~= "" then
-                table.insert(players, name)
+            local text = addon:GetSlotText(slotIndex)
+            if text ~= "" then
+                table.insert(items, text)
             end
         end
     end
 
-    return players
+    return items
 end
 
+-- Clear all slots in groups
 local function ClearGroups(groups)
     for _, g in ipairs(groups) do
         for p = 1, 5 do
@@ -289,17 +351,18 @@ local function ClearGroups(groups)
     end
 end
 
-local function PlacePlayersInGroups(players, groups)
+-- Place items (player names or encoded templates) into groups
+local function PlaceItemsInGroups(items, groups)
     local idx = 1
     for _, g in ipairs(groups) do
         for p = 1, 5 do
-            if idx > #players then
+            if idx > #items then
 
                 return
             end
 
             local slotIndex = (g - 1) * 5 + p
-            addon:SetSlotText(slotIndex, players[idx])
+            addon:SetSlotText(slotIndex, items[idx])
             idx = idx + 1
         end
     end
@@ -337,7 +400,7 @@ local DEFAULT_MELEE_CLASSES = {
 }
 
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"
-local function GetCombatRole(member)
+function addon:GetCombatRole(member)
     if member.role == "TANK" then
 
         return "TANK"
@@ -368,31 +431,38 @@ local function GetCombatRole(member)
     return "RANGED"
 end
 
-local ROLE_ORDER = { "TANK", "HEALER", "MELEE", "RANGED" }
+local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
 
--- Split a list of player names into two role-balanced sides.
--- Each role bucket is alternated evenly between sideA and sideB.
-local function SplitByRole(players, roster)
+-- Split a list of slot contents (player names or encoded templates) into
+-- two role-balanced sides. Each role bucket is alternated evenly.
+local function SplitByRole(items, roster)
     local buckets = { TANK = {}, HEALER = {}, MELEE = {}, RANGED = {} }
 
-    for _, name in ipairs(players) do
-        local member = roster[name]
+    for _, item in ipairs(items) do
+        local template = addon:DecodeTemplate(item)
         local combatRole
-        if member then
-            combatRole = GetCombatRole(member)
+
+        if template then
+            combatRole = template.role
         else
-            combatRole = "RANGED"
+            local member = roster[item]
+            if member then
+                combatRole = addon:GetCombatRole(member)
+            else
+                combatRole = "RANGED"
+            end
         end
-        table.insert(buckets[combatRole], name)
+
+        table.insert(buckets[combatRole], item)
     end
 
     local sideA, sideB = {}, {}
     for _, role in ipairs(ROLE_ORDER) do
-        for i, name in ipairs(buckets[role]) do
+        for i, item in ipairs(buckets[role]) do
             if i % 2 == 1 then
-                table.insert(sideA, name)
+                table.insert(sideA, item)
             else
-                table.insert(sideB, name)
+                table.insert(sideB, item)
             end
         end
     end
@@ -417,14 +487,14 @@ function addon:SplitOddEven()
         allGroups = { 1, 2, 3, 4, 5, 6, 7, 8 }
     end
 
-    local players = CollectPlayersFromGroups(allGroups)
+    local items = CollectSlotContents(allGroups)
     local roster = self:GetRaidRoster()
     ClearGroups(allGroups)
 
-    local oddPlayers, evenPlayers = SplitByRole(players, roster)
+    local oddItems, evenItems = SplitByRole(items, roster)
 
-    PlacePlayersInGroups(oddPlayers, oddGroups)
-    PlacePlayersInGroups(evenPlayers, evenGroups)
+    PlaceItemsInGroups(oddItems, oddGroups)
+    PlaceItemsInGroups(evenItems, evenGroups)
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()
@@ -440,15 +510,15 @@ function addon:SplitHalves()
         allGroups = { 1, 2, 3, 4, 5, 6 }
     end
 
-    local players = CollectPlayersFromGroups(allGroups)
+    local items = CollectSlotContents(allGroups)
     local roster = self:GetRaidRoster()
     ClearGroups(allGroups)
 
-    local firstPlayers, secondPlayers = SplitByRole(players, roster)
+    local firstItems, secondItems = SplitByRole(items, roster)
 
     -- Pack each half into only as many groups as needed
-    local firstCount = GroupsNeeded(#firstPlayers)
-    local secondCount = GroupsNeeded(#secondPlayers)
+    local firstCount = GroupsNeeded(#firstItems)
+    local secondCount = GroupsNeeded(#secondItems)
 
     local firstGroups = {}
     for i = 1, firstCount do
@@ -460,8 +530,8 @@ function addon:SplitHalves()
         secondGroups[i] = allGroups[firstCount + i]
     end
 
-    PlacePlayersInGroups(firstPlayers, firstGroups)
-    PlacePlayersInGroups(secondPlayers, secondGroups)
+    PlaceItemsInGroups(firstItems, firstGroups)
+    PlaceItemsInGroups(secondItems, secondGroups)
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()

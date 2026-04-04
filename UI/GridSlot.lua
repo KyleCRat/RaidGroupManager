@@ -22,10 +22,28 @@ local ROLE_ATLAS = {
     DAMAGER = "groupfinder-icon-role-large-dps",
 }
 
+-- Template roles include MELEE/RANGED which both use the DPS icon
+local TEMPLATE_ROLE_ATLAS = {
+    TANK = "groupfinder-icon-role-large-tank",
+    HEALER = "groupfinder-icon-role-large-heal",
+    MELEE = "groupfinder-icon-role-large-dps",
+    RANGED = "groupfinder-icon-role-large-dps",
+}
+
+local COLOR_TEMPLATE_BG_ALPHA = 0.3
+
+local ROLE_DISPLAY_NAMES = {
+    TANK = "Tank",
+    HEALER = "Healer",
+    MELEE = "Melee",
+    RANGED = "Ranged",
+}
+
 -- Global drag state
 addon.dragSource = nil
-addon.dragSourceType = nil -- "slot" or "unassigned"
+addon.dragSourceType = nil -- "slot", "unassigned", or "template"
 addon.dragSourceName = nil
+addon.dragSourceTemplate = nil
 
 local function CreateSlotFrame(parent, slotIndex)
     local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent)
@@ -70,10 +88,10 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.dragHighlight:SetBlendMode("ADD")
     slot.dragHighlight:Hide()
 
-    -- Right-click to remove name
+    -- Right-click to clear slot (player or template)
     slot:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" and self.playerName ~= "" then
-            self.playerName = ""
+            addon:SetSlotText(self.slotIndex, "")
             addon:RefreshSlot(self.slotIndex)
             addon:RefreshUnassigned()
             addon:TryAutoSave()
@@ -106,6 +124,9 @@ local function CreateSlotFrame(parent, slotIndex)
                 SwapSlotContents(addon.dragSource.slotIndex, target.slotIndex)
             elseif addon.dragSourceType == "unassigned" then
                 addon:DropNameOnSlot(target.slotIndex, addon.dragSourceName)
+            elseif addon.dragSourceType == "template" then
+                local t = addon.dragSourceTemplate
+                addon:DropTemplateOnSlot(target.slotIndex, t.class, t.role)
             end
         end
 
@@ -142,6 +163,7 @@ function ClearDragState()
     addon.dragSource = nil
     addon.dragSourceType = nil
     addon.dragSourceName = nil
+    addon.dragSourceTemplate = nil
 end
 
 function FindSlotUnderCursor()
@@ -173,6 +195,13 @@ function addon:DropNameOnSlot(slotIndex, name)
     self:TryAutoSave()
 end
 
+function addon:DropTemplateOnSlot(slotIndex, class, role)
+    self:SetSlotTemplate(slotIndex, class, role)
+    self:RefreshSlot(slotIndex)
+    self:RefreshUnassigned()
+    self:TryAutoSave()
+end
+
 function addon:RefreshSlot(slotIndex)
     local slot = self.slots[slotIndex]
     if not slot then
@@ -192,6 +221,41 @@ function addon:RefreshSlot(slotIndex)
     end
 
     slot.emptyText:Hide()
+
+    -- Template slot — show class name (or role name for generic) + role icon
+    local template = self:DecodeTemplate(text)
+    if template then
+        local isGeneric = template.class == "ANY"
+
+        if isGeneric then
+            slot.nameText:SetText(ROLE_DISPLAY_NAMES[template.role] or template.role)
+            slot.nameText:SetTextColor(0.8, 0.8, 0.8)
+            slot.bg:SetVertexColor(0.4, 0.4, 0.4, COLOR_TEMPLATE_BG_ALPHA)
+        else
+            slot.nameText:SetText(self:GetClassName(template.class))
+
+            local classColor = C_ClassColor.GetClassColor(template.class)
+            if classColor then
+                slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, COLOR_TEMPLATE_BG_ALPHA)
+            else
+                slot.nameText:SetTextColor(0.6, 0.6, 0.6)
+                slot.bg:SetVertexColor(0.3, 0.3, 0.3, COLOR_TEMPLATE_BG_ALPHA)
+            end
+        end
+
+        local atlas = TEMPLATE_ROLE_ATLAS[template.role]
+        if atlas then
+            roleIcon:SetAtlas(atlas)
+            roleIcon:Show()
+        else
+            roleIcon:Hide()
+        end
+
+        return
+    end
+
+    -- Player slot
     slot.nameText:SetText(text)
 
     local roster = self:GetRaidRoster()
@@ -217,7 +281,7 @@ function addon:RefreshSlot(slotIndex)
             roleIcon:Hide()
         end
     else
-        -- Not in raid — gray text, red-tinted border
+        -- Not in raid — gray text
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
         roleIcon:Hide()

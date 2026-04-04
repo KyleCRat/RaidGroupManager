@@ -19,6 +19,8 @@ Libs/LibPixelPerfect-1.0/lib.xml
 
 # Addon files
 Core.lua
+ClassRoles.lua
+PresetLayouts.lua
 MinimapButton.lua
 GroupAssignment.lua
 UI/MainFrame.lua

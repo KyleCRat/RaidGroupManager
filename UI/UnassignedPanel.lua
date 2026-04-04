@@ -11,8 +11,29 @@ local ROLE_ATLAS = {
     DAMAGER = "groupfinder-icon-role-large-dps",
 }
 
+-- Template roles include MELEE/RANGED which both use the DPS icon
+local TEMPLATE_ROLE_ATLAS = {
+    TANK = "groupfinder-icon-role-large-tank",
+    HEALER = "groupfinder-icon-role-large-heal",
+    MELEE = "groupfinder-icon-role-large-dps",
+    RANGED = "groupfinder-icon-role-large-dps",
+}
+
 local MODE_RAID = 1
 local MODE_GUILD = 2
+local MODE_ROLE = 3
+
+local MODE_LABELS = {
+    [MODE_RAID] = "Raid",
+    [MODE_GUILD] = "Guild",
+    [MODE_ROLE] = "Role",
+}
+
+local MODE_NEXT = {
+    [MODE_RAID] = MODE_GUILD,
+    [MODE_GUILD] = MODE_ROLE,
+    [MODE_ROLE] = MODE_RAID,
+}
 
 local function CreateEntryRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
@@ -40,10 +61,22 @@ local function CreateEntryRow(parent, index)
     row.roleIcon:Hide()
 
     row.playerName = nil
+    row.template = nil
     row:Hide()
 
     -- Drag into grid slots
     row:SetScript("OnDragStart", function(self)
+        -- Template drag (Role mode)
+        if self.template then
+            addon.dragSource = self
+            addon.dragSourceType = "template"
+            addon.dragSourceTemplate = self.template
+            self:SetAlpha(0.5)
+
+            return
+        end
+
+        -- Player drag (Raid/Guild mode)
         if not self.playerName then
             return
         end
@@ -65,7 +98,13 @@ local function CreateEntryRow(parent, index)
         for i = 1, 40 do
             local slot = addon.slots[i]
             if slot and slot:IsMouseOver() then
-                addon:DropNameOnSlot(i, addon.dragSourceName)
+                if addon.dragSourceType == "template" then
+                    local t = addon.dragSourceTemplate
+                    addon:DropTemplateOnSlot(i, t.class, t.role)
+                else
+                    addon:DropNameOnSlot(i, addon.dragSourceName)
+                end
+
                 ClearDragState()
 
                 return
@@ -86,7 +125,7 @@ function addon:CreateUnassignedPanel(parent)
     headerText:SetText("Unassigned")
     headerText:SetTextColor(1, 1, 1, 1)
 
-    -- Mode toggle button
+    -- Mode toggle button (Raid -> Guild -> Role -> Raid)
     local toggleBtn = self.CreateStyledButton(parent, 40, 16, "Raid")
     toggleBtn.label:SetFont(FONT, 10, "OUTLINE")
     toggleBtn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
@@ -94,13 +133,11 @@ function addon:CreateUnassignedPanel(parent)
     self.unassignedMode = MODE_RAID
 
     toggleBtn:SetScript("OnClick", function(btn)
-        if self.unassignedMode == MODE_RAID then
-            self.unassignedMode = MODE_GUILD
-            btn.label:SetText("Guild")
+        self.unassignedMode = MODE_NEXT[self.unassignedMode]
+        btn.label:SetText(MODE_LABELS[self.unassignedMode])
+
+        if self.unassignedMode == MODE_GUILD then
             C_GuildInfo.GuildRoster()
-        else
-            self.unassignedMode = MODE_RAID
-            btn.label:SetText("Raid")
         end
 
         self:RefreshUnassigned()
@@ -175,13 +212,12 @@ function addon:CreateUnassignedPanel(parent)
     end)
 end
 
--- Build the set of names currently assigned in the grid
-local function GetAssignedNames()
+-- Build the set of player names currently assigned in the grid (excludes templates)
+local function GetAssignedPlayerNames()
     local assigned = {}
     for i = 1, 40 do
-        local text = addon:GetSlotText(i)
-        if text ~= "" then
-            assigned[text] = true
+        if addon:IsSlotPlayer(i) then
+            assigned[addon:GetSlotText(i)] = true
         end
     end
 
@@ -189,7 +225,7 @@ local function GetAssignedNames()
 end
 
 function addon:GetUnassignedRaidMembers()
-    local assigned = GetAssignedNames()
+    local assigned = GetAssignedPlayerNames()
     local unassigned = {}
     local roster = self:GetRaidRoster()
 
@@ -207,7 +243,7 @@ function addon:GetUnassignedRaidMembers()
 end
 
 function addon:GetUnassignedGuildMembers()
-    local assigned = GetAssignedNames()
+    local assigned = GetAssignedPlayerNames()
     local unassigned = {}
     local playerLevel = UnitLevel("player")
     local numGuild = GetNumGuildMembers()
@@ -244,6 +280,12 @@ function addon:RefreshUnassigned()
         return
     end
 
+    if self.unassignedMode == MODE_ROLE then
+        self:RefreshUnassignedRoleMode()
+
+        return
+    end
+
     local entries
     if self.unassignedMode == MODE_GUILD then
         entries = self:GetUnassignedGuildMembers()
@@ -259,6 +301,7 @@ function addon:RefreshUnassigned()
             local displayName = entry.displayName or entry.normalizedName
             row.nameText:SetText(displayName)
             row.playerName = entry.normalizedName
+            row.template = nil
 
             -- Class color
             local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
@@ -283,6 +326,50 @@ function addon:RefreshUnassigned()
         else
             row:Hide()
             row.playerName = nil
+            row.template = nil
+        end
+    end
+
+    local totalHeight = math.max(1, #entries * ROW_HEIGHT)
+    self.unassignedContent:SetHeight(totalHeight)
+end
+
+function addon:RefreshUnassignedRoleMode()
+    local entries = self:GetClassRoleCombos()
+
+    for i = 1, MAX_ROWS do
+        local row = self.unassignedRows[i]
+        local entry = entries[i]
+
+        if entry then
+            row.nameText:SetText(entry.className)
+            row.playerName = nil
+            row.template = { class = entry.class, role = entry.role }
+
+            -- Class color
+            local classColor = C_ClassColor.GetClassColor(entry.class)
+            if classColor then
+                row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+                row.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.25)
+            else
+                row.nameText:SetTextColor(0.5, 0.5, 0.5)
+                row.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+            end
+
+            -- Role icon
+            local atlas = TEMPLATE_ROLE_ATLAS[entry.role]
+            if atlas then
+                row.roleIcon:SetAtlas(atlas)
+                row.roleIcon:Show()
+            else
+                row.roleIcon:Hide()
+            end
+
+            row:Show()
+        else
+            row:Hide()
+            row.playerName = nil
+            row.template = nil
         end
     end
 

@@ -92,7 +92,7 @@ function addon:CreateMainFrame()
 
     local frame = CreateFrame("Frame", "RGMFrame", UIParent, "BackdropTemplate")
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-    frame:SetPoint("CENTER")
+    self:RestoreFramePosition(frame)
     frame:SetBackdrop(BACKDROP)
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
@@ -118,6 +118,7 @@ function addon:CreateMainFrame()
 
     titleBar:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
+        self:SaveFramePosition()
     end)
 
     titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
@@ -282,4 +283,23 @@ function addon:LoadCurrentRoster()
     self:RefreshAllSlots()
     self:RefreshUnassigned()
     self:TryAutoSave()
+end
+
+function addon:SaveFramePosition()
+    local point, _, relPoint, x, y = self.mainFrame:GetPoint()
+    self.db.profile.framePosition = {
+        point = point,
+        relPoint = relPoint,
+        x = x,
+        y = y,
+    }
+end
+
+function addon:RestoreFramePosition(frame)
+    local pos = self.db.profile.framePosition
+    if pos then
+        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        frame:SetPoint("CENTER")
+    end
 end

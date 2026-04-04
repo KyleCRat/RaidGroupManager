@@ -16,6 +16,8 @@ local defaults = {
     profile = {
         minimap = { hide = false },
         layouts = {},
+        framePosition = nil,
+        gridState = nil,
     },
 }
 
@@ -107,6 +109,7 @@ end
 function addon:ToggleMainFrame()
     if not self.mainFrame then
         self:CreateMainFrame()
+        self:RestoreGridState()
     end
 
     if self.mainFrame:IsShown() then
@@ -274,6 +277,7 @@ function addon:LoadLayoutToGrid(layout)
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()
+    self:PersistGridState()
 end
 
 -- Save current grid state to the selected layout
@@ -290,6 +294,25 @@ end
 function addon:TryAutoSave()
     if self.autoSave and self.selectedLayout then
         self:SaveToSelectedLayout()
+    end
+
+    self:PersistGridState()
+end
+
+-- Persist the current grid to saved variables so it survives reloads
+function addon:PersistGridState()
+    self.db.profile.gridState = self:GetGridState()
+end
+
+-- Restore grid contents from saved variables
+function addon:RestoreGridState()
+    local state = self.db.profile.gridState
+    if not state then
+        return
+    end
+
+    for i = 1, 40 do
+        self:SetSlotText(i, state[i] or "")
     end
 end
 

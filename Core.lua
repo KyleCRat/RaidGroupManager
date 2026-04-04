@@ -1,7 +1,7 @@
 local addon = LibStub("AceAddon-3.0"):NewAddon("RaidGroupManager",
     "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
 
-addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\fonts\\PTSansNarrow-Bold.ttf"
+addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\Fonts\\PTSansNarrow-Bold.ttf"
 
 addon.SLOT_WIDTH = 150
 addon.SLOT_HEIGHT = 20
@@ -435,34 +435,92 @@ local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
 
 -- Split a list of slot contents (player names or encoded templates) into
 -- two role-balanced sides. Each role bucket is alternated evenly.
+local function ClassifyItem(item, roster)
+    local template = addon:DecodeTemplate(item)
+    if template then
+        return template.role
+    end
+
+    local member = roster[item]
+    if member then
+        return addon:GetCombatRole(member)
+    end
+
+    return "RANGED"
+end
+
+local function GetItemClass(item, roster)
+    local template = addon:DecodeTemplate(item)
+    if template then
+        return template.class
+    end
+
+    local member = roster[item]
+    if member then
+        return member.class
+    end
+
+    return "UNKNOWN"
+end
+
 local function SplitByRole(items, roster)
     local buckets = { TANK = {}, HEALER = {}, MELEE = {}, RANGED = {} }
 
     for _, item in ipairs(items) do
-        local template = addon:DecodeTemplate(item)
-        local combatRole
+        table.insert(buckets[ClassifyItem(item, roster)], item)
+    end
 
-        if template then
-            combatRole = template.role
-        else
-            local member = roster[item]
-            if member then
-                combatRole = addon:GetCombatRole(member)
-            else
-                combatRole = "RANGED"
+    -- Sort each bucket alphabetically for deterministic splits
+    for _, role in ipairs(ROLE_ORDER) do
+        table.sort(buckets[role])
+    end
+
+    -- Pair matching classes within each role so they land at the same
+    -- positional index on each side.  Unpaired remainders for each role
+    -- are inserted immediately after that role's pairs to preserve
+    -- TANK → MELEE → RANGED → HEALER ordering.
+    local sideA, sideB = {}, {}
+
+    for _, role in ipairs(ROLE_ORDER) do
+        local bucket = buckets[role]
+
+        -- Sub-group by class
+        local classGroups = {}
+        local classOrder = {}
+
+        for _, item in ipairs(bucket) do
+            local itemClass = GetItemClass(item, roster)
+
+            if not classGroups[itemClass] then
+                classGroups[itemClass] = {}
+                table.insert(classOrder, itemClass)
+            end
+
+            table.insert(classGroups[itemClass], item)
+        end
+
+        table.sort(classOrder)
+
+        -- Pass 1: emit all matched pairs
+        for _, cls in ipairs(classOrder) do
+            local group = classGroups[cls]
+
+            for i = 1, #group - 1, 2 do
+                table.insert(sideA, group[i])
+                table.insert(sideB, group[i + 1])
             end
         end
 
-        table.insert(buckets[combatRole], item)
-    end
+        -- Pass 2: distribute this role's unpaired remainders
+        for _, cls in ipairs(classOrder) do
+            local group = classGroups[cls]
 
-    local sideA, sideB = {}, {}
-    for _, role in ipairs(ROLE_ORDER) do
-        for i, item in ipairs(buckets[role]) do
-            if i % 2 == 1 then
-                table.insert(sideA, item)
-            else
-                table.insert(sideB, item)
+            if #group % 2 == 1 then
+                if #sideA <= #sideB then
+                    table.insert(sideA, group[#group])
+                else
+                    table.insert(sideB, group[#group])
+                end
             end
         end
     end

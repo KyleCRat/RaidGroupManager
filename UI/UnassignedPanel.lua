@@ -5,18 +5,13 @@ local ROLE_ICON_SIZE = 16
 local ROW_HEIGHT = 20
 local MAX_ROWS = 40
 
-local ROLE_ATLAS = {
-    TANK = "groupfinder-icon-role-large-tank",
-    HEALER = "groupfinder-icon-role-large-heal",
-    DAMAGER = "groupfinder-icon-role-large-dps",
-}
+local ROLE_ICON_PATH = "Interface\\AddOns\\RaidGroupManager\\Media\\Icons\\"
 
--- Template roles include MELEE/RANGED which both use the DPS icon
-local TEMPLATE_ROLE_ATLAS = {
-    TANK = "groupfinder-icon-role-large-tank",
-    HEALER = "groupfinder-icon-role-large-heal",
-    MELEE = "groupfinder-icon-role-large-dps",
-    RANGED = "groupfinder-icon-role-large-dps",
+local ROLE_TEXTURES = {
+    TANK = ROLE_ICON_PATH .. "tank",
+    HEALER = ROLE_ICON_PATH .. "healer",
+    MELEE = ROLE_ICON_PATH .. "meleedps",
+    RANGED = ROLE_ICON_PATH .. "rangeddps",
 }
 
 local MODE_RAID = 1
@@ -314,9 +309,14 @@ function addon:RefreshUnassigned()
             end
 
             -- Role icon
-            local atlas = ROLE_ATLAS[entry.role]
-            if atlas then
-                row.roleIcon:SetAtlas(atlas)
+            local combatRole
+            if entry.raidIndex then
+                combatRole = addon:GetCombatRole(entry)
+            end
+
+            local texture = combatRole and ROLE_TEXTURES[combatRole]
+            if texture then
+                row.roleIcon:SetTexture(texture)
                 row.roleIcon:Show()
             else
                 row.roleIcon:Hide()
@@ -357,9 +357,9 @@ function addon:RefreshUnassignedRoleMode()
             end
 
             -- Role icon
-            local atlas = TEMPLATE_ROLE_ATLAS[entry.role]
-            if atlas then
-                row.roleIcon:SetAtlas(atlas)
+            local texture = ROLE_TEXTURES[entry.role]
+            if texture then
+                row.roleIcon:SetTexture(texture)
                 row.roleIcon:Show()
             else
                 row.roleIcon:Hide()

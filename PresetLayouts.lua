@@ -46,9 +46,9 @@ local PRESETS = {
             -- Group 2
             "~TANK-ANY", "~MELEE-ANY", "~MELEE-ANY", "~MELEE-ANY", "~MELEE-ANY",
             -- Group 3
-            "~HEALER-ANY", "~HEALER-ANY", "~RANGED-ANY", "~RANGED-ANY", "~RANGED-ANY",
+            "~RANGED-ANY", "~RANGED-ANY", "~RANGED-ANY", "~HEALER-ANY", "~HEALER-ANY",
             -- Group 4
-            "~HEALER-ANY", "~HEALER-ANY", "~RANGED-ANY", "~RANGED-ANY", "~RANGED-ANY",
+            "~RANGED-ANY", "~RANGED-ANY", "~RANGED-ANY", "~HEALER-ANY", "~HEALER-ANY",
             -- Groups 5-8 empty
             "", "", "", "", "",
             "", "", "", "", "",

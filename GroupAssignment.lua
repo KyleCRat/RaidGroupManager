@@ -4,10 +4,12 @@ local STATE_IDLE = 0
 local STATE_PLANNING = 1
 local STATE_EXECUTING = 2
 
-local DEBOUNCE_INTERVAL = 0.5
+local DEBOUNCE_INTERVAL = 0.2
+local SAFETY_TIMEOUT = 2.0
 
 addon.assignState = STATE_IDLE
 addon.debounceTimer = nil
+addon.safetyTimer = nil
 addon.moveQueue = {}
 addon.moveIndex = 0
 
@@ -314,7 +316,7 @@ local function PlanMoves(raidState, desired)
                         local stateA = raidState[nameA]
                         local stateB = raidState[nameB]
                         if stateA.raidIndex ~= 1 and stateB.raidIndex ~= 1 then
-                            table.insert(moves, { type = "swap", nameA = nameA, nameB = nameB })
+                            table.insert(moves, { type = "swap", nameA = nameA, nameB = nameB, phase = "P1", reason = "mutual swap g" .. infoA.from .. "<->g" .. infoA.to })
                             SimSwap(sim, simGroups, nameA, nameB)
                             resolved[nameA] = true
                             resolved[nameB] = true
@@ -371,7 +373,7 @@ local function PlanMoves(raidState, desired)
                         local stateAnchor = raidState[anchor]
                         local statePartner = raidState[partner]
                         if stateAnchor.raidIndex ~= 1 and statePartner.raidIndex ~= 1 then
-                            table.insert(moves, { type = "swap", nameA = anchor, nameB = partner })
+                            table.insert(moves, { type = "swap", nameA = anchor, nameB = partner, phase = "P1", reason = "cycle chain step " .. (j - 1) })
                             SimSwap(sim, simGroups, anchor, partner)
                         end
                     end
@@ -415,7 +417,7 @@ local function PlanMoves(raidState, desired)
             local targetGroup = desired[name].desiredGroup
 
             if SimGroupCount(simGroups, targetGroup) < 5 then
-                table.insert(moves, { type = "set", name = name, targetGroup = targetGroup })
+                table.insert(moves, { type = "set", name = name, targetGroup = targetGroup, phase = "P1", reason = "move to target (room available)" })
                 SimMove(sim, simGroups, name, targetGroup)
             else
                 -- Find someone in target group who doesn't belong there
@@ -434,8 +436,15 @@ local function PlanMoves(raidState, desired)
                 end
 
                 if evictee and raidState[name] and raidState[name].raidIndex ~= 1 then
-                    table.insert(moves, { type = "swap", nameA = name, nameB = evictee })
+                    table.insert(moves, { type = "swap", nameA = name, nameB = evictee, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup })
                     SimSwap(sim, simGroups, name, evictee)
+                elseif evictee and raidState[name] and raidState[name].raidIndex == 1 then
+                    -- Raid leader can't use SwapRaidSubgroup — move evictee out first, then leader in
+                    local leaderOldGroup = sim[name]
+                    table.insert(moves, { type = "set", name = evictee, targetGroup = leaderOldGroup, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup .. " for leader" })
+                    SimMove(sim, simGroups, evictee, leaderOldGroup)
+                    table.insert(moves, { type = "set", name = name, targetGroup = targetGroup, phase = "P1", reason = "move raid leader to target" })
+                    SimMove(sim, simGroups, name, targetGroup)
                 else
                     addon:Print("Warning: Cannot move " .. name .. " to group " .. targetGroup)
                 end
@@ -443,56 +452,127 @@ local function PlanMoves(raidState, desired)
         end
     end
 
-    -- Phase 2: Within-group position ordering via bridge swaps
-    -- Rebuild simulation positions after all group moves
-    -- For each group, check if positions match desired positions.
-    -- Use 3-swap bridge maneuver only where needed.
+    -- Phase 2: Within-group position ordering via evacuate-and-refill.
+    -- Position within a group is determined by insertion order, so the only
+    -- way to reorder is to pull players out and re-add them in the desired
+    -- sequence using SetRaidSubgroup.
 
-    -- Rebuild clean position tracking from the simulated group state
-    for name, info in pairs(desired) do
-        if sim[name] == info.desiredGroup then
-            -- Find current simulated position
-            local currentPos = nil
-            for pos, occupant in pairs(simGroups[info.desiredGroup]) do
-                if occupant == name then
-                    currentPos = pos
+    -- Find a staging group (one with no desired members)
+    local usedGroups = {}
+    for _, info in pairs(desired) do
+        usedGroups[info.desiredGroup] = true
+    end
 
-                    break
+    local stagingGroup = nil
+    for g = 8, 1, -1 do
+        if not usedGroups[g] then
+            stagingGroup = g
+
+            break
+        end
+    end
+
+    if not stagingGroup then
+
+        return moves
+    end
+
+    for g = 1, 8 do
+        if usedGroups[g] then
+            -- Build desired order for this group: position -> name
+            local desiredOrder = {}
+            local memberCount = 0
+            for name, info in pairs(desired) do
+                if info.desiredGroup == g and sim[name] == g then
+                    desiredOrder[info.desiredPosition] = name
+                    memberCount = memberCount + 1
                 end
             end
 
-            if currentPos and currentPos ~= info.desiredPosition then
-                -- Find who occupies the desired position
-                local occupant = simGroups[info.desiredGroup][info.desiredPosition]
-                if not occupant then
-                    -- Position is empty, no swap needed — but WoW doesn't let
-                    -- us pick a position with SetRaidSubgroup, so we can't fix this
-                    -- without the bridge maneuver anyway.
-                elseif raidState[name] and raidState[name].raidIndex ~= 1
-                       and raidState[occupant] and raidState[occupant].raidIndex ~= 1 then
-                    -- Find a bridge player in a different group
-                    local bridgeName = nil
-                    for bName, bGroup in pairs(sim) do
-                        if bGroup ~= info.desiredGroup and raidState[bName] and raidState[bName].raidIndex ~= 1 then
-                            bridgeName = bName
+            if memberCount == 0 then
+                -- skip empty group
+            else
+                -- Build current order from simulation
+                local currentOrder = {}
+                for pos = 1, 5 do
+                    currentOrder[pos] = simGroups[g][pos]
+                end
+
+                -- Check if reordering is needed
+                local needsReorder = false
+                for pos = 1, 5 do
+                    if desiredOrder[pos] and currentOrder[pos] ~= desiredOrder[pos] then
+                        needsReorder = true
+
+                        break
+                    end
+                end
+
+                if needsReorder then
+                    -- Find the raid leader in this group — they're pinned
+                    -- at position 1 (raidIndex 1 is always sorted first).
+                    local leaderName = nil
+                    for pos = 1, 5 do
+                        local name = currentOrder[pos]
+                        if name and raidState[name] and raidState[name].raidIndex == 1 then
+                            leaderName = name
 
                             break
                         end
                     end
 
-                    if bridgeName then
-                        -- 3-swap bridge maneuver:
-                        -- 1. swap(player, bridge) — player leaves group
-                        -- 2. swap(bridge, occupant) — bridge takes occupant's spot
-                        -- 3. swap(player, bridge) — player returns to occupant's old spot
-                        table.insert(moves, { type = "swap", nameA = name, nameB = bridgeName })
-                        table.insert(moves, { type = "swap", nameA = bridgeName, nameB = occupant })
-                        table.insert(moves, { type = "swap", nameA = name, nameB = bridgeName })
+                    -- Build desired order list, with the raid leader pinned
+                    -- at position 1 and everyone else in desired order after.
+                    local desiredList = {}
+                    if leaderName then
+                        table.insert(desiredList, leaderName)
+                    end
 
-                        -- Update simulation
-                        SimSwap(sim, simGroups, name, bridgeName)
-                        SimSwap(sim, simGroups, bridgeName, occupant)
-                        SimSwap(sim, simGroups, name, bridgeName)
+                    for pos = 1, 5 do
+                        if desiredOrder[pos] and desiredOrder[pos] ~= leaderName then
+                            table.insert(desiredList, desiredOrder[pos])
+                        end
+                    end
+
+                    -- Build set of desired members so we don't touch extras
+                    local desiredSet = {}
+                    for _, name in ipairs(desiredList) do
+                        desiredSet[name] = true
+                    end
+
+                    -- Re-check if reordering is still needed after pinning leader
+                    local currentList = {}
+                    for pos = 1, 5 do
+                        if currentOrder[pos] and desiredSet[currentOrder[pos]] then
+                            table.insert(currentList, currentOrder[pos])
+                        end
+                    end
+
+                    local stillNeeded = false
+                    for i = 1, #desiredList do
+                        if desiredList[i] ~= currentList[i] then
+                            stillNeeded = true
+
+                            break
+                        end
+                    end
+
+                    if stillNeeded then
+                        -- Full evacuation required — players retain internal
+                        -- index ordering unless the group is completely emptied
+                        -- before refilling.
+
+                        -- Evacuate ALL desired members (skip extras not on grid)
+                        for _, name in ipairs(currentList) do
+                            table.insert(moves, { type = "set", name = name, targetGroup = stagingGroup, phase = "P2", reason = "evacuate g" .. g .. " to staging g" .. stagingGroup })
+                            SimMove(sim, simGroups, name, stagingGroup)
+                        end
+
+                        -- Refill in desired position order
+                        for i, name in ipairs(desiredList) do
+                            table.insert(moves, { type = "set", name = name, targetGroup = g, phase = "P2", reason = "refill g" .. g .. " pos " .. i .. "/" .. #desiredList })
+                            SimMove(sim, simGroups, name, g)
+                        end
                     end
                 end
             end
@@ -523,9 +603,21 @@ local function FindRaidIndex(name)
     return nil
 end
 
-local function ExecuteNextMove()
+local function ScheduleNextMove()
+    C_Timer.After(0, function()
+        ExecuteNextMove()
+    end)
+end
+
+function ExecuteNextMove()
     if addon.assignState ~= STATE_EXECUTING then
         return
+    end
+
+    -- Cancel any pending safety timer
+    if addon.safetyTimer then
+        addon.safetyTimer:Cancel()
+        addon.safetyTimer = nil
     end
 
     -- Combat check
@@ -548,12 +640,25 @@ local function ExecuteNextMove()
         return
     end
 
+    local remaining = #addon.moveQueue - addon.moveIndex
+
+    local tag = "[" .. addon.moveIndex .. "/" .. #addon.moveQueue .. "]"
+    local phase = move.phase or "?"
+    local reason = move.reason or ""
+
     if move.type == "set" then
         local idx = FindRaidIndex(move.name)
         if idx then
+            local _, _, currentGroup = GetRaidRosterInfo(idx)
+            addon:Print(tag .. " " .. phase .. ": " .. move.name .. " group " .. currentGroup .. " -> " .. move.targetGroup .. " (" .. reason .. ")")
             SetRaidSubgroup(idx, move.targetGroup)
+            addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
+                addon.safetyTimer = nil
+                ExecuteNextMove()
+            end)
         else
-            addon:Print("Skipping " .. move.name .. " (left raid)")
+            addon:Print(tag .. " SKIP: " .. move.name .. " (left raid)")
+            ScheduleNextMove()
         end
 
         return
@@ -565,12 +670,21 @@ local function ExecuteNextMove()
         if idxA and idxB then
             -- Raid leader guard (should be handled in planning, but double-check)
             if idxA == 1 or idxB == 1 then
-                addon:Print("Skipping swap involving raid leader")
+                addon:Print(tag .. " SKIP: swap involving raid leader (" .. move.nameA .. " <-> " .. move.nameB .. ")")
+                ScheduleNextMove()
             else
+                local _, _, groupA = GetRaidRosterInfo(idxA)
+                local _, _, groupB = GetRaidRosterInfo(idxB)
+                addon:Print(tag .. " " .. phase .. ": " .. move.nameA .. " (g" .. groupA .. ") <-> " .. move.nameB .. " (g" .. groupB .. ") (" .. reason .. ")")
                 SwapRaidSubgroup(idxA, idxB)
+                addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
+                    addon.safetyTimer = nil
+                    ExecuteNextMove()
+                end)
             end
         else
-            addon:Print("Skipping swap: player left raid")
+            addon:Print(tag .. " SKIP: swap " .. move.nameA .. " <-> " .. move.nameB .. " (player left raid)")
+            ScheduleNextMove()
         end
     end
 end
@@ -595,9 +709,27 @@ local function OnAssignmentRosterUpdate()
     end)
 end
 
+local function HasRaidPermission()
+    local count = GetNumGroupMembers()
+    for i = 1, count do
+        local name, rank = GetRaidRosterInfo(i)
+        if name and UnitIsUnit(name, "player") then
+            return rank > 0
+        end
+    end
+
+    return false
+end
+
 function addon:StartApply()
     if not IsInRaid() then
         self:Print("Not in a raid group.")
+
+        return
+    end
+
+    if not HasRaidPermission() then
+        self:Print("You must be the raid leader or have assist to apply.")
 
         return
     end
@@ -652,6 +784,11 @@ function addon:StopApply()
     if self.debounceTimer then
         self.debounceTimer:Cancel()
         self.debounceTimer = nil
+    end
+
+    if self.safetyTimer then
+        self.safetyTimer:Cancel()
+        self.safetyTimer = nil
     end
 
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")

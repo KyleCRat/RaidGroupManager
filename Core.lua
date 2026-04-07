@@ -452,15 +452,30 @@ local MELEE_DPS_SPECS = {
     [255] = true,                                 -- Survival Hunter
 }
 
--- Fallback: classes where DPS is melee when spec ID is unavailable
+-- Fallback: classes where ALL DPS specs are melee
 local DEFAULT_MELEE_CLASSES = {
     WARRIOR = true,
     ROGUE = true,
     DEATHKNIGHT = true,
-    DEMONHUNTER = true,
     MONK = true,
     PALADIN = true,
 }
+
+-- Get a unit's specialization ID. GetInspectSpecialization requires an
+-- active inspect session, so it returns 0 for most raid members. For the
+-- player character we can use GetSpecialization directly.
+local function GetUnitSpecID(unit)
+    if UnitIsUnit(unit, "player") then
+        local specIndex = GetSpecialization()
+        if specIndex then
+            return GetSpecializationInfo(specIndex)
+        end
+
+        return 0
+    end
+
+    return GetInspectSpecialization(unit) or 0
+end
 
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"
 function addon:GetCombatRole(member)
@@ -475,7 +490,8 @@ function addon:GetCombatRole(member)
     end
 
     -- DPS — check spec ID for melee vs ranged
-    local specID = GetInspectSpecialization("raid" .. member.raidIndex)
+    local unit = "raid" .. member.raidIndex
+    local specID = GetUnitSpecID(unit)
     if specID and specID > 0 then
         if MELEE_DPS_SPECS[specID] then
 
@@ -487,6 +503,22 @@ function addon:GetCombatRole(member)
 
     -- Spec unavailable — fall back to class
     if DEFAULT_MELEE_CLASSES[member.class] then
+
+        return "MELEE"
+    end
+
+    -- Hunter: all specs are Agility so stat comparison can't distinguish;
+    -- BM/MM (ranged) are far more common than Survival (melee)
+    if member.class == "HUNTER" then
+
+        return "RANGED"
+    end
+
+    -- Hybrid melee/ranged classes (Druid, Shaman, DH, etc.):
+    -- melee DPS specs use Agility, ranged DPS specs use Intellect
+    local agi = UnitStat(unit, 2) or 0
+    local int = UnitStat(unit, 4) or 0
+    if agi > int then
 
         return "MELEE"
     end

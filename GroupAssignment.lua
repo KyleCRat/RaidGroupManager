@@ -131,23 +131,85 @@ function addon:ResolveTemplates()
         -- Unmatched class templates remain in place
     end
 
-    -- Pass 2: Match generic role-only templates with remaining available players
-    for _, ts in ipairs(genericTemplates) do
-        local bestIdx = nil
-        for i, member in ipairs(available) do
-            local combatRole = self:GetCombatRole(member)
-            if combatRole == ts.template.role then
-                bestIdx = i
+    -- Pass 2: Match generic role-only templates with class-balanced distribution.
+    -- When a role's templates span two groups, use class-pairing so that
+    -- duplicate classes are split across groups (e.g. 2 DKs → one per side).
+    local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
 
-                break
+    local roleTemplates = {}
+    for _, ts in ipairs(genericTemplates) do
+        local role = ts.template.role
+        if not roleTemplates[role] then
+            roleTemplates[role] = {}
+        end
+        table.insert(roleTemplates[role], ts)
+    end
+
+    for _, role in ipairs(ROLE_ORDER) do
+        local templates = roleTemplates[role]
+        if templates then
+            -- Collect matching available players for this role
+            local matching = {}
+            for i = #available, 1, -1 do
+                if self:GetCombatRole(available[i]) == role then
+                    table.insert(matching, available[i])
+                    table.remove(available, i)
+                end
+            end
+
+            -- Group template slots by raid group
+            local groupSlots = {}
+            local groupOrder = {}
+            for _, ts in ipairs(templates) do
+                local g = math.ceil(ts.index / 5)
+                if not groupSlots[g] then
+                    groupSlots[g] = {}
+                    table.insert(groupOrder, g)
+                end
+                table.insert(groupSlots[g], ts)
+            end
+            table.sort(groupOrder)
+
+            if #groupOrder == 2 and #matching > 0 then
+                -- Two groups: class-paired split for balanced distribution
+                table.sort(matching, function(a, b)
+                    return a.normalizedName < b.normalizedName
+                end)
+
+                local names = {}
+                for _, m in ipairs(matching) do
+                    table.insert(names, m.normalizedName)
+                end
+
+                local sideA, sideB = self:ClassPairSplit(names, roster)
+
+                local slotsA = groupSlots[groupOrder[1]]
+                local slotsB = groupSlots[groupOrder[2]]
+
+                for i, ts in ipairs(slotsA) do
+                    if i <= #sideA then
+                        self:SetSlotText(ts.index, sideA[i])
+                    end
+                end
+
+                for i, ts in ipairs(slotsB) do
+                    if i <= #sideB then
+                        self:SetSlotText(ts.index, sideB[i])
+                    end
+                end
+            elseif #matching > 0 then
+                -- Single group or 3+: sequential assignment
+                table.sort(matching, function(a, b)
+                    return a.normalizedName < b.normalizedName
+                end)
+
+                for i, ts in ipairs(templates) do
+                    if i <= #matching then
+                        self:SetSlotText(ts.index, matching[i].normalizedName)
+                    end
+                end
             end
         end
-
-        if bestIdx then
-            self:SetSlotText(ts.index, available[bestIdx].normalizedName)
-            table.remove(available, bestIdx)
-        end
-        -- Unmatched generic templates remain in place
     end
 
     self:RefreshAllSlots()

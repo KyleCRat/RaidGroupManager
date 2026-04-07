@@ -526,6 +526,56 @@ local function GetItemClass(item, roster)
     return "UNKNOWN"
 end
 
+-- Split a list of same-role items (player names or encoded templates) into
+-- two class-balanced sides.  Paired classes alternate evenly; unpaired
+-- remainders go to the smaller side.
+function addon:ClassPairSplit(items, roster)
+    local classGroups = {}
+    local classOrder = {}
+
+    for _, item in ipairs(items) do
+        local itemClass = GetItemClass(item, roster)
+
+        if not classGroups[itemClass] then
+            classGroups[itemClass] = {}
+            table.insert(classOrder, itemClass)
+        end
+
+        table.insert(classGroups[itemClass], item)
+    end
+
+    table.sort(classOrder)
+
+    for _, cls in ipairs(classOrder) do
+        table.sort(classGroups[cls])
+    end
+
+    local sideA, sideB = {}, {}
+
+    for _, cls in ipairs(classOrder) do
+        local group = classGroups[cls]
+
+        for i = 1, #group - 1, 2 do
+            table.insert(sideA, group[i])
+            table.insert(sideB, group[i + 1])
+        end
+    end
+
+    for _, cls in ipairs(classOrder) do
+        local group = classGroups[cls]
+
+        if #group % 2 == 1 then
+            if #sideA <= #sideB then
+                table.insert(sideA, group[#group])
+            else
+                table.insert(sideB, group[#group])
+            end
+        end
+    end
+
+    return sideA, sideB
+end
+
 local function SplitByRole(items, roster)
     local buckets = { TANK = {}, HEALER = {}, MELEE = {}, RANGED = {} }
 
@@ -538,54 +588,12 @@ local function SplitByRole(items, roster)
         table.sort(buckets[role])
     end
 
-    -- Pair matching classes within each role so they land at the same
-    -- positional index on each side.  Unpaired remainders for each role
-    -- are inserted immediately after that role's pairs to preserve
-    -- TANK → MELEE → RANGED → HEALER ordering.
     local sideA, sideB = {}, {}
 
     for _, role in ipairs(ROLE_ORDER) do
-        local bucket = buckets[role]
-
-        -- Sub-group by class
-        local classGroups = {}
-        local classOrder = {}
-
-        for _, item in ipairs(bucket) do
-            local itemClass = GetItemClass(item, roster)
-
-            if not classGroups[itemClass] then
-                classGroups[itemClass] = {}
-                table.insert(classOrder, itemClass)
-            end
-
-            table.insert(classGroups[itemClass], item)
-        end
-
-        table.sort(classOrder)
-
-        -- Pass 1: emit all matched pairs
-        for _, cls in ipairs(classOrder) do
-            local group = classGroups[cls]
-
-            for i = 1, #group - 1, 2 do
-                table.insert(sideA, group[i])
-                table.insert(sideB, group[i + 1])
-            end
-        end
-
-        -- Pass 2: distribute this role's unpaired remainders
-        for _, cls in ipairs(classOrder) do
-            local group = classGroups[cls]
-
-            if #group % 2 == 1 then
-                if #sideA <= #sideB then
-                    table.insert(sideA, group[#group])
-                else
-                    table.insert(sideB, group[#group])
-                end
-            end
-        end
+        local a, b = addon:ClassPairSplit(buckets[role], roster)
+        for _, item in ipairs(a) do table.insert(sideA, item) end
+        for _, item in ipairs(b) do table.insert(sideB, item) end
     end
 
     return sideA, sideB

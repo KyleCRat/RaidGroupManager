@@ -427,10 +427,12 @@ local function PlanMoves(raidState, desired)
                 -- Does this player want to go back to the start? (cycle closed)
                 local nextTarget = wrongGroup[nextPlayer] and wrongGroup[nextPlayer].to
                 if nextTarget == wrongGroup[startName].from then
-                    -- Cycle found! Resolve with len-1 swaps
-                    -- Swap chain[1] with each subsequent member
+                    -- Cycle found! Resolve with len-1 swaps.
+                    -- Swap anchor with chain members in REVERSE order:
+                    -- the anchor walks backward through the cycle so each
+                    -- partner lands in the correct seat.
                     local anchor = chain[1]
-                    for j = 2, #chain do
+                    for j = #chain, 2, -1 do
                         local partner = chain[j]
                         local stateAnchor = raidState[anchor]
                         local statePartner = raidState[partner]

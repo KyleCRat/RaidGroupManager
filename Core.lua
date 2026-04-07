@@ -561,7 +561,12 @@ end
 -- Split a list of same-role items (player names or encoded templates) into
 -- two class-balanced sides.  Paired classes alternate evenly; unpaired
 -- remainders go to the smaller side.
-function addon:ClassPairSplit(items, roster)
+-- offsetA/offsetB: optional accumulated counts from prior roles so that
+-- remainder distribution stays balanced across the full split.
+function addon:ClassPairSplit(items, roster, offsetA, offsetB)
+    offsetA = offsetA or 0
+    offsetB = offsetB or 0
+
     local classGroups = {}
     local classOrder = {}
 
@@ -597,7 +602,7 @@ function addon:ClassPairSplit(items, roster)
         local group = classGroups[cls]
 
         if #group % 2 == 1 then
-            if #sideA <= #sideB then
+            if (#sideA + offsetA) <= (#sideB + offsetB) then
                 table.insert(sideA, group[#group])
             else
                 table.insert(sideB, group[#group])
@@ -623,7 +628,7 @@ local function SplitByRole(items, roster)
     local sideA, sideB = {}, {}
 
     for _, role in ipairs(ROLE_ORDER) do
-        local a, b = addon:ClassPairSplit(buckets[role], roster)
+        local a, b = addon:ClassPairSplit(buckets[role], roster, #sideA, #sideB)
         for _, item in ipairs(a) do table.insert(sideA, item) end
         for _, item in ipairs(b) do table.insert(sideB, item) end
     end

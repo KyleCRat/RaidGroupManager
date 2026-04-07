@@ -27,6 +27,7 @@ function addon:OnInitialize()
     self.slots = {}
     self.selectedLayout = nil
     self.autoSave = false
+    self.debugMode = false
 
     self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
@@ -122,11 +123,19 @@ function addon:SlashCommand(input)
         return
     end
 
+    if cmd == "debug" then
+        self.debugMode = not self.debugMode
+        self:Print("Debug mode " .. (self.debugMode and "enabled" or "disabled"))
+
+        return
+    end
+
     if cmd == "help" then
         self:Print("Commands:")
         self:Print("  /rgm - Toggle the main window")
         self:Print("  /rgm apply <name> - Apply a saved layout")
         self:Print("  /rgm presets - Add preset layouts to your list")
+        self:Print("  /rgm debug - Toggle debug messages")
         self:Print("  /rgm help - Show this help")
 
         return
@@ -158,6 +167,12 @@ function addon:ToggleMainFrame()
         self.mainFrame:Show()
         self:RefreshAllSlots()
         self:RefreshUnassigned()
+    end
+end
+
+function addon:Debug(...)
+    if self.debugMode then
+        self:Print("DEBUG", ...)
     end
 end
 

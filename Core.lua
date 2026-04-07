@@ -19,6 +19,7 @@ local defaults = {
         framePosition = nil,
         gridState = nil,
         importedRoster = {},
+        specCache = {},
     },
 }
 
@@ -28,6 +29,12 @@ function addon:OnInitialize()
     self.selectedLayout = nil
     self.autoSave = false
     self.debugMode = false
+    self.specCache = self.db.profile.specCache
+    self.wasInRaid = IsInRaid()
+    self.inspectQueue = {}
+    self.inspectQueueSet = {}
+    self.inspectBusy = false
+    self.inspectSafetyTimer = nil
 
     self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
@@ -38,10 +45,48 @@ function addon:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")
     self:RegisterEvent("ENCOUNTER_START", "OnEncounterStart")
     self:RegisterEvent("ENCOUNTER_END", "OnEncounterEnd")
+    self:RegisterEvent("INSPECT_READY", "OnInspectReady")
+    self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnSpecChanged")
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
+end
+
+function addon:WipeSpecCache()
+    wipe(self.specCache)
+    wipe(self.inspectQueue)
+    wipe(self.inspectQueueSet)
+    self.inspectBusy = false
+
+    if self.inspectSafetyTimer then
+        self.inspectSafetyTimer:Cancel()
+        self.inspectSafetyTimer = nil
+    end
+
+    self:Debug("Spec cache wiped")
 end
 
 function addon:OnRosterUpdate()
+    local inRaid = IsInRaid()
+
+    -- Detect raid join/leave transitions
+    if inRaid and not self.wasInRaid then
+        self:WipeSpecCache()
+        self:Debug("Joined raid, cache reset")
+    end
+
+    if not inRaid and self.wasInRaid then
+        self:WipeSpecCache()
+        self:Debug("Left raid, cache reset")
+    end
+
+    self.wasInRaid = inRaid
+
+    -- Maintain the inspect cache regardless of frame visibility
+    if inRaid then
+        self:QueueAllInspects()
+    end
+
     if not self.mainFrame or not self.mainFrame:IsShown() then
+
         return
     end
 
@@ -173,6 +218,189 @@ end
 function addon:Debug(...)
     if self.debugMode then
         self:Print("DEBUG", ...)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Inspect cache — queue NotifyInspect calls and cache spec IDs
+--------------------------------------------------------------------------------
+
+local INSPECT_INTERVAL = 1.5
+local INSPECT_SAFETY_TIMEOUT = 3.0
+
+function addon:QueueInspect(name)
+    if self.specCache[name] then
+
+        return
+    end
+
+    if self.inspectQueueSet[name] then
+
+        return
+    end
+
+    table.insert(self.inspectQueue, name)
+    self.inspectQueueSet[name] = true
+
+    if not self.inspectBusy and #self.inspectQueue == 1 then
+        self:ProcessNextInspect()
+    end
+end
+
+function addon:FindRaidUnit(name)
+    local count = GetNumGroupMembers()
+    for i = 1, count do
+        local rosterName = GetRaidRosterInfo(i)
+        if rosterName and self:NormalizeName(rosterName) == name then
+
+            return "raid" .. i
+        end
+    end
+
+    return nil
+end
+
+function addon:ProcessNextInspect()
+    if InCombatLockdown() then
+        self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+
+        return
+    end
+
+    -- Skip stale entries until we find a valid target
+    while #self.inspectQueue > 0 do
+        local name = self.inspectQueue[1]
+        table.remove(self.inspectQueue, 1)
+        self.inspectQueueSet[name] = nil
+
+        if self.specCache[name] then
+            -- Already cached (e.g. from a tooltip inspect), skip
+        else
+            local unit = self:FindRaidUnit(name)
+            if unit and UnitIsConnected(unit) then
+                self.inspectBusy = true
+                self:Debug("Inspecting " .. name .. " (" .. unit .. ")")
+                NotifyInspect(unit)
+
+                -- Safety timer in case INSPECT_READY never fires
+                if self.inspectSafetyTimer then
+                    self.inspectSafetyTimer:Cancel()
+                end
+
+                self.inspectSafetyTimer = C_Timer.NewTimer(INSPECT_SAFETY_TIMEOUT, function()
+                    self.inspectSafetyTimer = nil
+                    if self.inspectBusy then
+                        self:Debug("Inspect safety timeout for " .. name)
+                        self.inspectBusy = false
+                        self:ProcessNextInspect()
+                    end
+                end)
+
+                return
+            end
+        end
+    end
+
+    self.inspectBusy = false
+end
+
+function addon:OnInspectReady(_, inspecteeGUID)
+    if not self.inspectBusy then
+
+        return
+    end
+
+    if self.inspectSafetyTimer then
+        self.inspectSafetyTimer:Cancel()
+        self.inspectSafetyTimer = nil
+    end
+
+    self.inspectBusy = false
+
+    -- Find which raid member matches this GUID
+    local count = GetNumGroupMembers()
+    for i = 1, count do
+        local unit = "raid" .. i
+        if UnitGUID(unit) == inspecteeGUID then
+            local specID = GetInspectSpecialization(unit)
+            if specID and specID > 0 then
+                local rosterName = GetRaidRosterInfo(i)
+                if rosterName then
+                    local name = self:NormalizeName(rosterName)
+                    self.specCache[name] = specID
+                    self:Debug(name .. " spec cached: " .. specID)
+                end
+            end
+
+            break
+        end
+    end
+
+    ClearInspectPlayer()
+
+    C_Timer.After(INSPECT_INTERVAL, function()
+        self:ProcessNextInspect()
+    end)
+end
+
+function addon:OnCombatEnd()
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    self:ProcessNextInspect()
+end
+
+function addon:OnSpecChanged(_, unit)
+    if not unit or not IsInRaid() then
+        return
+    end
+
+    if UnitIsUnit(unit, "player") then
+        return
+    end
+
+    local fullName, _ = UnitName(unit)
+    if not fullName then
+        return
+    end
+
+    local name = self:NormalizeName(fullName)
+    self.specCache[name] = nil
+    self:QueueInspect(name)
+    self:Debug(name .. " changed spec, re-queued for inspect")
+end
+
+function addon:QueueAllInspects()
+    local roster = self:GetRaidRoster()
+    self:PruneSpecCache(roster)
+    for name, member in pairs(roster) do
+        if not UnitIsUnit("raid" .. member.raidIndex, "player") then
+            self:QueueInspect(name)
+        end
+    end
+end
+
+function addon:OnZoneChanged()
+    if not IsInRaid() then
+        return
+    end
+
+    self:WipeSpecCache()
+    self:Debug("Zone changed, cache reset")
+    self:QueueAllInspects()
+end
+
+function addon:PruneSpecCache(roster)
+    for name in pairs(self.specCache) do
+        if not roster[name] then
+            self.specCache[name] = nil
+        end
+    end
+
+    for i = #self.inspectQueue, 1, -1 do
+        local name = self.inspectQueue[i]
+        if not roster[name] then
+            table.remove(self.inspectQueue, i)
+            self.inspectQueueSet[name] = nil
+        end
     end
 end
 
@@ -504,9 +732,9 @@ function addon:GetCombatRole(member)
         return "HEALER"
     end
 
-    -- DPS — check spec ID for melee vs ranged
+    -- DPS — check spec ID for melee vs ranged (cache first, then live API)
     local unit = "raid" .. member.raidIndex
-    local specID = GetUnitSpecID(unit)
+    local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
     if specID and specID > 0 then
         if MELEE_DPS_SPECS[specID] then
 

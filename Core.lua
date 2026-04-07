@@ -20,6 +20,7 @@ local defaults = {
         gridState = nil,
         importedRoster = {},
         specCache = {},
+        debugMode = false,
     },
 }
 
@@ -28,7 +29,7 @@ function addon:OnInitialize()
     self.slots = {}
     self.selectedLayout = nil
     self.autoSave = false
-    self.debugMode = false
+    self.debugMode = self.db.profile.debugMode
     self.specCache = self.db.profile.specCache
     self.wasInRaid = IsInRaid()
     self.inspectQueue = {}
@@ -170,6 +171,7 @@ function addon:SlashCommand(input)
 
     if cmd == "debug" then
         self.debugMode = not self.debugMode
+        self.db.profile.debugMode = self.debugMode
         self:Print("Debug mode " .. (self.debugMode and "enabled" or "disabled"))
 
         return
@@ -217,7 +219,7 @@ end
 
 function addon:Debug(...)
     if self.debugMode then
-        self:Print("DEBUG", ...)
+        self:Print("[DEBUG]", ...)
     end
 end
 

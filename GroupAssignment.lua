@@ -714,14 +714,14 @@ function ExecuteNextMove()
         local idx = FindRaidIndex(move.name)
         if idx then
             local _, _, currentGroup = GetRaidRosterInfo(idx)
-            addon:Print(tag .. " " .. phase .. ": " .. move.name .. " group " .. currentGroup .. " -> " .. move.targetGroup .. " (" .. reason .. ")")
+            addon:Debug(tag .. " " .. phase .. ": " .. move.name .. " group " .. currentGroup .. " -> " .. move.targetGroup .. " (" .. reason .. ")")
             SetRaidSubgroup(idx, move.targetGroup)
             addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
                 addon.safetyTimer = nil
                 ExecuteNextMove()
             end)
         else
-            addon:Print(tag .. " SKIP: " .. move.name .. " (left raid)")
+            addon:Debug(tag .. " SKIP: " .. move.name .. " (left raid)")
             ScheduleNextMove()
         end
 
@@ -734,12 +734,12 @@ function ExecuteNextMove()
         if idxA and idxB then
             -- Raid leader guard (should be handled in planning, but double-check)
             if idxA == 1 or idxB == 1 then
-                addon:Print(tag .. " SKIP: swap involving raid leader (" .. move.nameA .. " <-> " .. move.nameB .. ")")
+                addon:Debug(tag .. " SKIP: swap involving raid leader (" .. move.nameA .. " <-> " .. move.nameB .. ")")
                 ScheduleNextMove()
             else
                 local _, _, groupA = GetRaidRosterInfo(idxA)
                 local _, _, groupB = GetRaidRosterInfo(idxB)
-                addon:Print(tag .. " " .. phase .. ": " .. move.nameA .. " (g" .. groupA .. ") <-> " .. move.nameB .. " (g" .. groupB .. ") (" .. reason .. ")")
+                addon:Debug(tag .. " " .. phase .. ": " .. move.nameA .. " (g" .. groupA .. ") <-> " .. move.nameB .. " (g" .. groupB .. ") (" .. reason .. ")")
                 SwapRaidSubgroup(idxA, idxB)
                 addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
                     addon.safetyTimer = nil
@@ -747,7 +747,7 @@ function ExecuteNextMove()
                 end)
             end
         else
-            addon:Print(tag .. " SKIP: swap " .. move.nameA .. " <-> " .. move.nameB .. " (player left raid)")
+            addon:Debug(tag .. " SKIP: swap " .. move.nameA .. " <-> " .. move.nameB .. " (player left raid)")
             ScheduleNextMove()
         end
     end

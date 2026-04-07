@@ -14,6 +14,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Place template slots like "Tank - Warrior" or generic "Healer" instead of specific player names
 - Templates auto-resolve to matching raid members when you click Apply
 - Two-pass resolution: class+role specific templates match first, then generic role-only templates
+- Generic templates use class-paired distribution across groups (e.g. 2 DKs split one per side)
 - Unmatched templates remain in place for manual assignment
 
 ### Layout Management
@@ -43,6 +44,13 @@ Four browsing modes via tab bar:
 - Imported roster persists across sessions
 - Drag roster members directly into grid slots
 
+### Spec Detection
+- Background inspect cache queues raid members for inspection as they join
+- Cached spec IDs persist across reloads for instant melee/ranged classification
+- Cache resets on raid join/leave or zone change to stay fresh
+- Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED
+- Layered fallback: inspect cache → local GetSpecialization → class defaults → Agility vs Intellect stats
+
 ### Quality of Life
 - Minimap button to toggle the window
 - Frame position remembers where you left it
@@ -57,6 +65,7 @@ Four browsing modes via tab bar:
 | `/rgm` | Toggle the main window |
 | `/rgm apply <name>` | Apply a saved layout by name |
 | `/rgm presets` | Re-add preset layouts to your list |
+| `/rgm debug` | Toggle debug messages |
 | `/rgm help` | Show command help |
 
 ## Installation

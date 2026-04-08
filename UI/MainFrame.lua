@@ -285,6 +285,35 @@ function addon:LoadCurrentRoster()
     self:TryAutoSave()
 end
 
+function addon:ShowToast(message)
+    local frame = self.mainFrame
+    if not frame then
+        return
+    end
+
+    if not frame.toast then
+        local toast = frame:CreateFontString(nil, "OVERLAY")
+        toast:SetFont(FONT, 14, "OUTLINE")
+        toast:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+        toast:SetTextColor(1, 0.2, 0.2, 1)
+        frame.toast = toast
+    end
+
+    local toast = frame.toast
+    toast:SetText(message)
+    toast:SetAlpha(1)
+    toast:Show()
+
+    if toast.fadeTimer then
+        toast.fadeTimer:Cancel()
+    end
+
+    toast.fadeTimer = C_Timer.NewTimer(1.5, function()
+        toast:Hide()
+        toast.fadeTimer = nil
+    end)
+end
+
 function addon:SaveFramePosition()
     local point, _, relPoint, x, y = self.mainFrame:GetPoint()
     self.db.profile.framePosition = {

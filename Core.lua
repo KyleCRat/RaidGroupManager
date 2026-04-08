@@ -892,6 +892,7 @@ local function PinLeaderFirst(sideA, sideB, roster)
                 if i > groupStart then
                     table.remove(side, i)
                     table.insert(side, groupStart, item)
+                    addon:ShowToast("Raid leader must be in position 1 of subgroup")
                 end
 
                 return

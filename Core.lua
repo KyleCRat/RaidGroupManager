@@ -329,8 +329,17 @@ function addon:OnInspectReady(_, inspecteeGUID)
                 local rosterName = GetRaidRosterInfo(i)
                 if rosterName then
                     local name = self:NormalizeName(rosterName)
+                    local oldSpec = self.specCache[name]
                     self.specCache[name] = specID
                     self:Debug(name .. " spec cached: " .. specID)
+
+                    if oldSpec ~= specID and self.mainFrame and self.mainFrame:IsShown() then
+                        for si = 1, 40 do
+                            if self:GetSlotText(si) == name then
+                                self:RefreshSlot(si)
+                            end
+                        end
+                    end
                 end
             end
 

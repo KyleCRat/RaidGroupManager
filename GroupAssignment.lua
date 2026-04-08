@@ -470,11 +470,17 @@ local function PlanMoves(raidState, desired)
                             table.insert(moves, { type = "set", name = leaderName, targetGroup = staging, phase = "P1", reason = "stage leader for cycle" })
                             SimMove(sim, simGroups, leaderName, staging)
 
-                            -- Build lookup: which player wants each group
+                            -- Build lookup: which players want each group (multiple players
+                            -- can target the same group when the chain revisits a group)
                             local wantsGroup = {}
                             for _, name in ipairs(chain) do
                                 if name ~= leaderName then
-                                    wantsGroup[wrongGroup[name].to] = name
+                                    local target = wrongGroup[name].to
+                                    if not wantsGroup[target] then
+                                        wantsGroup[target] = {}
+                                    end
+
+                                    table.insert(wantsGroup[target], name)
                                 end
                             end
 
@@ -482,12 +488,13 @@ local function PlanMoves(raidState, desired)
                             -- move whoever wants that group, their departure frees another, etc.
                             local freeGroup = leaderFrom
                             for _ = 1, #chain - 1 do
-                                local mover = wantsGroup[freeGroup]
-                                if not mover then
+                                local movers = wantsGroup[freeGroup]
+                                if not movers or #movers == 0 then
 
                                     break
                                 end
 
+                                local mover = table.remove(movers, 1)
                                 local moverFrom = sim[mover]
                                 table.insert(moves, { type = "set", name = mover, targetGroup = freeGroup, phase = "P1", reason = "cycle cascade to g" .. freeGroup })
                                 SimMove(sim, simGroups, mover, freeGroup)

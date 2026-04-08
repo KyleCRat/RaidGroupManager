@@ -881,6 +881,25 @@ local function SplitByRole(items, roster)
     return sideA, sideB
 end
 
+-- Move the raid leader to position 1 in whichever side they landed on,
+-- matching how WoW always displays the leader first in their group.
+local function PinLeaderFirst(sideA, sideB, roster)
+    for _, side in ipairs({ sideA, sideB }) do
+        for i, item in ipairs(side) do
+            local info = roster[item]
+            if info and info.raidIndex == 1 then
+                local groupStart = math.floor((i - 1) / 5) * 5 + 1
+                if i > groupStart then
+                    table.remove(side, i)
+                    table.insert(side, groupStart, item)
+                end
+
+                return
+            end
+        end
+    end
+end
+
 --------------------------------------------------------------------------------
 -- Split functions
 --------------------------------------------------------------------------------
@@ -903,6 +922,7 @@ function addon:SplitOddEven()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
+    PinLeaderFirst(oddItems, evenItems, roster)
 
     PlaceItemsInGroups(oddItems, oddGroups)
     PlaceItemsInGroups(evenItems, evenGroups)
@@ -926,6 +946,7 @@ function addon:SplitHalves()
     ClearGroups(allGroups)
 
     local firstItems, secondItems = SplitByRole(items, roster)
+    PinLeaderFirst(firstItems, secondItems, roster)
 
     -- Pack each half into only as many groups as needed
     local firstCount = GroupsNeeded(#firstItems)

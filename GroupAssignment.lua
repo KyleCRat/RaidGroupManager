@@ -432,18 +432,85 @@ local function PlanMoves(raidState, desired)
                     -- the anchor walks backward through the cycle so each
                     -- partner lands in the correct seat.
                     local anchor = chain[1]
-                    for j = #chain, 2, -1 do
-                        local partner = chain[j]
-                        local stateAnchor = raidState[anchor]
-                        local statePartner = raidState[partner]
-                        if stateAnchor.raidIndex ~= 1 and statePartner.raidIndex ~= 1 then
-                            table.insert(moves, { type = "swap", nameA = anchor, nameB = partner, phase = "P1", reason = "cycle chain step " .. (j - 1) })
-                            SimSwap(sim, simGroups, anchor, partner)
+                    local chainHasLeader = false
+                    for _, name in ipairs(chain) do
+                        if raidState[name] and raidState[name].raidIndex == 1 then
+                            chainHasLeader = true
+
+                            break
                         end
                     end
 
-                    for _, name in ipairs(chain) do
-                        resolved[name] = true
+                    if chainHasLeader then
+                        -- Can't use SwapRaidSubgroup with the raid leader.
+                        -- Resolve via SetRaidSubgroup: move leader to staging,
+                        -- cascade remaining members through the freed slot,
+                        -- then move leader to their target.
+                        local leaderName, leaderFrom, leaderTo
+                        for _, name in ipairs(chain) do
+                            if raidState[name] and raidState[name].raidIndex == 1 then
+                                leaderName = name
+                                leaderFrom = wrongGroup[name].from
+                                leaderTo = wrongGroup[name].to
+
+                                break
+                            end
+                        end
+
+                        local staging = nil
+                        for g = 8, 1, -1 do
+                            if SimGroupCount(simGroups, g) < 5 then
+                                staging = g
+
+                                break
+                            end
+                        end
+
+                        if staging then
+                            table.insert(moves, { type = "set", name = leaderName, targetGroup = staging, phase = "P1", reason = "stage leader for cycle" })
+                            SimMove(sim, simGroups, leaderName, staging)
+
+                            -- Build lookup: which player wants each group
+                            local wantsGroup = {}
+                            for _, name in ipairs(chain) do
+                                if name ~= leaderName then
+                                    wantsGroup[wrongGroup[name].to] = name
+                                end
+                            end
+
+                            -- Follow the freed-slot cascade: leader freed leaderFrom,
+                            -- move whoever wants that group, their departure frees another, etc.
+                            local freeGroup = leaderFrom
+                            for _ = 1, #chain - 1 do
+                                local mover = wantsGroup[freeGroup]
+                                if not mover then
+
+                                    break
+                                end
+
+                                local moverFrom = sim[mover]
+                                table.insert(moves, { type = "set", name = mover, targetGroup = freeGroup, phase = "P1", reason = "cycle cascade to g" .. freeGroup })
+                                SimMove(sim, simGroups, mover, freeGroup)
+                                freeGroup = moverFrom
+                            end
+
+                            table.insert(moves, { type = "set", name = leaderName, targetGroup = leaderTo, phase = "P1", reason = "move raid leader to target" })
+                            SimMove(sim, simGroups, leaderName, leaderTo)
+
+                            for _, name in ipairs(chain) do
+                                resolved[name] = true
+                            end
+                        end
+                    else
+                        for j = #chain, 2, -1 do
+                            local partner = chain[j]
+                            table.insert(moves, { type = "swap", nameA = anchor, nameB = partner, phase = "P1", reason = "cycle chain step " .. (j - 1) })
+                            SimSwap(sim, simGroups, anchor, partner)
+                        end
+
+                        for _, name in ipairs(chain) do
+                            resolved[name] = true
+                        end
                     end
 
                     break
@@ -503,10 +570,35 @@ local function PlanMoves(raidState, desired)
                     table.insert(moves, { type = "swap", nameA = name, nameB = evictee, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup })
                     SimSwap(sim, simGroups, name, evictee)
                 elseif evictee and raidState[name] and raidState[name].raidIndex == 1 then
-                    -- Raid leader can't use SwapRaidSubgroup — move evictee out first, then leader in
+                    -- Raid leader can't use SwapRaidSubgroup — move evictee out first, then leader in.
+                    -- The leader's old group may be full (leader is still there), so send the
+                    -- evictee to a staging group first, move the leader, then place the evictee.
                     local leaderOldGroup = sim[name]
-                    table.insert(moves, { type = "set", name = evictee, targetGroup = leaderOldGroup, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup .. " for leader" })
-                    SimMove(sim, simGroups, evictee, leaderOldGroup)
+                    local evicteeTarget = desired[evictee] and desired[evictee].desiredGroup or leaderOldGroup
+
+                    if SimGroupCount(simGroups, evicteeTarget) < 5 then
+                        -- Evictee's destination has room — move directly
+                        table.insert(moves, { type = "set", name = evictee, targetGroup = evicteeTarget, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup .. " for leader" })
+                        SimMove(sim, simGroups, evictee, evicteeTarget)
+                    else
+                        -- Find a staging group with room
+                        local staging = nil
+                        for g = 8, 1, -1 do
+                            if SimGroupCount(simGroups, g) < 5 and g ~= targetGroup then
+                                staging = g
+
+                                break
+                            end
+                        end
+
+                        if staging then
+                            table.insert(moves, { type = "set", name = evictee, targetGroup = staging, phase = "P1", reason = "stage " .. evictee .. " from g" .. targetGroup .. " for leader" })
+                            SimMove(sim, simGroups, evictee, staging)
+                        else
+                            addon:Print("Warning: Cannot find staging group for " .. evictee)
+                        end
+                    end
+
                     table.insert(moves, { type = "set", name = name, targetGroup = targetGroup, phase = "P1", reason = "move raid leader to target" })
                     SimMove(sim, simGroups, name, targetGroup)
                 else

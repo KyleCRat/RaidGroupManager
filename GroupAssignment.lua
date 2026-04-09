@@ -628,10 +628,52 @@ local function PlanMoves(raidState, desired)
 
     local stagingGroup = nil
     for g = 8, 1, -1 do
-        if not usedGroups[g] then
+        if not usedGroups[g] and SimGroupCount(simGroups, g) == 0 then
             stagingGroup = g
 
             break
+        end
+    end
+
+    -- No empty unused group — clear the best candidate by moving its occupants out
+    if not stagingGroup then
+        local bestGroup, bestCount = nil, 6
+        for g = 8, 1, -1 do
+            if not usedGroups[g] then
+                local c = SimGroupCount(simGroups, g)
+                if c < bestCount then
+                    bestGroup = g
+                    bestCount = c
+                end
+            end
+        end
+
+        if bestGroup then
+            -- Find another unused group to absorb the displaced members
+            local overflow = nil
+            for g = 8, 1, -1 do
+                if not usedGroups[g] and g ~= bestGroup and SimGroupCount(simGroups, g) + bestCount <= 5 then
+                    overflow = g
+
+                    break
+                end
+            end
+
+            if overflow then
+                local toMove = {}
+                for pos = 1, 5 do
+                    if simGroups[bestGroup][pos] then
+                        table.insert(toMove, simGroups[bestGroup][pos])
+                    end
+                end
+
+                for _, name in ipairs(toMove) do
+                    table.insert(moves, { type = "set", name = name, targetGroup = overflow, phase = "P2", reason = "clear staging g" .. bestGroup .. " -> g" .. overflow })
+                    SimMove(sim, simGroups, name, overflow)
+                end
+
+                stagingGroup = bestGroup
+            end
         end
     end
 

@@ -55,6 +55,7 @@ Four browsing modes via tab bar:
 - Minimap button to toggle the window
 - Frame position remembers where you left it
 - Auto-hides during boss encounters, reopens when you're alive after
+- Toast notifications for layout apply results and other feedback
 - Custom role icons distinguishing melee DPS from ranged DPS
 - Pixel-perfect grid rendering via LibPixelPerfect
 

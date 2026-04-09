@@ -2,6 +2,17 @@
 
 All notable changes to Raid Group Manager will be documented in this file.
 
+## [12.0.1-4] - 2026-04-09
+
+### Fixed
+- Fix group moves involving the raid leader placing players in wrong groups
+- Fix staging group incorrectly containing bench players
+- Refresh grid slot display after caching a player's spec via inspect
+
+### Added
+- Toast notifications for layout apply results and other actions
+- Raid leader is now placed first during group assignment to avoid move conflicts
+
 ## [12.0.1-3] - 2026-04-07
 
 ### Fixed

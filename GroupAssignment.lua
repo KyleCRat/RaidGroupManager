@@ -7,6 +7,8 @@ local STATE_EXECUTING = 2
 local DEBOUNCE_INTERVAL = 0.2
 local SAFETY_TIMEOUT = 2.0
 
+local ExecuteNextMove
+
 addon.assignState = STATE_IDLE
 addon.debounceTimer = nil
 addon.safetyTimer = nil
@@ -814,7 +816,7 @@ local function ScheduleNextMove()
     end)
 end
 
-function ExecuteNextMove()
+ExecuteNextMove = function()
     if addon.assignState ~= STATE_EXECUTING then
         return
     end
@@ -973,9 +975,7 @@ function addon:StartApply()
         self.applyButton.label:SetTextColor(0.5, 0.5, 0.5)
     end
 
-    self:RegisterEvent("GROUP_ROSTER_UPDATE", function()
-        OnAssignmentRosterUpdate()
-    end)
+    self:RegisterEvent("GROUP_ROSTER_UPDATE", OnAssignmentRosterUpdate)
 
     -- Execute the first move immediately
     ExecuteNextMove()

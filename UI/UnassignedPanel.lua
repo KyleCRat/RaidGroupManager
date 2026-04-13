@@ -679,7 +679,7 @@ function addon:UpdateRosterImportButton()
 end
 
 function addon:RefreshUnassignedRosterMode()
-    local roster = self.db.profile.importedRoster or {}
+    local roster = self.db.char.importedRoster or {}
     local assigned = {}
 
     for i = 1, 40 do
@@ -848,7 +848,7 @@ function addon:DoRosterImport()
         return
     end
 
-    self.db.profile.importedRoster = roster
+    self.db.char.importedRoster = roster
     self:Print("Imported " .. #roster .. " roster members.")
     self:RefreshUnassigned()
 

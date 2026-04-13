@@ -18,14 +18,23 @@ local defaults = {
         layouts = {},
         framePosition = nil,
         gridState = nil,
-        importedRoster = {},
         specCache = {},
         debugMode = false,
+    },
+    char = {
+        importedRoster = {},
     },
 }
 
 function addon:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("RaidGroupManagerDB", defaults, true)
+    if self.db.profile.importedRoster then
+        if not self.db.char.importedRoster or not next(self.db.char.importedRoster) then
+            self.db.char.importedRoster = self.db.profile.importedRoster
+        end
+        self.db.profile.importedRoster = nil
+    end
+
     self.slots = {}
     self.selectedLayout = nil
     self.autoSave = false

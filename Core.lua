@@ -71,6 +71,12 @@ function addon:WipeSpecCache()
         self.inspectSafetyTimer = nil
     end
 
+    if self.retryUncachedTimer then
+        self.retryUncachedTimer:Cancel()
+        self.retryUncachedTimer = nil
+    end
+
+    self.inspectRetries = {}
     self:Debug("Spec cache wiped")
 end
 
@@ -301,8 +307,9 @@ function addon:ProcessNextInspect()
                 self.inspectSafetyTimer = C_Timer.NewTimer(INSPECT_SAFETY_TIMEOUT, function()
                     self.inspectSafetyTimer = nil
                     if self.inspectBusy then
-                        self:Debug("Inspect safety timeout for " .. name)
+                        self:Debug("Inspect safety timeout for " .. name .. ", re-queued")
                         self.inspectBusy = false
+                        self:QueueInspect(name)
                         self:ProcessNextInspect()
                     end
                 end)
@@ -313,6 +320,53 @@ function addon:ProcessNextInspect()
     end
 
     self.inspectBusy = false
+    self:ScheduleRetryUncached()
+end
+
+local RETRY_UNCACHED_DELAY = 10.0
+local MAX_UNCACHED_RETRIES = 3
+
+function addon:ScheduleRetryUncached()
+    if self.retryUncachedTimer then
+
+        return
+    end
+
+    if not IsInRaid() then
+
+        return
+    end
+
+    self.retryUncachedTimer = C_Timer.NewTimer(RETRY_UNCACHED_DELAY, function()
+        self.retryUncachedTimer = nil
+
+        if not IsInRaid() then
+
+            return
+        end
+
+        local roster = self:GetRaidRoster()
+        local missing = false
+        self.inspectRetries = self.inspectRetries or {}
+
+        for name, member in pairs(roster) do
+            if not self.specCache[name] and not UnitIsUnit("raid" .. member.raidIndex, "player") then
+                local retries = self.inspectRetries[name] or 0
+                if retries < MAX_UNCACHED_RETRIES then
+                    self.inspectRetries[name] = retries + 1
+                    missing = true
+                    self:QueueInspect(name)
+                end
+            end
+        end
+
+        if missing then
+            self:Debug("Retrying uncached members")
+            if not self.inspectBusy then
+                self:ProcessNextInspect()
+            end
+        end
+    end)
 end
 
 function addon:OnInspectReady(_, inspecteeGUID)
@@ -334,22 +388,24 @@ function addon:OnInspectReady(_, inspecteeGUID)
         local unit = "raid" .. i
         if UnitGUID(unit) == inspecteeGUID then
             local specID = GetInspectSpecialization(unit)
-            if specID and specID > 0 then
-                local rosterName = GetRaidRosterInfo(i)
-                if rosterName then
-                    local name = self:NormalizeName(rosterName)
-                    local oldSpec = self.specCache[name]
-                    self.specCache[name] = specID
-                    self:Debug(name .. " spec cached: " .. specID)
+            local rosterName = GetRaidRosterInfo(i)
+            local name = rosterName and self:NormalizeName(rosterName)
 
-                    if oldSpec ~= specID and self.mainFrame and self.mainFrame:IsShown() then
-                        for si = 1, 40 do
-                            if self:GetSlotText(si) == name then
-                                self:RefreshSlot(si)
-                            end
+            if specID and specID > 0 and name then
+                local oldSpec = self.specCache[name]
+                self.specCache[name] = specID
+                self:Debug(name .. " spec cached: " .. specID)
+
+                if oldSpec ~= specID and self.mainFrame and self.mainFrame:IsShown() then
+                    for si = 1, 40 do
+                        if self:GetSlotText(si) == name then
+                            self:RefreshSlot(si)
                         end
                     end
                 end
+            elseif name then
+                self:Debug(name .. " inspect returned no spec, re-queued")
+                self:QueueInspect(name)
             end
 
             break

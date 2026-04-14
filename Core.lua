@@ -82,6 +82,14 @@ function addon:WipeSpecCache()
     end
 
     self.inspectRetries = {}
+
+    if self.specChangeTimers then
+        for _, timer in pairs(self.specChangeTimers) do
+            timer:Cancel()
+        end
+        wipe(self.specChangeTimers)
+    end
+
     self:Debug("Spec cache wiped")
 end
 
@@ -264,7 +272,7 @@ function addon:QueueInspect(name)
     table.insert(self.inspectQueue, name)
     self.inspectQueueSet[name] = true
 
-    if not self.inspectBusy and #self.inspectQueue == 1 then
+    if not self.inspectBusy then
         self:ProcessNextInspect()
     end
 end
@@ -449,15 +457,26 @@ function addon:OnSpecChanged(_, unit)
         return
     end
 
-    local fullName, _ = UnitName(unit)
-    if not fullName then
+    local charName, realm = UnitName(unit)
+    if not charName then
         return
     end
 
+    local fullName = (realm and realm ~= "") and (charName .. "-" .. realm) or charName
     local name = self:NormalizeName(fullName)
-    self.specCache[name] = nil
-    self:QueueInspect(name)
-    self:Debug(name .. " changed spec, re-queued for inspect")
+
+    -- Debounce: PLAYER_SPECIALIZATION_CHANGED fires multiple times per spec change
+    self.specChangeTimers = self.specChangeTimers or {}
+    if self.specChangeTimers[name] then
+        self.specChangeTimers[name]:Cancel()
+    end
+
+    self.specChangeTimers[name] = C_Timer.NewTimer(0.5, function()
+        self.specChangeTimers[name] = nil
+        self.specCache[name] = nil
+        self:QueueInspect(name)
+        self:Debug(name .. " changed spec, re-queued for inspect")
+    end)
 end
 
 function addon:QueueAllInspects()

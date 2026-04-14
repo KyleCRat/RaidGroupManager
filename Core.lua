@@ -704,15 +704,27 @@ end
 
 -- Melee DPS specialization IDs
 local MELEE_DPS_SPECS = {
-    [71]  = true, [72]  = true,                   -- Arms, Fury Warrior
-    [259] = true, [260] = true, [261] = true,     -- Assassination, Outlaw, Subtlety Rogue
-    [251] = true, [252] = true,                   -- Frost, Unholy Death Knight
-    [577] = true,                                 -- Havoc Demon Hunter
-    [269] = true,                                 -- Windwalker Monk
-    [70]  = true,                                 -- Retribution Paladin
-    [103] = true,                                 -- Feral Druid
-    [263] = true,                                 -- Enhancement Shaman
-    [255] = true,                                 -- Survival Hunter
+    [71]  = true, [72]  = true,               -- Arms, Fury Warrior
+    [259] = true, [260] = true, [261] = true, -- Assassination, Outlaw, Subtlety Rogue
+    [251] = true, [252] = true,               -- Frost, Unholy Death Knight
+    [577] = true,                             -- Havoc Demon Hunter
+    [269] = true,                             -- Windwalker Monk
+    [70]  = true,                             -- Retribution Paladin
+    [103] = true,                             -- Feral Druid
+    [263] = true,                             -- Enhancement Shaman
+    [255] = true,                             -- Survival Hunter
+}
+
+-- Ranged DPS specialization IDs
+local RANGED_DPS_SPECS = {
+    [253] = true, [254] = true,               -- Beast Mastery, Marksmanship Hunter
+    [62]  = true, [63]  = true, [64]  = true, -- Arcane, Fire, Frost Mage
+    [258] = true,                             -- Shadow Priest
+    [262] = true,                             -- Elemental Shaman
+    [265] = true, [266] = true, [267] = true, -- Affliction, Demonology, Destruction Warlock
+    [102] = true,                             -- Balance Druid
+    [1467] = true, [1473] = true,             -- Devastation, Augmentation Evoker
+    [1480] = true,                            -- Devourer Demon Hunter
 }
 
 -- Fallback: classes where ALL DPS specs are melee

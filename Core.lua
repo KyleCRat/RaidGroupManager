@@ -98,13 +98,13 @@ function addon:OnRosterUpdate()
 
     -- Detect raid join/leave transitions
     if inRaid and not self.wasInRaid then
+        self:Debug("Joined raid group")
         self:WipeSpecCache()
-        self:Debug("Joined raid, cache reset")
     end
 
     if not inRaid and self.wasInRaid then
+        self:Debug("Left raid group")
         self:WipeSpecCache()
-        self:Debug("Left raid, cache reset")
     end
 
     self.wasInRaid = inRaid
@@ -493,12 +493,13 @@ function addon:OnZoneChanged()
     if IsInRaid() then
         self.inspectRetries = {}
         self:QueueAllInspects()
+        self:Debug("Zone changed: re-queuing inspects")
 
         return
     end
 
+    self:Debug("Zone changed: not in raid group")
     self:WipeSpecCache()
-    self:Debug("Zone changed outside raid group, cache reset")
 end
 
 function addon:PruneSpecCache(roster)

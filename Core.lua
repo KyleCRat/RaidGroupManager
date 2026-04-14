@@ -715,6 +715,26 @@ local MELEE_DPS_SPECS = {
     [255] = true,                             -- Survival Hunter
 }
 
+-- Tank specialization IDs
+local TANK_SPECS = {
+    [66]  = true,                                 -- Protection Paladin
+    [73]  = true,                                 -- Protection Warrior
+    [104] = true,                                 -- Guardian Druid
+    [250] = true,                                 -- Blood Death Knight
+    [268] = true,                                 -- Brewmaster Monk
+    [581] = true,                                 -- Vengeance Demon Hunter
+}
+
+-- Healer specialization IDs
+local HEALER_SPECS = {
+    [65]   = true,                                -- Holy Paladin
+    [105]  = true,                                -- Restoration Druid
+    [256]  = true, [257] = true,                  -- Discipline, Holy Priest
+    [264]  = true,                                -- Restoration Shaman
+    [270]  = true,                                -- Mistweaver Monk
+    [1468] = true,                                -- Preservation Evoker
+}
+
 -- Ranged DPS specialization IDs
 local RANGED_DPS_SPECS = {
     [253] = true, [254] = true,               -- Beast Mastery, Marksmanship Hunter
@@ -764,10 +784,20 @@ function addon:GetCombatRole(member)
         return "HEALER"
     end
 
-    -- DPS — check spec ID for melee vs ranged (cache first, then live API)
+    -- Check spec ID (cache first, then live API)
     local unit = "raid" .. member.raidIndex
     local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
     if specID and specID > 0 then
+        if TANK_SPECS[specID] then
+
+            return "TANK"
+        end
+
+        if HEALER_SPECS[specID] then
+
+            return "HEALER"
+        end
+
         if MELEE_DPS_SPECS[specID] then
 
             return "MELEE"

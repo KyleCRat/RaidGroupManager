@@ -46,10 +46,12 @@ Four browsing modes via tab bar:
 
 ### Spec Detection
 - Background inspect cache queues raid members for inspection as they join
-- Cached spec IDs persist across reloads for instant melee/ranged classification
-- Cache resets on raid join/leave or zone change to stay fresh
-- Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED
-- Layered fallback: inspect cache → local GetSpecialization → class defaults → Agility vs Intellect stats
+- Cached spec IDs persist across reloads and between instances within a raid group
+- Cache resets on raid join/leave to stay fresh; zone changes re-queue uncached members
+- Failed inspects automatically retry (up to 3 attempts per player)
+- Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED (debounced)
+- Layered fallback: inspect cache → tank/healer spec IDs → melee DPS spec IDs → class defaults → Agility vs Intellect stats
+- Pure-melee classes (DK, Warrior, Rogue, Monk, Paladin) can never be misclassified as ranged
 
 ### Quality of Life
 - Minimap button to toggle the window

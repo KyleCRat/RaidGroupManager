@@ -1,8 +1,8 @@
-## Interface: 120001
+## Interface: 120001, 120005
 ## Title: Raid Group Manager
 ## Notes: Organize and apply raid group layouts
 ## Author: Yvairel
-## Version: 12.0.1-4
+## Version: 12.0.1-5
 ## SavedVariables: RaidGroupManagerDB
 
 # Libraries

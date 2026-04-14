@@ -1,6 +1,21 @@
 # Changelog
 
-All notable changes to Raid Group Manager will be documented in this file.
+## [12.0.1-5] - 2026-04-14
+
+### Fixed
+- Fix pure-melee classes (DK, Warrior, Rogue, Monk, Paladin) sometimes showing as ranged when role assignment or spec lookup returned unexpected values
+- Fix spec change detection not working for cross-realm players (only same-realm players were updating)
+- Fix failed inspects (timeouts, out-of-range) never being retried, leaving players permanently uncached
+- Fix rapid PLAYER_SPECIALIZATION_CHANGED events clearing freshly cached spec data
+
+### Changed
+- Spec cache now persists between instances within the same raid group (no longer wipes on every zone change)
+- Spec-based fallback now detects tank and healer specs directly, covering cases where role assignment returns NONE
+- Added retry system for failed inspects (up to 3 attempts per player, resets on zone change)
+- Debounced spec change handler to prevent redundant re-inspects
+
+### Added
+- Roster imports now saved per-character instead of globally
 
 ## [12.0.1-4] - 2026-04-09
 
@@ -12,30 +27,3 @@ All notable changes to Raid Group Manager will be documented in this file.
 ### Added
 - Toast notifications for layout apply results and other actions
 - Raid leader is now placed first during group assignment to avoid move conflicts
-
-## [12.0.1-3] - 2026-04-07
-
-### Fixed
-- Fix cycle-based group swaps (3+ player chains) placing everyone in wrong groups
-- Fix Feral Druid, Enhancement Shaman, and Devourer DH being classified as ranged DPS
-- Fix split odd/even and split halves not equalizing group sizes across roles
-
-### Added
-- Generic templates (e.g. ~MELEE-ANY) now use class-paired distribution across groups during Apply
-- Background inspect cache: queues `NotifyInspect` calls as players join, caching spec IDs over time
-- Spec cache persists across reloads; wipes on raid join/leave or zone change
-- Watches `PLAYER_SPECIALIZATION_CHANGED` to re-inspect players who swap specs mid-raid
-- `/rgm debug` toggle for debug messages
-
-### Changed
-- Removed Demon Hunter from always-melee fallback list (Devourer spec is ranged)
-- Melee vs ranged detection now uses a layered approach: inspect cache → GetSpecialization (self) → class defaults → Agility vs Intellect stat comparison
-- Player's own spec now detected via GetSpecialization instead of unreliable GetInspectSpecialization
-
-## [12.0.1-2] - 2026-04-06
-
-Attempt to fix group sorting
-
-## [12.0.1-1] - 2026-04-04
-
-Initial Addon Release: See README.md for features

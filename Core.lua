@@ -46,6 +46,7 @@ function addon:OnInitialize()
     self.inspectBusy = false
     self.inspectSafetyTimer = nil
     self.inspectRetries = {}
+    self.offlineMembers = {}
 
     if not self.wasInRaid then
         wipe(self.specCache)
@@ -82,6 +83,7 @@ function addon:WipeSpecCache()
     end
 
     self.inspectRetries = {}
+    self.offlineMembers = {}
 
     if self.specChangeTimers then
         for _, timer in pairs(self.specChangeTimers) do
@@ -111,6 +113,7 @@ function addon:OnRosterUpdate()
 
     -- Maintain the inspect cache regardless of frame visibility
     if inRaid then
+        self:ResetRetriesForReconnectedMembers()
         self:QueueAllInspects()
     end
 
@@ -307,7 +310,9 @@ function addon:ProcessNextInspect()
             -- Already cached (e.g. from a tooltip inspect), skip
         else
             local unit = self:FindRaidUnit(name)
-            if unit and UnitIsConnected(unit) then
+            if not unit or not UnitIsConnected(unit) then
+                self:MarkInspectFailed(name)
+            elseif unit then
                 self.inspectBusy = true
                 self:Debug("Inspecting " .. name .. " (" .. unit .. ")")
                 NotifyInspect(unit)
@@ -477,6 +482,29 @@ function addon:OnSpecChanged(_, unit)
         self.specCache[name] = nil
         self:QueueInspect(name)
     end)
+end
+
+function addon:ResetRetriesForReconnectedMembers()
+    local count = GetNumGroupMembers()
+    for i = 1, count do
+        local rosterName = GetRaidRosterInfo(i)
+        local name = rosterName and self:NormalizeName(rosterName)
+
+        if name then
+            local unit = "raid" .. i
+            local isOffline = not UnitIsConnected(unit)
+
+            if self.offlineMembers[name] and not isOffline then
+                self.inspectRetries[name] = nil
+            end
+
+            if isOffline then
+                self.offlineMembers[name] = true
+            else
+                self.offlineMembers[name] = nil
+            end
+        end
+    end
 end
 
 function addon:QueueAllInspects()

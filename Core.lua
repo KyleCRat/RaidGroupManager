@@ -473,9 +473,9 @@ function addon:OnSpecChanged(_, unit)
 
     self.specChangeTimers[name] = C_Timer.NewTimer(0.5, function()
         self.specChangeTimers[name] = nil
+        self:Debug(name .. " changed spec, re-queuing inspect")
         self.specCache[name] = nil
         self:QueueInspect(name)
-        self:Debug(name .. " changed spec, re-queued for inspect")
     end)
 end
 

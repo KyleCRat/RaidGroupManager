@@ -761,7 +761,12 @@ function addon:GetCombatRole(member)
             return "MELEE"
         end
 
-        return "RANGED"
+        if not DEFAULT_MELEE_CLASSES[member.class] then
+
+            return "RANGED"
+        end
+
+        return "MELEE"
     end
 
     -- Spec unavailable — fall back to class

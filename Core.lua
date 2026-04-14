@@ -45,6 +45,11 @@ function addon:OnInitialize()
     self.inspectQueueSet = {}
     self.inspectBusy = false
     self.inspectSafetyTimer = nil
+    self.inspectRetries = {}
+
+    if not self.wasInRaid then
+        wipe(self.specCache)
+    end
 
     self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
@@ -307,9 +312,9 @@ function addon:ProcessNextInspect()
                 self.inspectSafetyTimer = C_Timer.NewTimer(INSPECT_SAFETY_TIMEOUT, function()
                     self.inspectSafetyTimer = nil
                     if self.inspectBusy then
-                        self:Debug("Inspect safety timeout for " .. name .. ", re-queued")
+                        self:Debug("Inspect safety timeout for " .. name)
                         self.inspectBusy = false
-                        self:QueueInspect(name)
+                        self:MarkInspectFailed(name)
                         self:ProcessNextInspect()
                     end
                 end)
@@ -324,7 +329,20 @@ function addon:ProcessNextInspect()
 end
 
 local RETRY_UNCACHED_DELAY = 10.0
-local MAX_UNCACHED_RETRIES = 3
+local MAX_INSPECT_RETRIES = 3
+
+function addon:MarkInspectFailed(name)
+    self.inspectRetries = self.inspectRetries or {}
+    local retries = (self.inspectRetries[name] or 0) + 1
+    self.inspectRetries[name] = retries
+
+    if retries <= MAX_INSPECT_RETRIES then
+        self:Debug(name .. " re-queued (attempt " .. retries .. "/" .. MAX_INSPECT_RETRIES .. ")")
+        self:QueueInspect(name)
+    else
+        self:Debug(name .. " exceeded max retries, skipping")
+    end
+end
 
 function addon:ScheduleRetryUncached()
     if self.retryUncachedTimer then
@@ -347,13 +365,11 @@ function addon:ScheduleRetryUncached()
 
         local roster = self:GetRaidRoster()
         local missing = false
-        self.inspectRetries = self.inspectRetries or {}
 
         for name, member in pairs(roster) do
             if not self.specCache[name] and not UnitIsUnit("raid" .. member.raidIndex, "player") then
-                local retries = self.inspectRetries[name] or 0
-                if retries < MAX_UNCACHED_RETRIES then
-                    self.inspectRetries[name] = retries + 1
+                local retries = (self.inspectRetries and self.inspectRetries[name]) or 0
+                if retries < MAX_INSPECT_RETRIES then
                     missing = true
                     self:QueueInspect(name)
                 end
@@ -404,8 +420,8 @@ function addon:OnInspectReady(_, inspecteeGUID)
                     end
                 end
             elseif name then
-                self:Debug(name .. " inspect returned no spec, re-queued")
-                self:QueueInspect(name)
+                self:Debug(name .. " inspect returned no spec")
+                self:MarkInspectFailed(name)
             end
 
             break
@@ -455,13 +471,15 @@ function addon:QueueAllInspects()
 end
 
 function addon:OnZoneChanged()
-    if not IsInRaid() then
+    if IsInRaid() then
+        self.inspectRetries = {}
+        self:QueueAllInspects()
+
         return
     end
 
     self:WipeSpecCache()
-    self:Debug("Zone changed, cache reset")
-    self:QueueAllInspects()
+    self:Debug("Zone changed outside raid group, cache reset")
 end
 
 function addon:PruneSpecCache(roster)

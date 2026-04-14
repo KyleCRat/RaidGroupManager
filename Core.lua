@@ -341,7 +341,7 @@ function addon:ProcessNextInspect()
     self:ScheduleRetryUncached()
 end
 
-local RETRY_UNCACHED_DELAY = 10.0
+local RETRY_UNCACHED_DELAY = 5.0
 local MAX_INSPECT_RETRIES = 3
 
 function addon:MarkInspectFailed(name)
@@ -350,8 +350,7 @@ function addon:MarkInspectFailed(name)
     self.inspectRetries[name] = retries
 
     if retries <= MAX_INSPECT_RETRIES then
-        self:Debug(name .. " re-queued (attempt " .. retries .. "/" .. MAX_INSPECT_RETRIES .. ")")
-        self:QueueInspect(name)
+        self:Debug(name .. " inspect failed (attempt " .. retries .. "/" .. MAX_INSPECT_RETRIES .. ")")
     else
         self:Debug(name .. " exceeded max retries, skipping")
     end
@@ -377,23 +376,28 @@ function addon:ScheduleRetryUncached()
         end
 
         local roster = self:GetRaidRoster()
-        local missing = false
+        local uncached = {}
 
         for name, member in pairs(roster) do
             if not self.specCache[name] and not UnitIsUnit("raid" .. member.raidIndex, "player") then
                 local retries = (self.inspectRetries and self.inspectRetries[name]) or 0
                 if retries < MAX_INSPECT_RETRIES then
-                    missing = true
-                    self:QueueInspect(name)
+                    uncached[#uncached + 1] = name
                 end
             end
         end
 
-        if missing then
-            self:Debug("Retrying uncached members")
-            if not self.inspectBusy then
-                self:ProcessNextInspect()
-            end
+        if #uncached == 0 then
+            return
+        end
+
+        self:Debug("Retrying uncached members")
+        for _, name in ipairs(uncached) do
+            self:QueueInspect(name)
+        end
+
+        if not self.inspectBusy then
+            self:ProcessNextInspect()
         end
     end)
 end

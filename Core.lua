@@ -1,6 +1,13 @@
 local addon = LibStub("AceAddon-3.0"):NewAddon("RaidGroupManager",
     "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
 
+_G["BINDING_NAME_CLICK RGMToggle:LeftButton"] = "Toggle Window"
+
+local toggleBtn = CreateFrame("Button", "RGMToggle", nil, "SecureActionButtonTemplate")
+toggleBtn:SetScript("OnClick", function()
+    addon:ToggleMainFrame()
+end)
+
 addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\Fonts\\PTSansNarrow-Bold.ttf"
 
 addon.SLOT_WIDTH = 150

@@ -1,5 +1,19 @@
 # Changelog
 
+## [12.0.5-6] - 2026-04-15
+
+### Fixed
+- Fix offline raid members causing uncapped inspect retries indefinitely
+
+### Changed
+- Debug messages now print in execution order (decision → action) for clearer troubleshooting
+- Inspect retry delay reduced from 10s to 5s
+- Offline/disconnected players now count toward the 3-retry limit (previously skipped without counting)
+- Retry counter resets when an offline player reconnects
+
+### Added
+- Keybinding support — bindable "Toggle Window" in Key Bindings UI under "Raid Group Manager"
+
 ## [12.0.1-5] - 2026-04-14
 
 ### Fixed
@@ -16,14 +30,3 @@
 
 ### Added
 - Roster imports now saved per-character instead of globally
-
-## [12.0.1-4] - 2026-04-09
-
-### Fixed
-- Fix group moves involving the raid leader placing players in wrong groups
-- Fix staging group incorrectly containing bench players
-- Refresh grid slot display after caching a player's spec via inspect
-
-### Added
-- Toast notifications for layout apply results and other actions
-- Raid leader is now placed first during group assignment to avoid move conflicts

@@ -48,13 +48,15 @@ Four browsing modes via tab bar:
 - Background inspect cache queues raid members for inspection as they join
 - Cached spec IDs persist across reloads and between instances within a raid group
 - Cache resets on raid join/leave to stay fresh; zone changes re-queue uncached members
-- Failed inspects automatically retry (up to 3 attempts per player)
+- Failed inspects automatically retry (up to 3 attempts per player, including offline members)
+- Retry counter resets when an offline player reconnects
 - Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED (debounced)
 - Layered fallback: inspect cache → tank/healer spec IDs → melee DPS spec IDs → class defaults → Agility vs Intellect stats
 - Pure-melee classes (DK, Warrior, Rogue, Monk, Paladin) can never be misclassified as ranged
 
 ### Quality of Life
 - Minimap button to toggle the window
+- Keybinding support — bind "Toggle Window" in the Key Bindings UI
 - Frame position remembers where you left it
 - Auto-hides during boss encounters, reopens when you're alive after
 - Toast notifications for layout apply results and other feedback
@@ -70,12 +72,6 @@ Four browsing modes via tab bar:
 | `/rgm presets` | Re-add preset layouts to your list |
 | `/rgm debug` | Toggle debug messages |
 | `/rgm help` | Show command help |
-
-## Installation
-
-1. Download and extract to `Interface/AddOns/RaidGroupManager`
-2. Ensure all library dependencies are in the `Libs/` folder
-3. Reload UI or restart WoW
 
 ## Dependencies
 

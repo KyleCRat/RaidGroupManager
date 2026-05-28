@@ -36,10 +36,10 @@ Four browsing modes via tab bar:
 - **Raid**: Shows current raid members not yet placed in the grid
 - **Guild**: Shows guild members at your level or above
 - **Role**: Shows all role/class template combinations for drag-and-drop
-- **Roster**: Import your external roster from wowutils/Party Shark JSON exports
+- **Roster**: Import your external roster from wowutils JSON exports
 
 ### Roster Import
-- Import your guild roster from [wowutils](https://wowutils.com) / Party Shark JSON exports
+- Import your guild roster from [wowutils](https://wowutils.com) JSON exports
 - Extracts each member's main and alt characters with class and role information
 - Imported roster persists across sessions
 - Drag roster members directly into grid slots

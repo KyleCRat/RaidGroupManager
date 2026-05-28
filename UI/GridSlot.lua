@@ -41,6 +41,28 @@ addon.dragSourceType = nil -- "slot", "unassigned", or "template"
 addon.dragSourceName = nil
 addon.dragSourceTemplate = nil
 
+local function FindSlotUnderCursor()
+    for i = 1, 40 do
+        local slot = addon.slots[i]
+        if slot and slot:IsMouseOver() then
+            return slot
+        end
+    end
+
+    return nil
+end
+
+local function SwapSlotContents(indexA, indexB)
+    local textA = addon:GetSlotText(indexA)
+    local textB = addon:GetSlotText(indexB)
+    addon:SetSlotText(indexA, textB)
+    addon:SetSlotText(indexB, textA)
+    addon:RefreshSlot(indexA)
+    addon:RefreshSlot(indexB)
+    addon:RefreshUnassigned()
+    addon:TryAutoSave()
+end
+
 local function CreateSlotFrame(parent, slotIndex)
     local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent)
     slot:SetSize(SLOT_WIDTH, SLOT_HEIGHT)
@@ -126,7 +148,7 @@ local function CreateSlotFrame(parent, slotIndex)
             end
         end
 
-        ClearDragState()
+        addon:ClearDragState()
     end)
 
     -- Hover highlight during drag
@@ -143,45 +165,23 @@ local function CreateSlotFrame(parent, slotIndex)
     return slot
 end
 
-function ClearDragState()
-    if addon.dragSource then
-        addon.dragSource:SetAlpha(1)
+function addon:ClearDragState()
+    if self.dragSource then
+        self.dragSource:SetAlpha(1)
     end
 
     -- Hide all drag highlights
     for i = 1, 40 do
-        local slot = addon.slots[i]
+        local slot = self.slots[i]
         if slot then
             slot.dragHighlight:Hide()
         end
     end
 
-    addon.dragSource = nil
-    addon.dragSourceType = nil
-    addon.dragSourceName = nil
-    addon.dragSourceTemplate = nil
-end
-
-function FindSlotUnderCursor()
-    for i = 1, 40 do
-        local slot = addon.slots[i]
-        if slot and slot:IsMouseOver() then
-            return slot
-        end
-    end
-
-    return nil
-end
-
-function SwapSlotContents(indexA, indexB)
-    local textA = addon:GetSlotText(indexA)
-    local textB = addon:GetSlotText(indexB)
-    addon:SetSlotText(indexA, textB)
-    addon:SetSlotText(indexB, textA)
-    addon:RefreshSlot(indexA)
-    addon:RefreshSlot(indexB)
-    addon:RefreshUnassigned()
-    addon:TryAutoSave()
+    self.dragSource = nil
+    self.dragSourceType = nil
+    self.dragSourceName = nil
+    self.dragSourceTemplate = nil
 end
 
 function addon:DropNameOnSlot(slotIndex, name)

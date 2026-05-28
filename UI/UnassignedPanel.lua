@@ -326,13 +326,13 @@ local function CreateEntryRow(parent, index)
                     addon:DropNameOnSlot(i, addon.dragSourceName)
                 end
 
-                ClearDragState()
+                addon:ClearDragState()
 
                 return
             end
         end
 
-        ClearDragState()
+        addon:ClearDragState()
     end)
 
     return row

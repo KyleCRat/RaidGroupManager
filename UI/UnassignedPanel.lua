@@ -735,6 +735,8 @@ local ROSTER_BACKDROP = {
 }
 
 local WOWUTILS_ROSTER_URL = "https://wowutils.com/viserio-cooldowns/groups"
+local ROSTER_IMPORT_FRAME_LEVEL = 100
+local ROSTER_URL_FRAME_LEVEL = 110
 local ROSTER_IMPORT_INSTRUCTIONS = {
     "Select your Group",
     "Go to Roster",
@@ -757,6 +759,7 @@ end
 
 function addon:ShowWowutilsRosterURLWindow()
     if self.wowutilsRosterURLFrame then
+        self.wowutilsRosterURLFrame:SetFrameLevel(ROSTER_URL_FRAME_LEVEL)
         self.wowutilsRosterURLFrame:Show()
         self.wowutilsRosterURLEditBox:SetText(WOWUTILS_ROSTER_URL)
         self.wowutilsRosterURLEditBox:HighlightText()
@@ -772,7 +775,6 @@ function addon:ShowWowutilsRosterURLWindow()
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.98)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
     frame:SetFrameStrata("DIALOG")
-    frame:SetFrameLevel((self.rosterImportFrame and self.rosterImportFrame:GetFrameLevel() or 0) + 30)
     frame:SetToplevel(true)
     frame:EnableMouse(true)
 
@@ -834,6 +836,8 @@ function addon:ShowWowutilsRosterURLWindow()
     self.wowutilsRosterURLFrame = frame
     self.wowutilsRosterURLEditBox = editBox
 
+    frame:SetFrameLevel(ROSTER_URL_FRAME_LEVEL)
+
     frame:Show()
     editBox:HighlightText()
     editBox:SetFocus()
@@ -855,6 +859,7 @@ function addon:ShowRosterImportWindow()
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
     frame:SetFrameStrata("DIALOG")
+    frame:SetFrameLevel(ROSTER_IMPORT_FRAME_LEVEL)
     frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)

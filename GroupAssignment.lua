@@ -14,6 +14,7 @@ addon.debounceTimer = nil
 addon.safetyTimer = nil
 addon.moveQueue = {}
 addon.moveIndex = 0
+addon.applyRosterSnapshot = nil
 
 --------------------------------------------------------------------------------
 -- State builders
@@ -69,6 +70,80 @@ local function BuildDesiredState()
     end
 
     return desired
+end
+
+local function BuildRosterSnapshot()
+    local snapshot = {
+        count = 0,
+        members = {},
+    }
+
+    for i = 1, 40 do
+        local name = GetRaidRosterInfo(i)
+        if name then
+            local normalized = addon:NormalizeName(name)
+            snapshot.members[normalized] = true
+            snapshot.count = snapshot.count + 1
+        end
+    end
+
+    return snapshot
+end
+
+local function GetRosterChangeReason(snapshot)
+    if not snapshot then
+        return nil
+    end
+
+    local current = BuildRosterSnapshot()
+    local missingName = nil
+    local addedName = nil
+
+    for name in pairs(snapshot.members) do
+        if not current.members[name] then
+            missingName = name
+
+            break
+        end
+    end
+
+    for name in pairs(current.members) do
+        if not snapshot.members[name] then
+            addedName = name
+
+            break
+        end
+    end
+
+    if missingName and addedName then
+        return "raid roster changed (" .. missingName .. " left, " .. addedName .. " joined)"
+    end
+
+    if missingName then
+        return missingName .. " left the raid"
+    end
+
+    if addedName then
+        return addedName .. " joined the raid"
+    end
+
+    if current.count ~= snapshot.count then
+        return "raid size changed"
+    end
+
+    return nil
+end
+
+local function AbortIfRosterChanged()
+    local reason = GetRosterChangeReason(addon.applyRosterSnapshot)
+    if reason then
+        addon:Print("Aborting: " .. reason .. " during group assignment.")
+        addon:StopApply()
+
+        return true
+    end
+
+    return false
 end
 
 --------------------------------------------------------------------------------
@@ -821,6 +896,10 @@ ExecuteNextMove = function()
         return
     end
 
+    if AbortIfRosterChanged() then
+        return
+    end
+
     -- Cancel any pending safety timer
     if addon.safetyTimer then
         addon.safetyTimer:Cancel()
@@ -905,6 +984,10 @@ local function OnAssignmentRosterUpdate()
         return
     end
 
+    if AbortIfRosterChanged() then
+        return
+    end
+
     if addon.debounceTimer then
         addon.debounceTimer:Cancel()
         addon.debounceTimer = nil
@@ -955,6 +1038,7 @@ function addon:StartApply()
     end
 
     -- Plan all moves up front
+    local rosterSnapshot = BuildRosterSnapshot()
     local raidState = BuildRaidState()
     local desired = BuildDesiredState()
     local moves = PlanMoves(raidState, desired)
@@ -968,6 +1052,7 @@ function addon:StartApply()
     self:Print("Applying layout: " .. #moves .. " moves planned.")
     self.moveQueue = moves
     self.moveIndex = 0
+    self.applyRosterSnapshot = rosterSnapshot
     self.assignState = STATE_EXECUTING
 
     if self.applyButton then
@@ -985,6 +1070,7 @@ function addon:StopApply()
     self.assignState = STATE_IDLE
     self.moveQueue = {}
     self.moveIndex = 0
+    self.applyRosterSnapshot = nil
 
     if self.debounceTimer then
         self.debounceTimer:Cancel()

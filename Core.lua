@@ -1,6 +1,15 @@
 local addon = LibStub("AceAddon-3.0"):NewAddon("RaidGroupManager",
     "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
 
+addon.printName = "RGM"
+
+local addonMeta = getmetatable(addon)
+if addonMeta then
+    addonMeta.__tostring = function(self)
+        return self.printName or self.name
+    end
+end
+
 _G["BINDING_NAME_CLICK RGMToggle:LeftButton"] = "Toggle Window"
 
 local toggleBtn = CreateFrame("Button", "RGMToggle", nil, "SecureActionButtonTemplate")

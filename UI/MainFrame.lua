@@ -7,6 +7,9 @@ local TITLE_HEIGHT = addon.TITLE_HEIGHT
 local FONT = addon.FONT
 local BUTTON_HEIGHT = 24
 local BUTTON_PADDING = 6
+local BOTTOM_BUTTON_FONT_SIZE = 12
+local BOTTOM_BUTTON_TEXT_PADDING = 12
+local BOTTOM_BUTTON_MIN_WIDTH = 40
 local BOTTOM_BAR_HEIGHT = 40
 
 local GRID_WIDTH = 314
@@ -56,6 +59,23 @@ local function CreateStyledButton(parent, width, height, label)
 end
 
 addon.CreateStyledButton = CreateStyledButton
+
+local function CreateBottomBarButton(parent, label)
+    local btn = CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
+    btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
+
+    local textWidth = btn.label:GetStringWidth() or 0
+    local width = math.max(BOTTOM_BUTTON_MIN_WIDTH, math.ceil(textWidth + (BOTTOM_BUTTON_TEXT_PADDING * 2)))
+    btn:SetWidth(width)
+
+    btn.label:ClearAllPoints()
+    btn.label:SetPoint("LEFT", BOTTOM_BUTTON_TEXT_PADDING, 0)
+    btn.label:SetPoint("RIGHT", -BOTTOM_BUTTON_TEXT_PADDING, 0)
+    btn.label:SetJustifyH("CENTER")
+    btn.label:SetWordWrap(false)
+
+    return btn
+end
 
 local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
@@ -196,46 +216,50 @@ function addon:CreateMainFrame()
     bottomBar:SetHeight(BUTTON_HEIGHT)
     frame.bottomBar = bottomBar
 
-    local btnLoadRoster = CreateStyledButton(bottomBar, 100, BUTTON_HEIGHT, "Load Roster")
+    local btnLoadRoster = CreateBottomBarButton(bottomBar, "Load Roster")
     btnLoadRoster:SetPoint("LEFT")
     btnLoadRoster:SetScript("OnClick", function()
         self:LoadCurrentRoster()
     end)
 
-    local btnApply = CreateStyledButton(bottomBar, 60, BUTTON_HEIGHT, "Apply")
+    local btnApply = CreateBottomBarButton(bottomBar, "Apply")
     btnApply:SetPoint("LEFT", btnLoadRoster, "RIGHT", BUTTON_PADDING, 0)
     btnApply:SetScript("OnClick", function()
         self:StartApply()
     end)
     self.applyButton = btnApply
 
-    local btnSave = CreateStyledButton(bottomBar, 50, BUTTON_HEIGHT, "Save")
+    local btnSave = CreateBottomBarButton(bottomBar, "Save")
     btnSave:SetPoint("LEFT", btnApply, "RIGHT", BUTTON_PADDING, 0)
     btnSave:SetScript("OnClick", function()
         self:PromptSaveLayout()
     end)
 
-    local btnSplitOddEven = CreateStyledButton(bottomBar, 80, BUTTON_HEIGHT, "Split Odd/Even")
-    btnSplitOddEven.label:SetFont(FONT, 11, "OUTLINE")
+    local btnSplitOddEven = CreateBottomBarButton(bottomBar, "Split Odd/Even")
     btnSplitOddEven:SetPoint("LEFT", btnSave, "RIGHT", BUTTON_PADDING, 0)
     btnSplitOddEven:SetScript("OnClick", function()
         self:SplitOddEven()
     end)
 
-    local btnSplitHalves = CreateStyledButton(bottomBar, 70, BUTTON_HEIGHT, "Split Halves")
-    btnSplitHalves.label:SetFont(FONT, 11, "OUTLINE")
+    local btnSplitHalves = CreateBottomBarButton(bottomBar, "Split Halves")
     btnSplitHalves:SetPoint("LEFT", btnSplitOddEven, "RIGHT", BUTTON_PADDING, 0)
     btnSplitHalves:SetScript("OnClick", function()
         self:SplitHalves()
     end)
 
-    local btnImport = CreateStyledButton(bottomBar, 55, BUTTON_HEIGHT, "Import")
+    local btnInvite = CreateBottomBarButton(bottomBar, "Invite to Group")
+    btnInvite:SetPoint("LEFT", btnSplitHalves, "RIGHT", BUTTON_PADDING, 0)
+    btnInvite:SetScript("OnClick", function()
+        self:ShowInviteToGroupPopup()
+    end)
+
+    local btnImport = CreateBottomBarButton(bottomBar, "Import")
     btnImport:SetPoint("RIGHT", bottomBar, "RIGHT", 0, 0)
     btnImport:SetScript("OnClick", function()
         self:ShowImportWindow()
     end)
 
-    local btnExport = CreateStyledButton(bottomBar, 55, BUTTON_HEIGHT, "Export")
+    local btnExport = CreateBottomBarButton(bottomBar, "Export")
     btnExport:SetPoint("RIGHT", btnImport, "LEFT", -BUTTON_PADDING, 0)
     btnExport:SetScript("OnClick", function()
         self:ShowExportWindow()

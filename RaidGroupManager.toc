@@ -23,6 +23,7 @@ ClassSpecRoles.lua
 PresetLayouts.lua
 MinimapButton.lua
 GroupAssignment.lua
+Invite.lua
 UI/MainFrame.lua
 UI/GridSlot.lua
 UI/UnassignedPanel.lua

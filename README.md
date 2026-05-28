@@ -40,7 +40,7 @@ Four browsing modes via tab bar:
 
 ### Roster Import
 - Import your guild roster from [wowutils](https://wowutils.com) / Party Shark JSON exports
-- Extracts each member's main character with class and role information
+- Extracts each member's main and alt characters with class and role information
 - Imported roster persists across sessions
 - Drag roster members directly into grid slots
 

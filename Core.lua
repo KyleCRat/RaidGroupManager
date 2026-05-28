@@ -905,6 +905,39 @@ local function GetUnitSpecID(unit)
     return GetInspectSpecialization(unit) or 0
 end
 
+function addon:GetCombatRoleForSpecID(specID, classToken)
+    if not specID or specID <= 0 then
+        return nil
+    end
+
+    if TANK_SPECS[specID] then
+
+        return "TANK"
+    end
+
+    if HEALER_SPECS[specID] then
+
+        return "HEALER"
+    end
+
+    if MELEE_DPS_SPECS[specID] then
+
+        return "MELEE"
+    end
+
+    if RANGED_DPS_SPECS[specID] then
+
+        return "RANGED"
+    end
+
+    if classToken and DEFAULT_MELEE_CLASSES[classToken] then
+
+        return "MELEE"
+    end
+
+    return "RANGED"
+end
+
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"
 function addon:GetCombatRole(member)
     if member.role == "TANK" then
@@ -920,28 +953,9 @@ function addon:GetCombatRole(member)
     -- Check spec ID (cache first, then live API)
     local unit = "raid" .. member.raidIndex
     local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
-    if specID and specID > 0 then
-        if TANK_SPECS[specID] then
-
-            return "TANK"
-        end
-
-        if HEALER_SPECS[specID] then
-
-            return "HEALER"
-        end
-
-        if MELEE_DPS_SPECS[specID] then
-
-            return "MELEE"
-        end
-
-        if not DEFAULT_MELEE_CLASSES[member.class] then
-
-            return "RANGED"
-        end
-
-        return "MELEE"
+    local specRole = self:GetCombatRoleForSpecID(specID, member.class)
+    if specRole then
+        return specRole
     end
 
     -- Spec unavailable — fall back to class

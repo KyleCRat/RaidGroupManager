@@ -205,6 +205,14 @@ local CLASS_TOKEN_FROM_NAME = {
     ["Warrior"]      = "WARRIOR",
 }
 
+local CLASS_ID_BY_TOKEN = {}
+for i = 1, GetNumClasses() do
+    local _, token, classID = GetClassInfo(i)
+    if token then
+        CLASS_ID_BY_TOKEN[token] = classID or i
+    end
+end
+
 local ROLE_FROM_IMPORT = {
     tank   = "TANK",
     healer = "HEALER",
@@ -212,24 +220,88 @@ local ROLE_FROM_IMPORT = {
     ranged = "RANGED",
 }
 
+local ROSTER_ROLE_SORT_ORDER = {
+    TANK = 1,
+    HEALER = 2,
+    MELEE = 3,
+    RANGED = 4,
+}
+
+local function CompareRosterEntriesByRoleThenName(a, b)
+    local roleA = ROSTER_ROLE_SORT_ORDER[a.role] or 99
+    local roleB = ROSTER_ROLE_SORT_ORDER[b.role] or 99
+
+    if roleA ~= roleB then
+        return roleA < roleB
+    end
+
+    return a.normalizedName < b.normalizedName
+end
+
 local function NormalizeRealm(realm)
     return realm:gsub("%s+", "")
 end
 
-local function FindMainCharacter(member)
-    local mainId = member.mainCharacterId
-    if not mainId or not member.characters then
+local function GetCharacterID(char)
+    if not char or not char.name or not char.realm then
         return nil
     end
 
-    for _, char in ipairs(member.characters) do
-        local charId = char.name:lower() .. "-" .. NormalizeRealm(char.realm):lower()
-        if charId == mainId then
-            return char
+    return char.name:lower() .. "-" .. NormalizeRealm(char.realm):lower()
+end
+
+local function ShouldImportCharacter(member, char)
+    local charId = GetCharacterID(char)
+    if not charId then
+        return false
+    end
+
+    local statuses = member.characterStatuses
+    if type(statuses) == "table" then
+        local status = statuses[charId]
+
+        return status == "main" or status == "alt"
+    end
+
+    return charId == member.mainCharacterId
+end
+
+local SPEC_ID_BY_CLASS_SPEC = {}
+
+local function GetImportedSpecID(classToken, specName)
+    if not classToken or not specName then
+        return nil
+    end
+
+    if not SPEC_ID_BY_CLASS_SPEC[classToken] then
+        local specIDs = {}
+        SPEC_ID_BY_CLASS_SPEC[classToken] = specIDs
+
+        local classID = CLASS_ID_BY_TOKEN[classToken]
+        if classID and C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and GetSpecializationInfoForClassID then
+            local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classID)
+            for specIndex = 1, numSpecs do
+                local specID, name = GetSpecializationInfoForClassID(classID, specIndex)
+                if specID and name then
+                    specIDs[name] = specID
+                end
+            end
         end
     end
 
-    return member.characters[1]
+    return SPEC_ID_BY_CLASS_SPEC[classToken][specName]
+end
+
+local function GetImportedCharacterRole(member, classToken, char)
+    if char.playerSpec then
+        local specID = GetImportedSpecID(classToken, char.playerSpec)
+        local role = addon:GetCombatRoleForSpecID(specID, classToken)
+        if role then
+            return role
+        end
+    end
+
+    return ROLE_FROM_IMPORT[member.mainRole] or "RANGED"
 end
 
 local function ParseWowUtilsRoster(jsonText)
@@ -242,27 +314,29 @@ local function ParseWowUtilsRoster(jsonText)
     local playerRealm = addon:GetPlayerRealm()
 
     for _, member in ipairs(data.members) do
-        local char = FindMainCharacter(member)
-        if char then
-            local normalizedRealm = NormalizeRealm(char.realm)
-            local name = char.name:sub(1, 1):upper() .. char.name:sub(2)
+        if type(member.characters) == "table" then
+            for _, char in ipairs(member.characters) do
+                if ShouldImportCharacter(member, char) then
+                    local normalizedRealm = NormalizeRealm(char.realm)
+                    local name = char.name:sub(1, 1):upper() .. char.name:sub(2)
 
-            if normalizedRealm:lower() ~= playerRealm:lower() then
-                name = name .. "-" .. normalizedRealm
+                    if normalizedRealm:lower() ~= playerRealm:lower() then
+                        name = name .. "-" .. normalizedRealm
+                    end
+
+                    local classToken = CLASS_TOKEN_FROM_NAME[char.playerClass] or "UNKNOWN"
+                    table.insert(roster, {
+                        normalizedName = name,
+                        class = classToken,
+                        role = GetImportedCharacterRole(member, classToken, char),
+                        displayName = member.displayName,
+                    })
+                end
             end
-
-            table.insert(roster, {
-                normalizedName = name,
-                class = CLASS_TOKEN_FROM_NAME[char.playerClass] or "UNKNOWN",
-                role = ROLE_FROM_IMPORT[member.mainRole] or "RANGED",
-                displayName = member.displayName,
-            })
         end
     end
 
-    table.sort(roster, function(a, b)
-        return a.normalizedName < b.normalizedName
-    end)
+    table.sort(roster, CompareRosterEntriesByRoleThenName)
 
     return roster
 end
@@ -694,6 +768,8 @@ function addon:RefreshUnassignedRosterMode()
             table.insert(entries, entry)
         end
     end
+
+    table.sort(entries, CompareRosterEntriesByRoleThenName)
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]

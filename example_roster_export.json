@@ -1,0 +1,551 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "exportedAt": "2026-05-28T17:05:06.632Z",
+    "exportedFrom": "Party Shark",
+    "exportedBy": "Yvairel#1901",
+    "characterCount": 36,
+    "memberCount": 24
+  },
+  "members": [
+    {
+      "displayName": "Alex",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Alexithymia",
+          "realm": "Stormrage",
+          "playerClass": "Demon Hunter",
+          "playerSpec": "Havoc",
+          "order": "a0"
+        },
+        {
+          "name": "Thegreatswog",
+          "realm": "Stormrage",
+          "playerClass": "Demon Hunter",
+          "playerSpec": "Devourer",
+          "order": "a1"
+        }
+      ],
+      "characterStatuses": {
+        "alexithymia-stormrage": "main",
+        "thegreatswog-stormrage": "alt"
+      },
+      "mainCharacterId": "alexithymia-stormrage"
+    },
+    {
+      "displayName": "Alyrias",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Alyrias",
+          "realm": "Area 52",
+          "playerClass": "Mage",
+          "playerSpec": "Arcane",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "alyrias-area52": "main"
+      },
+      "mainCharacterId": "alyrias-area52"
+    },
+    {
+      "displayName": "Brains",
+      "battletag": null,
+      "rank": "Officer",
+      "mainRole": "healer",
+      "characters": [
+        {
+          "name": "Braainss",
+          "realm": "Stormrage",
+          "playerClass": "Priest",
+          "playerSpec": "Discipline",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "braainss-stormrage": "main"
+      },
+      "mainCharacterId": "braainss-stormrage"
+    },
+    {
+      "displayName": "Buriza",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Burizå",
+          "realm": "Area 52",
+          "playerClass": "Death Knight",
+          "playerSpec": "Unholy",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "burizå-area52": "main"
+      },
+      "mainCharacterId": "burizå-area52"
+    },
+    {
+      "displayName": "Dangus",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Holydangus",
+          "realm": "Illidan",
+          "playerClass": "Paladin",
+          "playerSpec": "Retribution",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "holydangus-illidan": "main"
+      },
+      "mainCharacterId": "holydangus-illidan"
+    },
+    {
+      "displayName": "Dissar",
+      "battletag": "Dissar#1314",
+      "rank": "Officer",
+      "mainRole": "tank",
+      "characters": [
+        {
+          "name": "Dìssar",
+          "realm": "Stormrage",
+          "playerClass": "Paladin",
+          "playerSpec": "Protection",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "dìssar-stormrage": "main"
+      },
+      "mainCharacterId": "dìssar-stormrage"
+    },
+    {
+      "displayName": "Divine",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Divinetheog",
+          "realm": "Area 52",
+          "playerClass": "Death Knight",
+          "playerSpec": "Unholy",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "divinetheog-area52": "main"
+      },
+      "mainCharacterId": "divinetheog-area52"
+    },
+    {
+      "displayName": "Grif",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Bälancedeez",
+          "realm": "Tichondrius",
+          "playerClass": "Druid",
+          "playerSpec": "Balance",
+          "order": "a1"
+        },
+        {
+          "name": "Snekywoahyer",
+          "realm": "Tichondrius",
+          "playerClass": "Rogue",
+          "playerSpec": "Assassination",
+          "order": "a2"
+        },
+        {
+          "name": "Fatherles",
+          "realm": "Thrall",
+          "playerClass": "Priest",
+          "playerSpec": "Discipline",
+          "order": "a3"
+        }
+      ],
+      "characterStatuses": {
+        "snekywoahyer-tichondrius": "inactive",
+        "bälancedeez-tichondrius": "inactive",
+        "fatherles-thrall": "main"
+      },
+      "mainCharacterId": "fatherles-thrall"
+    },
+    {
+      "displayName": "Grun",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Grunmore",
+          "realm": "Illidan",
+          "playerClass": "Druid",
+          "playerSpec": "Feral",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "grunmore-illidan": "main"
+      },
+      "mainCharacterId": "grunmore-illidan"
+    },
+    {
+      "displayName": "Hartbane",
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Kyrieve",
+          "realm": "Stormrage",
+          "playerClass": "Evoker",
+          "playerSpec": "Augmentation",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "kyrieve-stormrage": "main"
+      },
+      "mainCharacterId": "kyrieve-stormrage"
+    },
+    {
+      "displayName": "Jymbo",
+      "battletag": null,
+      "rank": "Raider",
+      "mainRole": "healer",
+      "characters": [
+        {
+          "name": "Jymdin",
+          "realm": "Stormrage",
+          "playerClass": "Paladin",
+          "playerSpec": "Holy",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "jymdin-stormrage": "main"
+      },
+      "mainCharacterId": "jymdin-stormrage"
+    },
+    {
+      "displayName": "Keize",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Keize",
+          "realm": "Stormrage",
+          "playerClass": "Warlock",
+          "playerSpec": "Demonology",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "keize-stormrage": "main"
+      },
+      "mainCharacterId": "keize-stormrage"
+    },
+    {
+      "displayName": "Legit",
+      "rank": "Raider",
+      "mainRole": "tank",
+      "characters": [
+        {
+          "name": "Legitsozzled",
+          "realm": "Illidan",
+          "playerClass": "Monk",
+          "playerSpec": "Brewmaster",
+          "order": "a0"
+        },
+        {
+          "name": "Legitveiny",
+          "realm": "Illidan",
+          "playerClass": "Death Knight",
+          "playerSpec": "Blood",
+          "order": "a1"
+        }
+      ],
+      "characterStatuses": {
+        "legitsozzled-illidan": "main",
+        "legitveiny-illidan": "alt"
+      },
+      "mainCharacterId": "legitsozzled-illidan"
+    },
+    {
+      "displayName": "Lith",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Lithdx",
+          "realm": "Illidan",
+          "playerClass": "Warlock",
+          "playerSpec": "Demonology",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "lithdx-illidan": "main"
+      },
+      "mainCharacterId": "lithdx-illidan"
+    },
+    {
+      "displayName": "Maavi",
+      "battletag": null,
+      "rank": "Raider",
+      "mainRole": "healer",
+      "characters": [
+        {
+          "name": "Maavs",
+          "realm": "Stormrage",
+          "playerClass": "Monk",
+          "playerSpec": "Mistweaver",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "maavs-stormrage": "main"
+      },
+      "mainCharacterId": "maavs-stormrage"
+    },
+    {
+      "displayName": "Nash",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Nashou",
+          "realm": "Area 52",
+          "playerClass": "Hunter",
+          "playerSpec": "Marksmanship",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "nashou-area52": "main"
+      },
+      "mainCharacterId": "nashou-area52"
+    },
+    {
+      "displayName": "Pin",
+      "battletag": null,
+      "rank": "Officer",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Pinsassin",
+          "realm": "Illidan",
+          "playerClass": "Rogue",
+          "playerSpec": "Assassination",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "pinsassin-illidan": "main"
+      },
+      "mainCharacterId": "pinsassin-illidan"
+    },
+    {
+      "displayName": "Reactz",
+      "battletag": null,
+      "rank": "Raider",
+      "mainRole": "melee",
+      "characters": [
+        {
+          "name": "Reactz",
+          "realm": "Stormrage",
+          "playerClass": "Warrior",
+          "playerSpec": "Arms",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "reactz-stormrage": "main"
+      },
+      "mainCharacterId": "reactz-stormrage"
+    },
+    {
+      "displayName": "Rezy",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Rezy",
+          "realm": "Illidan",
+          "playerClass": "Mage",
+          "playerSpec": "Arcane",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "rezy-illidan": "main"
+      },
+      "mainCharacterId": "rezy-illidan"
+    },
+    {
+      "displayName": "Shibari",
+      "alias": "Aaaaaaaaa",
+      "battletag": null,
+      "rank": "Raider",
+      "mainRole": "healer",
+      "characters": [
+        {
+          "name": "Intrusivthot",
+          "realm": "Thrall",
+          "playerClass": "Druid",
+          "playerSpec": "Restoration",
+          "order": "a0"
+        },
+        {
+          "name": "Shibarí",
+          "realm": "Illidan",
+          "playerClass": "Priest",
+          "playerSpec": "Discipline",
+          "order": "a1"
+        },
+        {
+          "name": "Sorryimnew",
+          "realm": "Illidan",
+          "playerClass": "Death Knight",
+          "playerSpec": "Unholy",
+          "order": "a2"
+        },
+        {
+          "name": "Intrusivthot",
+          "realm": "illidan",
+          "playerClass": "Shaman",
+          "playerSpec": "Restoration",
+          "order": "a3"
+        }
+      ],
+      "characterStatuses": {
+        "sorryimnew-illidan": "inactive",
+        "shibarí-illidan": "inactive",
+        "intrusivthot-thrall": "main",
+        "intrusivthot-illidan": "inactive"
+      },
+      "mainCharacterId": "intrusivthot-thrall"
+    },
+    {
+      "displayName": "Tenc",
+      "battletag": null,
+      "rank": "GM",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "tencdh",
+          "realm": "Stormrage",
+          "playerClass": "Demon Hunter",
+          "playerSpec": "Devourer",
+          "order": "a0"
+        },
+        {
+          "name": "Tencmotw",
+          "realm": "Stormrage",
+          "playerClass": "Druid",
+          "playerSpec": "Balance",
+          "order": "a1"
+        },
+        {
+          "name": "Tenxarus",
+          "realm": "stormrage",
+          "playerClass": "Paladin",
+          "playerSpec": "Retribution",
+          "order": "a2"
+        },
+        {
+          "name": "Tencdktwo",
+          "realm": "stormrage",
+          "playerClass": "Death Knight",
+          "playerSpec": "Unholy",
+          "order": "a3"
+        }
+      ],
+      "characterStatuses": {
+        "tenxarus-stormrage": "alt",
+        "tencdktwo-stormrage": "inactive",
+        "tencdh-stormrage": "main",
+        "tencmotw-stormrage": "inactive"
+      },
+      "mainCharacterId": "tencdh-stormrage"
+    },
+    {
+      "displayName": "Urban",
+      "battletag": null,
+      "rank": "Raider",
+      "mainRole": "healer",
+      "characters": [
+        {
+          "name": "Steveurban",
+          "realm": "Illidan",
+          "playerClass": "Evoker",
+          "playerSpec": "Preservation",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "steveurban-illidan": "main"
+      },
+      "mainCharacterId": "steveurban-illidan"
+    },
+    {
+      "displayName": "Xaku",
+      "rank": "Raider",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Xäku",
+          "realm": "Illidan",
+          "playerClass": "Hunter",
+          "playerSpec": "Marksmanship",
+          "order": "a0"
+        }
+      ],
+      "characterStatuses": {
+        "xäku-illidan": "main"
+      },
+      "mainCharacterId": "xäku-illidan"
+    },
+    {
+      "displayName": "Yvairel",
+      "battletag": "Yvairel#1901",
+      "rank": "Officer",
+      "mainRole": "ranged",
+      "characters": [
+        {
+          "name": "Yvairel",
+          "realm": "Illidan",
+          "playerClass": "Shaman",
+          "playerSpec": "Elemental",
+          "order": "a0"
+        },
+        {
+          "name": "yvauras",
+          "realm": "stormrage",
+          "playerClass": "Shaman",
+          "playerSpec": "Elemental",
+          "order": "a1"
+        },
+        {
+          "name": "ethairel",
+          "realm": "stormrage",
+          "playerClass": "Priest",
+          "playerSpec": "Shadow",
+          "order": "a2"
+        }
+      ],
+      "characterStatuses": {
+        "yvairel-illidan": "main",
+        "yvauras-stormrage": "inactive",
+        "ethairel-stormrage": "inactive"
+      },
+      "mainCharacterId": "yvairel-illidan"
+    }
+  ]
+}

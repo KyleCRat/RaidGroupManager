@@ -43,6 +43,13 @@ Four browsing modes via tab bar:
 - Extracts each member's main and alt characters with class and role information
 - Imported roster persists across sessions
 - Drag roster members directly into grid slots
+- Built-in import popup includes the Wowutils roster export steps and a copyable URL
+
+### Group Invites
+- Invite assigned group members or imported roster characters from the button bar
+- Skips known-offline characters using group, guild, and friend status data
+- Automatically converts parties to raids when needed, including starter invites when you are solo
+- Prints invite summaries for invited, offline, not invited, and did-not-accept characters
 
 ### Spec Detection
 - Background inspect cache queues raid members for inspection as they join
@@ -59,6 +66,7 @@ Four browsing modes via tab bar:
 - Keybinding support — bind "Toggle Window" in the Key Bindings UI
 - Frame position remembers where you left it
 - Auto-hides during boss encounters, reopens when you're alive after
+- Group assignment aborts if raid membership changes while applying a layout
 - Toast notifications for layout apply results and other feedback
 - Custom role icons distinguishing melee DPS from ranged DPS
 - Pixel-perfect grid rendering via LibPixelPerfect

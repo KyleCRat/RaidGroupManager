@@ -1,5 +1,27 @@
 # Changelog
 
+## [12.0.7-7] - 2026-05-28
+
+### Added
+- Added support for WoW Interface 120007
+- Added an Invite to Group button for assigned group members or imported roster characters
+- Added invite flow reporting for invited, offline, not-invited, and did-not-accept characters
+- Added automatic raid conversion handling for invite flows, including starter invites when solo
+- Added Wowutils roster import instructions with a copyable URL popup
+- Added an example Wowutils roster export under Docs
+
+### Changed
+- Roster imports now handle main and alt characters with role/spec context more accurately
+- Roster view sorting now groups imported characters by role
+- Addon chat output now uses the shorter RGM prefix
+- Bottom button bar sizing and padding is normalized across actions
+- Internal project notes and examples moved under Docs
+
+### Fixed
+- Abort group assignment if raid membership changes while applying a layout
+- Fixed leaked globals from GridSlot drag/drop helpers
+- Hardened raid conversion checks to use Blizzard's allowed-conversion gate before converting
+
 ## [12.0.5-6] - 2026-04-15
 
 ### Fixed
@@ -13,20 +35,3 @@
 
 ### Added
 - Keybinding support — bindable "Toggle Window" in Key Bindings UI under "Raid Group Manager"
-
-## [12.0.1-5] - 2026-04-14
-
-### Fixed
-- Fix pure-melee classes (DK, Warrior, Rogue, Monk, Paladin) sometimes showing as ranged when role assignment or spec lookup returned unexpected values
-- Fix spec change detection not working for cross-realm players (only same-realm players were updating)
-- Fix failed inspects (timeouts, out-of-range) never being retried, leaving players permanently uncached
-- Fix rapid PLAYER_SPECIALIZATION_CHANGED events clearing freshly cached spec data
-
-### Changed
-- Spec cache now persists between instances within the same raid group (no longer wipes on every zone change)
-- Spec-based fallback now detects tank and healer specs directly, covering cases where role assignment returns NONE
-- Added retry system for failed inspects (up to 3 attempts per player, resets on zone change)
-- Debounced spec change handler to prevent redundant re-inspects
-
-### Added
-- Roster imports now saved per-character instead of globally

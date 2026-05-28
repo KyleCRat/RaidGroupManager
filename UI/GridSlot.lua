@@ -1,6 +1,7 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 local LPP = LibStub("LibPixelPerfect-1.0")
 
+local ClassSpecRoles = addon.ClassSpecRoles
 local FONT = addon.FONT
 local SLOT_WIDTH = addon.SLOT_WIDTH
 local SLOT_HEIGHT = addon.SLOT_HEIGHT
@@ -227,7 +228,7 @@ function addon:RefreshSlot(slotIndex)
             slot.nameText:SetTextColor(0.8, 0.8, 0.8)
             slot.bg:SetVertexColor(0.4, 0.4, 0.4, COLOR_TEMPLATE_BG_ALPHA)
         else
-            slot.nameText:SetText(self:GetClassName(template.class))
+            slot.nameText:SetText(ClassSpecRoles:GetClassName(template.class))
 
             local classColor = C_ClassColor.GetClassColor(template.class)
             if classColor then

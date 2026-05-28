@@ -189,54 +189,7 @@ end
 -- Wowutils roster parsing
 --------------------------------------------------------------------------------
 
-local CLASS_TOKEN_FROM_NAME = {
-    ["Death Knight"] = "DEATHKNIGHT",
-    ["Demon Hunter"] = "DEMONHUNTER",
-    ["Druid"]        = "DRUID",
-    ["Evoker"]       = "EVOKER",
-    ["Hunter"]       = "HUNTER",
-    ["Mage"]         = "MAGE",
-    ["Monk"]         = "MONK",
-    ["Paladin"]      = "PALADIN",
-    ["Priest"]       = "PRIEST",
-    ["Rogue"]        = "ROGUE",
-    ["Shaman"]       = "SHAMAN",
-    ["Warlock"]      = "WARLOCK",
-    ["Warrior"]      = "WARRIOR",
-}
-
-local CLASS_ID_BY_TOKEN = {}
-for i = 1, GetNumClasses() do
-    local _, token, classID = GetClassInfo(i)
-    if token then
-        CLASS_ID_BY_TOKEN[token] = classID or i
-    end
-end
-
-local ROLE_FROM_IMPORT = {
-    tank   = "TANK",
-    healer = "HEALER",
-    melee  = "MELEE",
-    ranged = "RANGED",
-}
-
-local ROSTER_ROLE_SORT_ORDER = {
-    TANK = 1,
-    HEALER = 2,
-    MELEE = 3,
-    RANGED = 4,
-}
-
-local function CompareRosterEntriesByRoleThenName(a, b)
-    local roleA = ROSTER_ROLE_SORT_ORDER[a.role] or 99
-    local roleB = ROSTER_ROLE_SORT_ORDER[b.role] or 99
-
-    if roleA ~= roleB then
-        return roleA < roleB
-    end
-
-    return a.normalizedName < b.normalizedName
-end
+local ClassSpecRoles = addon.ClassSpecRoles
 
 local function NormalizeRealm(realm)
     return realm:gsub("%s+", "")
@@ -266,44 +219,6 @@ local function ShouldImportCharacter(member, char)
     return charId == member.mainCharacterId
 end
 
-local SPEC_ID_BY_CLASS_SPEC = {}
-
-local function GetImportedSpecID(classToken, specName)
-    if not classToken or not specName then
-        return nil
-    end
-
-    if not SPEC_ID_BY_CLASS_SPEC[classToken] then
-        local specIDs = {}
-        SPEC_ID_BY_CLASS_SPEC[classToken] = specIDs
-
-        local classID = CLASS_ID_BY_TOKEN[classToken]
-        if classID and C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and GetSpecializationInfoForClassID then
-            local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classID)
-            for specIndex = 1, numSpecs do
-                local specID, name = GetSpecializationInfoForClassID(classID, specIndex)
-                if specID and name then
-                    specIDs[name] = specID
-                end
-            end
-        end
-    end
-
-    return SPEC_ID_BY_CLASS_SPEC[classToken][specName]
-end
-
-local function GetImportedCharacterRole(member, classToken, char)
-    if char.playerSpec then
-        local specID = GetImportedSpecID(classToken, char.playerSpec)
-        local role = addon:GetCombatRoleForSpecID(specID, classToken)
-        if role then
-            return role
-        end
-    end
-
-    return ROLE_FROM_IMPORT[member.mainRole] or "RANGED"
-end
-
 local function ParseWowUtilsRoster(jsonText)
     local ok, data = pcall(ParseJSON, jsonText)
     if not ok or type(data) ~= "table" or not data.members then
@@ -324,11 +239,11 @@ local function ParseWowUtilsRoster(jsonText)
                         name = name .. "-" .. normalizedRealm
                     end
 
-                    local classToken = CLASS_TOKEN_FROM_NAME[char.playerClass] or "UNKNOWN"
+                    local classToken = ClassSpecRoles:GetClassTokenFromName(char.playerClass) or "UNKNOWN"
                     table.insert(roster, {
                         normalizedName = name,
                         class = classToken,
-                        role = GetImportedCharacterRole(member, classToken, char),
+                        role = ClassSpecRoles:GetImportedCharacterRole(member, classToken, char),
                         displayName = member.displayName,
                     })
                 end
@@ -336,7 +251,7 @@ local function ParseWowUtilsRoster(jsonText)
         end
     end
 
-    table.sort(roster, CompareRosterEntriesByRoleThenName)
+    table.sort(roster, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
 
     return roster
 end
@@ -692,7 +607,7 @@ function addon:RefreshUnassigned()
 end
 
 function addon:RefreshUnassignedRoleMode()
-    local entries = self:GetClassRoleCombos()
+    local entries = ClassSpecRoles:GetClassRoleCombos()
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]
@@ -769,7 +684,7 @@ function addon:RefreshUnassignedRosterMode()
         end
     end
 
-    table.sort(entries, CompareRosterEntriesByRoleThenName)
+    table.sort(entries, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]

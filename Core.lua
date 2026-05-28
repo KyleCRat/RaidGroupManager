@@ -835,60 +835,6 @@ end
 -- Role detection for balanced splits
 --------------------------------------------------------------------------------
 
--- Melee DPS specialization IDs
-local MELEE_DPS_SPECS = {
-    [71]  = true, [72]  = true,               -- Arms, Fury Warrior
-    [259] = true, [260] = true, [261] = true, -- Assassination, Outlaw, Subtlety Rogue
-    [251] = true, [252] = true,               -- Frost, Unholy Death Knight
-    [577] = true,                             -- Havoc Demon Hunter
-    [269] = true,                             -- Windwalker Monk
-    [70]  = true,                             -- Retribution Paladin
-    [103] = true,                             -- Feral Druid
-    [263] = true,                             -- Enhancement Shaman
-    [255] = true,                             -- Survival Hunter
-}
-
--- Tank specialization IDs
-local TANK_SPECS = {
-    [66]  = true,                                 -- Protection Paladin
-    [73]  = true,                                 -- Protection Warrior
-    [104] = true,                                 -- Guardian Druid
-    [250] = true,                                 -- Blood Death Knight
-    [268] = true,                                 -- Brewmaster Monk
-    [581] = true,                                 -- Vengeance Demon Hunter
-}
-
--- Healer specialization IDs
-local HEALER_SPECS = {
-    [65]   = true,                                -- Holy Paladin
-    [105]  = true,                                -- Restoration Druid
-    [256]  = true, [257] = true,                  -- Discipline, Holy Priest
-    [264]  = true,                                -- Restoration Shaman
-    [270]  = true,                                -- Mistweaver Monk
-    [1468] = true,                                -- Preservation Evoker
-}
-
--- Ranged DPS specialization IDs
-local RANGED_DPS_SPECS = {
-    [253] = true, [254] = true,               -- Beast Mastery, Marksmanship Hunter
-    [62]  = true, [63]  = true, [64]  = true, -- Arcane, Fire, Frost Mage
-    [258] = true,                             -- Shadow Priest
-    [262] = true,                             -- Elemental Shaman
-    [265] = true, [266] = true, [267] = true, -- Affliction, Demonology, Destruction Warlock
-    [102] = true,                             -- Balance Druid
-    [1467] = true, [1473] = true,             -- Devastation, Augmentation Evoker
-    [1480] = true,                            -- Devourer Demon Hunter
-}
-
--- Fallback: classes where ALL DPS specs are melee
-local DEFAULT_MELEE_CLASSES = {
-    WARRIOR = true,
-    ROGUE = true,
-    DEATHKNIGHT = true,
-    MONK = true,
-    PALADIN = true,
-}
-
 -- Get a unit's specialization ID. GetInspectSpecialization requires an
 -- active inspect session, so it returns 0 for most raid members. For the
 -- player character we can use GetSpecialization directly.
@@ -903,39 +849,6 @@ local function GetUnitSpecID(unit)
     end
 
     return GetInspectSpecialization(unit) or 0
-end
-
-function addon:GetCombatRoleForSpecID(specID, classToken)
-    if not specID or specID <= 0 then
-        return nil
-    end
-
-    if TANK_SPECS[specID] then
-
-        return "TANK"
-    end
-
-    if HEALER_SPECS[specID] then
-
-        return "HEALER"
-    end
-
-    if MELEE_DPS_SPECS[specID] then
-
-        return "MELEE"
-    end
-
-    if RANGED_DPS_SPECS[specID] then
-
-        return "RANGED"
-    end
-
-    if classToken and DEFAULT_MELEE_CLASSES[classToken] then
-
-        return "MELEE"
-    end
-
-    return "RANGED"
 end
 
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"
@@ -953,13 +866,14 @@ function addon:GetCombatRole(member)
     -- Check spec ID (cache first, then live API)
     local unit = "raid" .. member.raidIndex
     local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
-    local specRole = self:GetCombatRoleForSpecID(specID, member.class)
+    local roles = self.ClassSpecRoles
+    local specRole = roles and roles:GetCombatRoleForSpecID(specID, member.class)
     if specRole then
         return specRole
     end
 
     -- Spec unavailable — fall back to class
-    if DEFAULT_MELEE_CLASSES[member.class] then
+    if roles and roles:IsDefaultMeleeClass(member.class) then
 
         return "MELEE"
     end

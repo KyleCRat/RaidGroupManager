@@ -734,6 +734,111 @@ local ROSTER_BACKDROP = {
     edgeSize = 1,
 }
 
+local WOWUTILS_ROSTER_URL = "https://wowutils.com/viserio-cooldowns/groups"
+local ROSTER_IMPORT_INSTRUCTIONS = {
+    "Select your Group",
+    "Go to Roster",
+    "Click the 'Import / Export' Dropdown",
+    "Select 'Export Roster JSON'",
+    "Select which Members you wish to export",
+    "Select 'Copy to Clipboard'",
+    "Paste Below:",
+}
+
+local function CreateRosterImportInstructionLine(parent, text, yOffset)
+    local line = parent:CreateFontString(nil, "ARTWORK")
+    line:SetFont(FONT, 12, "OUTLINE")
+    line:SetTextColor(0.9, 0.9, 0.9, 1)
+    line:SetPoint("TOPLEFT", 12, yOffset)
+    line:SetText(text)
+
+    return line
+end
+
+function addon:ShowWowutilsRosterURLWindow()
+    if self.wowutilsRosterURLFrame then
+        self.wowutilsRosterURLFrame:Show()
+        self.wowutilsRosterURLEditBox:SetText(WOWUTILS_ROSTER_URL)
+        self.wowutilsRosterURLEditBox:HighlightText()
+        self.wowutilsRosterURLEditBox:SetFocus()
+
+        return
+    end
+
+    local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    frame:SetSize(430, 120)
+    frame:SetPoint("CENTER")
+    frame:SetBackdrop(ROSTER_BACKDROP)
+    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.98)
+    frame:SetBackdropBorderColor(0, 0, 0, 1)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameLevel((self.rosterImportFrame and self.rosterImportFrame:GetFrameLevel() or 0) + 30)
+    frame:SetToplevel(true)
+    frame:EnableMouse(true)
+
+    local titleBar = CreateFrame("Frame", nil, frame)
+    titleBar:SetPoint("TOPLEFT", 1, -1)
+    titleBar:SetPoint("TOPRIGHT", -1, -1)
+    titleBar:SetHeight(addon.TITLE_HEIGHT)
+
+    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
+    titleBar.bg:SetAllPoints()
+    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
+
+    titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
+    titleBar.text:SetFont(FONT, 16, "OUTLINE")
+    titleBar.text:SetPoint("LEFT", 8, 0)
+    titleBar.text:SetText("Wowutils URL")
+    titleBar.text:SetTextColor(1, 1, 1, 1)
+
+    local close = addon.CreateCloseButton(titleBar, frame)
+    close:SetPoint("RIGHT", -6, 1)
+
+    local hint = frame:CreateFontString(nil, "ARTWORK")
+    hint:SetFont(FONT, 12, "OUTLINE")
+    hint:SetPoint("TOPLEFT", 12, -(addon.TITLE_HEIGHT + 10))
+    hint:SetText("Press Ctrl+C to copy.")
+    hint:SetTextColor(0.85, 0.85, 0.85, 1)
+
+    local editBox = CreateFrame("EditBox", nil, frame, "BackdropTemplate")
+    editBox:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
+    editBox:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
+    editBox:SetHeight(24)
+    editBox:SetFont(FONT, 12, "OUTLINE")
+    editBox:SetAutoFocus(false)
+    editBox:SetTextColor(1, 1, 1, 1)
+    editBox:SetBackdrop(ROSTER_BACKDROP)
+    editBox:SetBackdropColor(0, 0, 0, 1)
+    editBox:SetBackdropBorderColor(0, 0, 0, 1)
+    editBox:SetTextInsets(6, 6, 0, 0)
+    editBox:SetText(WOWUTILS_ROSTER_URL)
+    editBox:SetScript("OnEscapePressed", function(eb)
+        eb:ClearFocus()
+        frame:Hide()
+    end)
+    editBox:SetScript("OnEditFocusGained", function(eb)
+        eb:HighlightText()
+    end)
+    editBox:SetScript("OnKeyDown", function(eb, key)
+        if IsControlKeyDown() and (key == "C" or key == "c") then
+            C_Timer.After(0, function()
+                if frame:IsShown() then
+                    eb:ClearFocus()
+                    frame:Hide()
+                end
+            end)
+        end
+    end)
+
+    self.wowutilsRosterURLFrame = frame
+    self.wowutilsRosterURLEditBox = editBox
+
+    frame:Show()
+    editBox:HighlightText()
+    editBox:SetFocus()
+end
+
 function addon:ShowRosterImportWindow()
     if self.rosterImportFrame then
         self.rosterImportFrame:Show()
@@ -744,12 +849,13 @@ function addon:ShowRosterImportWindow()
     end
 
     local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    frame:SetSize(500, 400)
+    frame:SetSize(580, 520)
     frame:SetPoint("CENTER")
     frame:SetBackdrop(ROSTER_BACKDROP)
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
     frame:SetFrameStrata("DIALOG")
+    frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
 
@@ -783,9 +889,28 @@ function addon:ShowRosterImportWindow()
     local close = addon.CreateCloseButton(titleBar, frame)
     close:SetPoint("RIGHT", -6, 1)
 
+    local firstLine = CreateRosterImportInstructionLine(frame, "Go to", -(addon.TITLE_HEIGHT + 12))
+
+    local urlText = frame:CreateFontString(nil, "ARTWORK")
+    urlText:SetFont(FONT, 12, "OUTLINE")
+    urlText:SetTextColor(0.45, 0.75, 1, 1)
+    urlText:SetPoint("LEFT", firstLine, "RIGHT", 5, 0)
+    urlText:SetText(WOWUTILS_ROSTER_URL)
+
+    local copyURLBtn = addon.CreateStyledButton(frame, 68, 20, "Copy URL")
+    copyURLBtn.label:SetFont(FONT, 10, "OUTLINE")
+    copyURLBtn:SetPoint("LEFT", urlText, "RIGHT", 8, 0)
+    copyURLBtn:SetScript("OnClick", function()
+        self:ShowWowutilsRosterURLWindow()
+    end)
+
+    for i, instruction in ipairs(ROSTER_IMPORT_INSTRUCTIONS) do
+        CreateRosterImportInstructionLine(frame, instruction, -(addon.TITLE_HEIGHT + 12 + (i * 17)))
+    end
+
     -- Edit box area
     local editBg = frame:CreateTexture(nil, "BACKGROUND")
-    editBg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 10))
+    editBg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 158))
     editBg:SetPoint("BOTTOMRIGHT", -10, 50)
     editBg:SetColorTexture(0, 0, 0, 1)
 

@@ -286,6 +286,12 @@ local function CreateEntryRow(parent, index)
     row.template = nil
     row:Hide()
 
+    row:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" and (self.template or self.playerName) then
+            addon:CaptureDragCursorOffset(self)
+        end
+    end)
+
     -- Drag into grid slots
     row:SetScript("OnDragStart", function(self)
         -- Template drag (Role mode)
@@ -293,7 +299,7 @@ local function CreateEntryRow(parent, index)
             addon.dragSource = self
             addon.dragSourceType = "template"
             addon.dragSourceTemplate = self.template
-            self:SetAlpha(0.5)
+            addon:StartDragVisual(self)
 
             return
         end
@@ -306,7 +312,7 @@ local function CreateEntryRow(parent, index)
         addon.dragSource = self
         addon.dragSourceType = "unassigned"
         addon.dragSourceName = self.playerName
-        self:SetAlpha(0.5)
+        addon:StartDragVisual(self)
     end)
 
     row:SetScript("OnDragStop", function(self)

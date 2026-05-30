@@ -16,6 +16,7 @@ local COLOR_GRAY = { r = 0.7, g = 0.7, b = 0.7 }
 local COLOR_BORDER_NORMAL = { r = 0, g = 0, b = 0 }
 local COLOR_BORDER_UNMATCHED = { r = 0.5, g = 0.25, b = 0.3 }
 local COLOR_DRAG_HIGHLIGHT = { r = 0.4, g = 0.6, b = 1, a = 0.3 }
+local DRAG_SOURCE_ALPHA = 0.2
 
 local ROLE_ICON_PATH = "Interface\\AddOns\\RaidGroupManager\\Media\\Icons\\"
 
@@ -40,6 +41,197 @@ addon.dragSource = nil
 addon.dragSourceType = nil -- "slot", "unassigned", or "template"
 addon.dragSourceName = nil
 addon.dragSourceTemplate = nil
+
+local function UpdateDragPreviewPosition(frame)
+    local x, y = GetCursorPosition()
+    local scale = frame:GetEffectiveScale()
+    x = x / scale
+    y = y / scale
+
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x - frame.dragCursorOffsetX, y + frame.dragCursorOffsetY)
+end
+
+local function DragPreview_OnUpdate(self)
+    UpdateDragPreviewPosition(self)
+end
+
+local function GetSourceVertexColor(sourceFrame, key, fallback)
+    local region = sourceFrame and sourceFrame[key]
+    if region and region.GetVertexColor then
+        local r, g, b, a = region:GetVertexColor()
+
+        return r, g, b, a
+    end
+
+    return fallback.r, fallback.g, fallback.b, fallback.a
+end
+
+local function GetSourceTextColor(sourceFrame)
+    local text = sourceFrame and sourceFrame.nameText
+    if text and text.GetTextColor then
+        local r, g, b, a = text:GetTextColor()
+
+        return r, g, b, a
+    end
+
+    return 1, 1, 1, 1
+end
+
+local function CreateDragPreviewFrame()
+    local frame = CreateFrame("Frame", nil, UIParent)
+    frame:SetFrameStrata("TOOLTIP")
+    frame:SetToplevel(true)
+    frame:SetClampedToScreen(true)
+    frame:EnableMouse(false)
+    frame:Hide()
+
+    frame.bg = frame:CreateTexture(nil, "BACKGROUND")
+    frame.bg:SetAllPoints()
+    frame.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+
+    frame.borderTop = frame:CreateTexture(nil, "BORDER")
+    frame.borderTop:SetPoint("TOPLEFT")
+    frame.borderTop:SetPoint("TOPRIGHT")
+    frame.borderTop:SetHeight(1)
+    frame.borderTop:SetColorTexture(0, 0, 0, 1)
+
+    frame.borderBottom = frame:CreateTexture(nil, "BORDER")
+    frame.borderBottom:SetPoint("BOTTOMLEFT")
+    frame.borderBottom:SetPoint("BOTTOMRIGHT")
+    frame.borderBottom:SetHeight(1)
+    frame.borderBottom:SetColorTexture(0, 0, 0, 1)
+
+    frame.borderLeft = frame:CreateTexture(nil, "BORDER")
+    frame.borderLeft:SetPoint("TOPLEFT")
+    frame.borderLeft:SetPoint("BOTTOMLEFT")
+    frame.borderLeft:SetWidth(1)
+    frame.borderLeft:SetColorTexture(0, 0, 0, 1)
+
+    frame.borderRight = frame:CreateTexture(nil, "BORDER")
+    frame.borderRight:SetPoint("TOPRIGHT")
+    frame.borderRight:SetPoint("BOTTOMRIGHT")
+    frame.borderRight:SetWidth(1)
+    frame.borderRight:SetColorTexture(0, 0, 0, 1)
+
+    frame.nameText = frame:CreateFontString(nil, "ARTWORK")
+    frame.nameText:SetFont(FONT, 13, "OUTLINE")
+    frame.nameText:SetPoint("LEFT", 4, 0)
+    frame.nameText:SetPoint("RIGHT", -(ROLE_ICON_SIZE + 4), 0)
+    frame.nameText:SetJustifyH("LEFT")
+    frame.nameText:SetWordWrap(false)
+
+    frame.roleIcon = frame:CreateTexture(nil, "ARTWORK")
+    frame.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+    frame.roleIcon:SetPoint("RIGHT", -2, 0)
+    frame.roleIcon:Hide()
+
+    return frame
+end
+
+addon.dragPreviewFrame = CreateDragPreviewFrame()
+
+local function GetFrameCursorOffset(sourceFrame)
+    local cursorX, cursorY = GetCursorPosition()
+    local left, bottom, width, height = sourceFrame:GetScaledRect()
+
+    if left and bottom and width and height then
+        local sourceScale = sourceFrame:GetEffectiveScale()
+
+        return (cursorX - left) / sourceScale, ((bottom + height) - cursorY) / sourceScale
+    end
+end
+
+function addon:CaptureDragCursorOffset(sourceFrame)
+    sourceFrame.dragCursorOffsetX, sourceFrame.dragCursorOffsetY = GetFrameCursorOffset(sourceFrame)
+end
+
+local function SetDragPreviewCursorOffset(frame, sourceFrame)
+    if sourceFrame.dragCursorOffsetX and sourceFrame.dragCursorOffsetY then
+        frame.dragCursorOffsetX = sourceFrame.dragCursorOffsetX
+        frame.dragCursorOffsetY = sourceFrame.dragCursorOffsetY
+
+        return
+    end
+
+    frame.dragCursorOffsetX, frame.dragCursorOffsetY = GetFrameCursorOffset(sourceFrame)
+    frame.dragCursorOffsetX = frame.dragCursorOffsetX or 0
+    frame.dragCursorOffsetY = frame.dragCursorOffsetY or 0
+end
+
+function addon:ShowDragPreviewFromFrame(sourceFrame)
+    if not sourceFrame then
+        return
+    end
+
+    if not self.dragPreviewFrame then
+        self.dragPreviewFrame = CreateDragPreviewFrame()
+    end
+
+    local frame = self.dragPreviewFrame
+    local width = sourceFrame:GetWidth() or SLOT_WIDTH
+    local height = sourceFrame:GetHeight() or SLOT_HEIGHT
+    local sourceScale = sourceFrame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local text = sourceFrame.nameText and sourceFrame.nameText:GetText() or ""
+    local textWidth = 0
+    local textR, textG, textB, textA = GetSourceTextColor(sourceFrame)
+    local bgR, bgG, bgB, bgA = GetSourceVertexColor(sourceFrame, "bg", { r = 0.1, g = 0.1, b = 0.1, a = 0.9 })
+    local roleTexture
+    local roleAtlas
+
+    if sourceFrame.nameText then
+        textWidth = sourceFrame.nameText:GetStringWidth() or 0
+        if sourceFrame.nameText.GetUnboundedStringWidth then
+            textWidth = sourceFrame.nameText:GetUnboundedStringWidth() or textWidth
+        end
+    end
+
+    if sourceFrame.roleIcon and sourceFrame.roleIcon:IsShown() then
+        if sourceFrame.roleIcon.GetAtlas then
+            roleAtlas = sourceFrame.roleIcon:GetAtlas()
+        end
+
+        if not roleAtlas then
+            roleTexture = sourceFrame.roleIcon:GetTexture()
+        end
+    end
+
+    frame:SetSize(math.max(80, width, math.ceil(textWidth + ROLE_ICON_SIZE + 16)), math.max(SLOT_HEIGHT, height))
+    frame:SetScale(sourceScale)
+    SetDragPreviewCursorOffset(frame, sourceFrame)
+    frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, 0.75))
+    frame.nameText:SetText(text)
+    frame.nameText:SetTextColor(textR, textG, textB, textA or 1)
+
+    if roleAtlas and frame.roleIcon.SetAtlas then
+        frame.roleIcon:SetAtlas(roleAtlas)
+        frame.roleIcon:Show()
+    elseif roleTexture then
+        frame.roleIcon:SetTexCoord(0, 1, 0, 1)
+        frame.roleIcon:SetTexture(roleTexture)
+        frame.roleIcon:Show()
+    else
+        frame.roleIcon:Hide()
+    end
+
+    UpdateDragPreviewPosition(frame)
+    frame:SetScript("OnUpdate", DragPreview_OnUpdate)
+    frame:Show()
+end
+
+function addon:HideDragPreview()
+    if self.dragPreviewFrame then
+        self.dragPreviewFrame:SetScript("OnUpdate", nil)
+        self.dragPreviewFrame:Hide()
+    end
+end
+
+function addon:StartDragVisual(sourceFrame)
+    if sourceFrame then
+        sourceFrame:SetAlpha(DRAG_SOURCE_ALPHA)
+        self:ShowDragPreviewFromFrame(sourceFrame)
+    end
+end
 
 local function FindSlotUnderCursor()
     for i = 1, 40 do
@@ -108,6 +300,10 @@ local function CreateSlotFrame(parent, slotIndex)
 
     -- Right-click to clear slot (player or template)
     slot:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" and self.playerName ~= "" then
+            addon:CaptureDragCursorOffset(self)
+        end
+
         if button == "RightButton" and self.playerName ~= "" then
             addon:SetSlotText(self.slotIndex, "")
             addon:RefreshSlot(self.slotIndex)
@@ -125,7 +321,7 @@ local function CreateSlotFrame(parent, slotIndex)
         addon.dragSource = self
         addon.dragSourceType = "slot"
         addon.dragSourceName = self.playerName
-        self:SetAlpha(0.5)
+        addon:StartDragVisual(self)
     end)
 
     -- Drag stop
@@ -168,7 +364,11 @@ end
 function addon:ClearDragState()
     if self.dragSource then
         self.dragSource:SetAlpha(1)
+        self.dragSource.dragCursorOffsetX = nil
+        self.dragSource.dragCursorOffsetY = nil
     end
+
+    self:HideDragPreview()
 
     -- Hide all drag highlights
     for i = 1, 40 do

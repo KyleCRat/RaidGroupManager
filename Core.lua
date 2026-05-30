@@ -33,6 +33,7 @@ local defaults = {
         minimap = { hide = false },
         layouts = {},
         framePosition = nil,
+        frameScale = 1,
         gridState = nil,
         specCache = {},
         debugMode = false,

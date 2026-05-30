@@ -1,8 +1,15 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 local LPP = LibStub("LibPixelPerfect-1.0")
+local LibPopupSlider = LibStub("LibPopupSlider-1.0")
 
 local FRAME_WIDTH = 700
 local FRAME_HEIGHT = 600
+local FRAME_SCALE_MIN = 50
+local FRAME_SCALE_MAX = 150
+local FRAME_SCALE_STEP = 5
+local SCALE_BUTTON_WIDTH = 72
+local SCALE_BUTTON_HEIGHT = 14
+local TITLE_BUTTON_GAP = 6
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
 local FONT = addon.FONT
 local BUTTON_HEIGHT = 24
@@ -79,6 +86,41 @@ end
 
 local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
+local function ClampScalePercent(value)
+    if type(value) ~= "number" then
+        return 100
+    end
+
+    if value < FRAME_SCALE_MIN then
+        return FRAME_SCALE_MIN
+    end
+
+    if value > FRAME_SCALE_MAX then
+        return FRAME_SCALE_MAX
+    end
+
+    return value
+end
+
+local function SnapScalePercent(value)
+    value = ClampScalePercent(value)
+
+    return math.floor(value / FRAME_SCALE_STEP + 0.5) * FRAME_SCALE_STEP
+end
+
+local function GetSavedScalePercent(owner)
+    local scale = owner.db and owner.db.profile.frameScale
+    if type(scale) ~= "number" then
+        scale = 1
+    end
+
+    return SnapScalePercent(scale * 100)
+end
+
+local function SetScaleButtonText(button, value)
+    button.label:SetText("Scale: " .. value .. "%")
+end
+
 local function CreateCloseButton(parent, targetFrame)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(14, 14)
@@ -112,6 +154,8 @@ function addon:CreateMainFrame()
 
     local frame = CreateFrame("Frame", "RGMFrame", UIParent, "BackdropTemplate")
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
+    local initialScale = GetSavedScalePercent(self)
+    frame:SetScale(initialScale / 100)
     self:RestoreFramePosition(frame)
     frame:SetBackdrop(BACKDROP)
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
@@ -155,6 +199,38 @@ function addon:CreateMainFrame()
     -- Close button
     local close = CreateCloseButton(titleBar, frame)
     close:SetPoint("RIGHT", -6, 1)
+
+    local scaleButton = CreateStyledButton(titleBar, SCALE_BUTTON_WIDTH, SCALE_BUTTON_HEIGHT, "")
+    scaleButton.label:SetFont(FONT, 10, "OUTLINE")
+    scaleButton:SetPoint("RIGHT", close, "LEFT", -TITLE_BUTTON_GAP, 0)
+    SetScaleButtonText(scaleButton, initialScale)
+
+    scaleButton:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Scale")
+    end)
+
+    scaleButton:HookScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    frame.scalePopup = LibPopupSlider:Create(scaleButton, {
+        minValue = FRAME_SCALE_MIN,
+        maxValue = FRAME_SCALE_MAX,
+        step = FRAME_SCALE_STEP,
+        label = "Scale",
+        font = FONT,
+        formatValue = function(value)
+            return value .. "%"
+        end,
+        onValueChanged = function(value)
+            self.db.profile.frameScale = value / 100
+            frame:SetScale(value / 100)
+            SetScaleButtonText(scaleButton, value)
+        end,
+    })
+    frame.scalePopup:SetValue(initialScale, true)
+    frame.scaleButton = scaleButton
 
     frame.titleBar = titleBar
     self.mainFrame = frame

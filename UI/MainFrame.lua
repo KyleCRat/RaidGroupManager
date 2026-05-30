@@ -240,15 +240,6 @@ function addon:CreateMainFrame()
     scaleButton:SetPoint("RIGHT", close, "LEFT", -TITLE_BUTTON_GAP, 0)
     SetScaleButtonText(scaleButton, initialScale)
 
-    scaleButton:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Scale")
-    end)
-
-    scaleButton:HookScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-
     frame.scalePopup = LibPopupSlider:Create(scaleButton, {
         minValue = FRAME_SCALE_MIN,
         maxValue = FRAME_SCALE_MAX,

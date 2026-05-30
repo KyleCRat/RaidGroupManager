@@ -30,6 +30,7 @@ local TAB_MODES = { MODE_RAID, MODE_GUILD, MODE_ROLE, MODE_ROSTER }
 
 local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
 local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
+local COLOR_TAB_HOVER = { r = 0.22, g = 0.22, b = 0.22, a = 0.95 }
 
 --------------------------------------------------------------------------------
 -- Minimal JSON parser for wowutils roster imports
@@ -371,6 +372,15 @@ function addon:CreateUnassignedPanel(parent)
         tab.label:SetFont(FONT, 11, "OUTLINE")
         tab.label:SetPoint("CENTER")
         tab.label:SetText(MODE_LABELS[mode])
+
+        tab:SetScript("OnEnter", function()
+            tab.bg:SetVertexColor(COLOR_TAB_HOVER.r, COLOR_TAB_HOVER.g, COLOR_TAB_HOVER.b, COLOR_TAB_HOVER.a)
+        end)
+
+        tab:SetScript("OnLeave", function()
+            local c = (self.unassignedMode == mode) and COLOR_TAB_ACTIVE or COLOR_TAB_INACTIVE
+            tab.bg:SetVertexColor(c.r, c.g, c.b, c.a)
+        end)
 
         tab:SetScript("OnClick", function()
             self.unassignedMode = mode

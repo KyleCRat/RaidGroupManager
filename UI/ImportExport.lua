@@ -216,6 +216,7 @@ local function CreateModalFrame(title, width, height)
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
     frame:SetFrameStrata("DIALOG")
+    frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
 

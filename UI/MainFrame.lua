@@ -16,6 +16,7 @@ local BUTTON_HEIGHT = 24
 local BUTTON_PADDING = 6
 local BOTTOM_BUTTON_FONT_SIZE = 12
 local BOTTOM_BUTTON_TEXT_PADDING = 12
+local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
 local BOTTOM_BUTTON_MIN_WIDTH = 40
 local BOTTOM_BAR_HEIGHT = 40
 
@@ -29,6 +30,16 @@ local BACKDROP = {
     edgeSize = 1,
 }
 
+local BUTTON_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
+local BUTTON_BORDER_HOVER = { r = 0, g = 0, b = 0, a = 1 }
+
+local function SetButtonBorderColor(btn, color)
+    btn.borderTop:SetColorTexture(color.r, color.g, color.b, color.a)
+    btn.borderBottom:SetColorTexture(color.r, color.g, color.b, color.a)
+    btn.borderLeft:SetColorTexture(color.r, color.g, color.b, color.a)
+    btn.borderRight:SetColorTexture(color.r, color.g, color.b, color.a)
+end
+
 -- Create a styled button matching ReadyCheckConsumables pattern
 local function CreateStyledButton(parent, width, height, label)
     local btn = CreateFrame("Button", nil, parent)
@@ -38,10 +49,27 @@ local function CreateStyledButton(parent, width, height, label)
     btn.bg:SetAllPoints()
     btn.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
 
-    btn.border = btn:CreateTexture(nil, "BORDER")
-    btn.border:SetPoint("TOPLEFT", -1, 1)
-    btn.border:SetPoint("BOTTOMRIGHT", 1, -1)
-    btn.border:SetColorTexture(0, 0, 0, 1)
+    btn.borderTop = btn:CreateTexture(nil, "BORDER")
+    btn.borderTop:SetPoint("TOPLEFT")
+    btn.borderTop:SetPoint("TOPRIGHT")
+    btn.borderTop:SetHeight(1)
+
+    btn.borderBottom = btn:CreateTexture(nil, "BORDER")
+    btn.borderBottom:SetPoint("BOTTOMLEFT")
+    btn.borderBottom:SetPoint("BOTTOMRIGHT")
+    btn.borderBottom:SetHeight(1)
+
+    btn.borderLeft = btn:CreateTexture(nil, "BORDER")
+    btn.borderLeft:SetPoint("TOPLEFT")
+    btn.borderLeft:SetPoint("BOTTOMLEFT")
+    btn.borderLeft:SetWidth(1)
+
+    btn.borderRight = btn:CreateTexture(nil, "BORDER")
+    btn.borderRight:SetPoint("TOPRIGHT")
+    btn.borderRight:SetPoint("BOTTOMRIGHT")
+    btn.borderRight:SetWidth(1)
+
+    SetButtonBorderColor(btn, BUTTON_BORDER_NORMAL)
 
     btn.highlight = btn:CreateTexture(nil, "ARTWORK")
     btn.highlight:SetAllPoints()
@@ -56,10 +84,12 @@ local function CreateStyledButton(parent, width, height, label)
 
     btn:SetScript("OnEnter", function(self)
         self.highlight:Show()
+        SetButtonBorderColor(self, BUTTON_BORDER_HOVER)
     end)
 
     btn:SetScript("OnLeave", function(self)
         self.highlight:Hide()
+        SetButtonBorderColor(self, BUTTON_BORDER_NORMAL)
     end)
 
     return btn
@@ -72,7 +102,11 @@ local function CreateBottomBarButton(parent, label)
     btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
 
     local textWidth = btn.label:GetStringWidth() or 0
-    local width = math.max(BOTTOM_BUTTON_MIN_WIDTH, math.ceil(textWidth + (BOTTOM_BUTTON_TEXT_PADDING * 2)))
+    if btn.label.GetUnboundedStringWidth then
+        textWidth = btn.label:GetUnboundedStringWidth() or textWidth
+    end
+
+    local width = math.max(BOTTOM_BUTTON_MIN_WIDTH, math.ceil(textWidth + (BOTTOM_BUTTON_TEXT_PADDING * 2) + BOTTOM_BUTTON_TEXT_FIT_BUFFER))
     btn:SetWidth(width)
 
     btn.label:ClearAllPoints()
@@ -161,6 +195,7 @@ function addon:CreateMainFrame()
     frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
     frame:SetBackdropBorderColor(0, 0, 0, 1)
     frame:SetFrameStrata("HIGH")
+    frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
     frame:Hide()
 

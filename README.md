@@ -64,10 +64,11 @@ Four browsing modes via tab bar:
 ### Quality of Life
 - Minimap button to toggle the window
 - Keybinding support — bind "Toggle Window" in the Key Bindings UI
-- Frame position remembers where you left it
+- Frame position and scale remember where you left them
 - Auto-hides during boss encounters, reopens when you're alive after
 - Group assignment aborts if raid membership changes while applying a layout
 - Toast notifications for layout apply results and other feedback
+- Clearer button borders and tab hover states for easier interaction
 - Custom role icons distinguishing melee DPS from ranged DPS
 - Pixel-perfect grid rendering via LibPixelPerfect
 
@@ -88,3 +89,4 @@ All libraries are bundled in the `Libs/` folder:
 - LibDataBroker-1.1
 - LibDBIcon-1.0
 - LibPixelPerfect-1.0
+- LibPopupSlider-1.0

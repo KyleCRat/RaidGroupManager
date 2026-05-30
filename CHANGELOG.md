@@ -1,5 +1,20 @@
 # Changelog
 
+## [12.0.7-8] - 2026-05-29
+
+### Added
+- Added a top-right Scale button with a 50% to 150% frame scale slider
+- Added LibPopupSlider-1.0 and moved embedded library loading into embeds.xml
+- Added cursor-following drag previews for grid slots, raid/guild/roster rows, and role templates
+
+### Changed
+- Drag sources now fade more strongly while dragging so the cursor preview is the primary visual
+- Button borders now use a clearer normal and hover state
+- Unassigned panel tabs now show a background hover state
+- Main and modal frames now raise as a whole when selected to avoid child-frame layering issues
+- Bottom button width calculation now accounts for unbounded text width to prevent label clipping
+- Removed the redundant Scale tooltip from the scale button
+
 ## [12.0.7-7] - 2026-05-28
 
 ### Added
@@ -21,17 +36,3 @@
 - Abort group assignment if raid membership changes while applying a layout
 - Fixed leaked globals from GridSlot drag/drop helpers
 - Hardened raid conversion checks to use Blizzard's allowed-conversion gate before converting
-
-## [12.0.5-6] - 2026-04-15
-
-### Fixed
-- Fix offline raid members causing uncapped inspect retries indefinitely
-
-### Changed
-- Debug messages now print in execution order (decision → action) for clearer troubleshooting
-- Inspect retry delay reduced from 10s to 5s
-- Offline/disconnected players now count toward the 3-retry limit (previously skipped without counting)
-- Retry counter resets when an offline player reconnects
-
-### Added
-- Keybinding support — bindable "Toggle Window" in Key Bindings UI under "Raid Group Manager"

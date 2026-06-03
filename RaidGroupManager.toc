@@ -10,6 +10,7 @@ embeds.xml
 
 # Addon files
 Core.lua
+RosterLeaders.lua
 ClassSpecRoles.lua
 PresetLayouts.lua
 MinimapButton.lua

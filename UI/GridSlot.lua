@@ -9,6 +9,7 @@ local SLOT_GAP = addon.SLOT_GAP
 local GROUP_GAP = addon.GROUP_GAP
 local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
 local ROLE_ICON_SIZE = 16
+local LEADER_ICON_SIZE = addon.LEADERSHIP_ICON_SIZE
 
 local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
 local COLOR_EMPTY_TEXT = { r = 0.4, g = 0.4, b = 0.4, a = 0.5 }
@@ -126,6 +127,8 @@ local function CreateDragPreviewFrame()
     frame.roleIcon:SetPoint("RIGHT", -2, 0)
     frame.roleIcon:Hide()
 
+    frame.leaderIcon = addon:CreateLeadershipIcon(frame, frame.roleIcon)
+
     return frame
 end
 
@@ -176,8 +179,13 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     local textWidth = 0
     local textR, textG, textB, textA = GetSourceTextColor(sourceFrame)
     local bgR, bgG, bgB, bgA = GetSourceVertexColor(sourceFrame, "bg", { r = 0.1, g = 0.1, b = 0.1, a = 0.9 })
+    local leadershipTexture
     local roleTexture
     local roleAtlas
+
+    if sourceFrame.leaderIcon and sourceFrame.leaderIcon:IsShown() then
+        leadershipTexture = sourceFrame.leaderIcon:GetTexture()
+    end
 
     if sourceFrame.nameText then
         textWidth = sourceFrame.nameText:GetStringWidth() or 0
@@ -196,12 +204,15 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
         end
     end
 
-    frame:SetSize(math.max(80, width, math.ceil(textWidth + ROLE_ICON_SIZE + 16)), math.max(SLOT_HEIGHT, height))
+    local iconWidth = ROLE_ICON_SIZE + (leadershipTexture and LEADER_ICON_SIZE + 3 or 0)
+
+    frame:SetSize(math.max(80, width, math.ceil(textWidth + iconWidth + 16)), math.max(SLOT_HEIGHT, height))
     frame:SetScale(sourceScale)
     SetDragPreviewCursorOffset(frame, sourceFrame)
     frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, 0.75))
     frame.nameText:SetText(text)
     frame.nameText:SetTextColor(textR, textG, textB, textA or 1)
+    self:SetLeadershipIconState(frame, leadershipTexture, 4, ROLE_ICON_SIZE)
 
     if roleAtlas and frame.roleIcon.SetAtlas then
         frame.roleIcon:SetAtlas(roleAtlas)
@@ -291,6 +302,8 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.roleIcon:SetPoint("RIGHT", -2, 0)
     slot.roleIcon:Hide()
 
+    slot.leaderIcon = addon:CreateLeadershipIcon(slot, slot.roleIcon)
+
     -- Drag hover highlight
     slot.dragHighlight = slot:CreateTexture(nil, "OVERLAY")
     slot.dragHighlight:SetAllPoints()
@@ -302,6 +315,10 @@ local function CreateSlotFrame(parent, slotIndex)
     slot:SetScript("OnMouseDown", function(self, button)
         if button == "LeftButton" and self.playerName ~= "" then
             addon:CaptureDragCursorOffset(self)
+        end
+
+        if button == "MiddleButton" and self.playerName ~= "" and not addon:DecodeTemplate(self.playerName) then
+            addon:ToggleRaidAssist(self.playerName)
         end
 
         if button == "RightButton" and self.playerName ~= "" then
@@ -412,6 +429,7 @@ function addon:RefreshSlot(slotIndex)
         slot.emptyText:Show()
         slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
         roleIcon:Hide()
+        self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
 
         return
     end
@@ -448,16 +466,19 @@ function addon:RefreshSlot(slotIndex)
             roleIcon:Hide()
         end
 
+        self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
+
         return
     end
 
     -- Player slot
     slot.nameText:SetText(text)
-
     local roster = self:GetRaidRoster()
     local member = roster[text]
 
     if member then
+        self:SetLeadershipIconState(slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE)
+
         -- In raid — class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
@@ -479,6 +500,7 @@ function addon:RefreshSlot(slotIndex)
         end
     else
         -- Not in raid — gray text
+        self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
         roleIcon:Hide()

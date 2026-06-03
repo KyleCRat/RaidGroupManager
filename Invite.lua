@@ -1,22 +1,5 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
-local function NormalizeRealm(realm)
-    if not realm or realm == "" then
-        return nil
-    end
-
-    return realm:gsub("%s+", "")
-end
-
-local function BuildFullName(name, realm)
-    local normalizedRealm = NormalizeRealm(realm)
-    if normalizedRealm then
-        return name .. "-" .. normalizedRealm
-    end
-
-    return name
-end
-
 local function AddUniqueName(names, seen, name)
     if not name or name == "" then
         return
@@ -29,20 +12,6 @@ local function AddUniqueName(names, seen, name)
 
     seen[normalized] = true
     table.insert(names, normalized)
-end
-
-local function AddUnitToSet(set, unit)
-    if not UnitExists(unit) then
-        return
-    end
-
-    local name, realm = UnitFullName(unit)
-    if not name then
-        return
-    end
-
-    local fullName = BuildFullName(name, realm)
-    set[addon:NormalizeName(fullName)] = true
 end
 
 local function SetOnlineStatus(status, name, isOnline)
@@ -62,31 +31,10 @@ local function SetOnlineStatus(status, name, isOnline)
     end
 end
 
-local function BuildCurrentGroupSet()
-    local grouped = {}
-
-    AddUnitToSet(grouped, "player")
-
-    if IsInRaid() then
-        for i = 1, 40 do
-            local name = GetRaidRosterInfo(i)
-            if name then
-                grouped[addon:NormalizeName(name)] = true
-            end
-        end
-    elseif IsInGroup() then
-        for i = 1, 4 do
-            AddUnitToSet(grouped, "party" .. i)
-        end
-    end
-
-    return grouped
-end
-
 local function BuildKnownOnlineStatus()
     local status = {}
 
-    local grouped = BuildCurrentGroupSet()
+    local grouped = addon:BuildCurrentGroupSet()
     for name in pairs(grouped) do
         status[name] = true
     end
@@ -133,6 +81,10 @@ local inviteState = nil
 local inviteTimer = nil
 local inviteReportState = nil
 local inviteReportTimer = nil
+
+function addon:IsInviteFlowActive()
+    return inviteState ~= nil or inviteReportState ~= nil
+end
 
 local function GetCurrentGroupCount()
     local count = GetNumGroupMembers() or 0
@@ -234,7 +186,7 @@ end
 
 local function BuildInviteQueue(names)
     local queue = {}
-    local grouped = BuildCurrentGroupSet()
+    local grouped = addon:BuildCurrentGroupSet()
     local onlineStatus = BuildKnownOnlineStatus()
     local skippedOffline = {}
 
@@ -256,20 +208,12 @@ local function BuildInviteQueue(names)
     return queue, skippedOffline
 end
 
-local function FormatNameList(names)
-    if not names or #names == 0 then
-        return ""
-    end
-
-    return table.concat(names, ", ")
-end
-
 local function FormatNameListOrNone(names)
     if not names or #names == 0 then
         return "none"
     end
 
-    return FormatNameList(names)
+    return addon:FormatNameList(names)
 end
 
 local function CombineNameLists(firstNames, secondNames)
@@ -295,7 +239,7 @@ end
 
 local function FilterMissingNames(names)
     local missing = {}
-    local grouped = BuildCurrentGroupSet()
+    local grouped = addon:BuildCurrentGroupSet()
 
     for _, name in ipairs(names or {}) do
         if not grouped[name] then
@@ -381,7 +325,7 @@ local function PopNextInvite(requireKnownOnline)
 end
 
 local function SendQueuedInvites(limit, requireKnownOnline)
-    local grouped = BuildCurrentGroupSet()
+    local grouped = addon:BuildCurrentGroupSet()
     local sent = 0
 
     while inviteState and #inviteState.queue > 0 and (not limit or sent < limit) do
@@ -413,13 +357,13 @@ local function PrintInviteStarted(names)
         return
     end
 
-    addon:Print(count .. " Invited: " .. FormatNameList(names))
+    addon:Print(count .. " Invited: " .. addon:FormatNameList(names))
 end
 
 local function PrintSkippedOffline(names)
     local count = names and #names or 0
     if count > 0 then
-        addon:Print(count .. " Offline: " .. FormatNameList(names))
+        addon:Print(count .. " Offline: " .. addon:FormatNameList(names))
     end
 end
 
@@ -569,12 +513,16 @@ function addon:InviteNamesToGroup(names, sourceLabel)
         return
     end
 
+    local needsRaid = NeedsRaidForInvites(#queue)
+    local canPromoteAssists = (IsInRaid() and UnitIsGroupLeader("player")) or needsRaid
+    self:StartRosterLeaderAssistPromotion(queue, canPromoteAssists)
+
     inviteState = {
         queue = queue,
         sourceLabel = sourceLabel,
         sent = 0,
         invitedNames = {},
-        needsRaid = NeedsRaidForInvites(#queue),
+        needsRaid = needsRaid,
         convertRequested = false,
         skippedOffline = skippedOffline,
     }

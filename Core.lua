@@ -25,6 +25,9 @@ addon.SLOT_GAP = 2
 addon.GROUP_GAP = 6
 addon.GROUP_HEADER_HEIGHT = 16
 addon.TITLE_HEIGHT = 28
+addon.LEADERSHIP_ICON_SIZE = 12
+addon.LEADER_ICON_TEXTURE = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
+addon.ASSIST_ICON_TEXTURE = "Interface\\GroupFrame\\UI-Group-AssistantIcon"
 
 local playerRealm = nil
 
@@ -40,6 +43,7 @@ local defaults = {
     },
     char = {
         importedRoster = {},
+        rosterLeaders = {},
     },
 }
 
@@ -298,10 +302,18 @@ function addon:QueueInspect(name)
 end
 
 function addon:FindRaidUnit(name)
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    if not IsInRaid() then
+        return nil
+    end
+
+    local normalizedName = self:NormalizeName(name)
+    if not normalizedName then
+        return nil
+    end
+
+    for i = 1, 40 do
         local rosterName = GetRaidRosterInfo(i)
-        if rosterName and self:NormalizeName(rosterName) == name then
+        if rosterName and self:NormalizeName(rosterName) == normalizedName then
 
             return "raid" .. i
         end
@@ -579,6 +591,23 @@ function addon:GetPlayerRealm()
     return playerRealm
 end
 
+function addon:NormalizeRealm(realm)
+    if not realm or realm == "" then
+        return nil
+    end
+
+    return realm:gsub("%s+", "")
+end
+
+function addon:BuildFullName(name, realm)
+    local normalizedRealm = self:NormalizeRealm(realm)
+    if normalizedRealm then
+        return name .. "-" .. normalizedRealm
+    end
+
+    return name
+end
+
 -- Normalize a name: strip realm suffix if it matches the player's realm.
 -- Cross-realm names keep their realm suffix.
 function addon:NormalizeName(name)
@@ -606,20 +635,20 @@ end
 -- Build a lookup table of current raid members: normalizedName -> info
 function addon:GetRaidRoster()
     local roster = {}
-    local count = GetNumGroupMembers()
 
-    if not IsInRaid() or count == 0 then
+    if not IsInRaid() then
         return roster
     end
 
-    for i = 1, count do
-        local name, _, subgroup, _, _, class = GetRaidRosterInfo(i)
+    for i = 1, 40 do
+        local name, rank, subgroup, _, _, class = GetRaidRosterInfo(i)
         if name then
             local normalized = self:NormalizeName(name)
             local role = UnitGroupRolesAssigned(name)
             roster[normalized] = {
                 name = name,
                 normalizedName = normalized,
+                rank = rank,
                 class = class,
                 role = role,
                 subgroup = subgroup,
@@ -629,6 +658,91 @@ function addon:GetRaidRoster()
     end
 
     return roster
+end
+
+function addon:AddUnitToSet(set, unit)
+    if not UnitExists(unit) then
+        return
+    end
+
+    local name, realm = UnitFullName(unit)
+    if not name then
+        return
+    end
+
+    local fullName = self:BuildFullName(name, realm)
+    set[self:NormalizeName(fullName)] = true
+end
+
+function addon:BuildCurrentGroupSet()
+    local grouped = {}
+
+    self:AddUnitToSet(grouped, "player")
+
+    if IsInRaid() then
+        for i = 1, 40 do
+            local name = GetRaidRosterInfo(i)
+            if name then
+                grouped[self:NormalizeName(name)] = true
+            end
+        end
+    elseif IsInGroup() then
+        for i = 1, 4 do
+            self:AddUnitToSet(grouped, "party" .. i)
+        end
+    end
+
+    return grouped
+end
+
+function addon:FormatNameList(names)
+    if not names or #names == 0 then
+        return ""
+    end
+
+    return table.concat(names, ", ")
+end
+
+function addon:GetLeadershipIconTextureForRank(rank)
+    if rank == 2 then
+        return self.LEADER_ICON_TEXTURE
+    end
+
+    if rank == 1 then
+        return self.ASSIST_ICON_TEXTURE
+    end
+
+    return nil
+end
+
+function addon:CreateLeadershipIcon(parent, relativeTo)
+    local icon = parent:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(self.LEADERSHIP_ICON_SIZE, self.LEADERSHIP_ICON_SIZE)
+    icon:SetPoint("RIGHT", relativeTo, "LEFT", -1, 0)
+    icon:SetTexture(self.LEADER_ICON_TEXTURE)
+    icon:Hide()
+
+    return icon
+end
+
+function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSize)
+    local normalPadding = roleIconSize + 4
+    local leadershipPadding = roleIconSize + self.LEADERSHIP_ICON_SIZE + 7
+
+    frame.nameText:ClearAllPoints()
+    frame.nameText:SetPoint("LEFT", leftOffset, 0)
+    frame.nameText:SetPoint("RIGHT", iconTexture and -leadershipPadding or -normalPadding, 0)
+
+    if iconTexture then
+        frame.leaderIcon:SetTexture(iconTexture)
+        frame.leaderIcon:Show()
+    else
+        frame.leaderIcon:Hide()
+    end
+end
+
+function addon:SetLeaderIconState(frame, isLeader, leftOffset, roleIconSize)
+    self:SetLeadershipIconState(frame, isLeader and self.LEADER_ICON_TEXTURE or nil, leftOffset, roleIconSize)
 end
 
 --------------------------------------------------------------------------------

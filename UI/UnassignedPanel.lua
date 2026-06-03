@@ -192,16 +192,17 @@ end
 
 local ClassSpecRoles = addon.ClassSpecRoles
 
-local function NormalizeRealm(realm)
-    return realm:gsub("%s+", "")
-end
-
 local function GetCharacterID(char)
     if not char or not char.name or not char.realm then
         return nil
     end
 
-    return char.name:lower() .. "-" .. NormalizeRealm(char.realm):lower()
+    local normalizedRealm = addon:NormalizeRealm(char.realm)
+    if not normalizedRealm then
+        return nil
+    end
+
+    return char.name:lower() .. "-" .. normalizedRealm:lower()
 end
 
 local function ShouldImportCharacter(member, char)
@@ -233,10 +234,10 @@ local function ParseWowUtilsRoster(jsonText)
         if type(member.characters) == "table" then
             for _, char in ipairs(member.characters) do
                 if ShouldImportCharacter(member, char) then
-                    local normalizedRealm = NormalizeRealm(char.realm)
+                    local normalizedRealm = addon:NormalizeRealm(char.realm)
                     local name = char.name:sub(1, 1):upper() .. char.name:sub(2)
 
-                    if normalizedRealm:lower() ~= playerRealm:lower() then
+                    if normalizedRealm and normalizedRealm:lower() ~= playerRealm:lower() then
                         name = name .. "-" .. normalizedRealm
                     end
 
@@ -282,6 +283,8 @@ local function CreateEntryRow(parent, index)
     row.roleIcon:SetPoint("RIGHT", -2, 0)
     row.roleIcon:Hide()
 
+    row.leaderIcon = addon:CreateLeadershipIcon(row, row.roleIcon)
+
     row.playerName = nil
     row.template = nil
     row:Hide()
@@ -289,6 +292,16 @@ local function CreateEntryRow(parent, index)
     row:SetScript("OnMouseDown", function(self, button)
         if button == "LeftButton" and (self.template or self.playerName) then
             addon:CaptureDragCursorOffset(self)
+
+            return
+        end
+
+        if button == "MiddleButton" and self.playerName then
+            if addon.unassignedMode == MODE_RAID then
+                addon:ToggleRaidAssist(self.playerName)
+            elseif addon.unassignedMode == MODE_ROSTER then
+                addon:ToggleRosterLeader(self.playerName)
+            end
         end
     end)
 
@@ -343,6 +356,14 @@ local function CreateEntryRow(parent, index)
     end)
 
     return row
+end
+
+local function SetRowLeadershipIconState(row, iconTexture)
+    addon:SetLeadershipIconState(row, iconTexture, 2, ROLE_ICON_SIZE)
+end
+
+local function SetRowLeaderState(row, isLeader)
+    addon:SetLeaderIconState(row, isLeader, 2, ROLE_ICON_SIZE)
 end
 
 local function UpdateTabHighlights(tabs, activeMode)
@@ -585,6 +606,7 @@ function addon:RefreshUnassigned()
             row.nameText:SetText(displayName)
             row.playerName = entry.normalizedName
             row.template = nil
+            SetRowLeadershipIconState(row, self:GetLeadershipIconTextureForRank(entry.rank))
 
             -- Class color
             local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
@@ -615,6 +637,7 @@ function addon:RefreshUnassigned()
             row:Hide()
             row.playerName = nil
             row.template = nil
+            SetRowLeaderState(row, false)
         end
     end
 
@@ -633,6 +656,7 @@ function addon:RefreshUnassignedRoleMode()
             row.nameText:SetText(entry.className)
             row.playerName = nil
             row.template = { class = entry.class, role = entry.role }
+            SetRowLeaderState(row, false)
 
             -- Class color
             local classColor = C_ClassColor.GetClassColor(entry.class)
@@ -658,6 +682,7 @@ function addon:RefreshUnassignedRoleMode()
             row:Hide()
             row.playerName = nil
             row.template = nil
+            SetRowLeaderState(row, false)
         end
     end
 
@@ -710,6 +735,7 @@ function addon:RefreshUnassignedRosterMode()
             row.nameText:SetText(entry.normalizedName)
             row.playerName = entry.normalizedName
             row.template = nil
+            SetRowLeaderState(row, self:IsRosterLeader(entry.normalizedName))
 
             local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
             if classColor then
@@ -733,6 +759,7 @@ function addon:RefreshUnassignedRosterMode()
             row:Hide()
             row.playerName = nil
             row.template = nil
+            SetRowLeaderState(row, false)
         end
     end
 

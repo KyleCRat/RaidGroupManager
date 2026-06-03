@@ -28,8 +28,7 @@ local function BuildRaidState()
         groupCounts[g] = 0
     end
 
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local name, _, subgroup = GetRaidRosterInfo(i)
         if name then
             groupCounts[subgroup] = groupCounts[subgroup] + 1
@@ -306,12 +305,11 @@ end
 
 -- Check if any raid member is in combat
 local function AnyoneInCombat()
-    local count = GetNumGroupMembers()
     local combatants = {}
 
-    for i = 1, count do
+    for i = 1, 40 do
         local unit = "raid" .. i
-        if UnitAffectingCombat(unit) then
+        if UnitExists(unit) and UnitAffectingCombat(unit) then
             local name = GetRaidRosterInfo(i)
             table.insert(combatants, name or ("raid" .. i))
         end
@@ -871,8 +869,7 @@ end
 -- Resolve a player name to their current raidIndex (re-scanned each step
 -- because indices shift after every roster change)
 local function FindRaidIndex(name)
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local rosterName = GetRaidRosterInfo(i)
         if rosterName then
             local normalized = addon:NormalizeName(rosterName)
@@ -1000,8 +997,7 @@ local function OnAssignmentRosterUpdate()
 end
 
 local function HasRaidPermission()
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local name, rank = GetRaidRosterInfo(i)
         if name and UnitIsUnit(name, "player") then
             return rank > 0
@@ -1035,6 +1031,12 @@ function addon:StartApply()
     -- Resolve any template slots to real players before planning
     if self:HasTemplateSlots() then
         self:ResolveTemplates()
+    end
+
+    if self:EnsureRaidLeaderSlotOne(true) then
+        self:RefreshAllSlots()
+        self:RefreshUnassigned()
+        self:TryAutoSave()
     end
 
     -- Plan all moves up front

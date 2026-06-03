@@ -428,6 +428,7 @@ function addon:RefreshSlot(slotIndex)
         slot.nameText:SetText("")
         slot.emptyText:Show()
         slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
+        roleIcon:SetDesaturated(false)
         roleIcon:Hide()
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
 
@@ -461,8 +462,10 @@ function addon:RefreshSlot(slotIndex)
         local texture = ROLE_TEXTURES[template.role]
         if texture then
             roleIcon:SetTexture(texture)
+            roleIcon:SetDesaturated(false)
             roleIcon:Show()
         else
+            roleIcon:SetDesaturated(false)
             roleIcon:Hide()
         end
 
@@ -477,7 +480,8 @@ function addon:RefreshSlot(slotIndex)
     local member = roster[text]
 
     if member then
-        self:SetLeadershipIconState(slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE)
+        local isOffline = member.online == false
+        self:SetLeadershipIconState(slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE, isOffline)
 
         -- In raid — class color
         local classColor = C_ClassColor.GetClassColor(member.class)
@@ -494,15 +498,44 @@ function addon:RefreshSlot(slotIndex)
         local texture = ROLE_TEXTURES[combatRole]
         if texture then
             roleIcon:SetTexture(texture)
+            roleIcon:SetDesaturated(isOffline)
             roleIcon:Show()
         else
+            roleIcon:SetDesaturated(false)
             roleIcon:Hide()
         end
     else
+        local rosterEntry = self:GetImportedRosterEntry(text)
+        if rosterEntry then
+            local assistTexture = self:IsRosterLeader(text) and self.ASSIST_ICON_TEXTURE or nil
+            self:SetLeadershipIconState(slot, assistTexture, 4, ROLE_ICON_SIZE, true)
+
+            local classColor = rosterEntry.class and C_ClassColor.GetClassColor(rosterEntry.class)
+            if classColor then
+                slot.nameText:SetTextColor(classColor.r * 0.65, classColor.g * 0.65, classColor.b * 0.65)
+                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.18)
+            else
+                slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
+                slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+            end
+
+            local texture = rosterEntry.role and ROLE_TEXTURES[rosterEntry.role]
+            if texture then
+                roleIcon:SetTexture(texture)
+                roleIcon:SetDesaturated(true)
+                roleIcon:Show()
+            else
+                roleIcon:SetDesaturated(false)
+                roleIcon:Hide()
+            end
+
+            return
+        end
         -- Not in raid — gray text
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
         slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+        roleIcon:SetDesaturated(false)
         roleIcon:Hide()
     end
 end

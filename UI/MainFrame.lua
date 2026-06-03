@@ -393,8 +393,7 @@ function addon:LoadCurrentRoster()
         groupCounts[g] = 0
     end
 
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local name, _, subgroup = GetRaidRosterInfo(i)
         if name and subgroup then
             local pos = groupCounts[subgroup] + 1

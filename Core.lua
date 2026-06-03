@@ -445,8 +445,7 @@ function addon:OnInspectReady(_, inspecteeGUID)
     self.inspectBusy = false
 
     -- Find which raid member matches this GUID
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local unit = "raid" .. i
         if UnitGUID(unit) == inspecteeGUID then
             local specID = GetInspectSpecialization(unit)
@@ -518,8 +517,7 @@ function addon:OnSpecChanged(_, unit)
 end
 
 function addon:ResetRetriesForReconnectedMembers()
-    local count = GetNumGroupMembers()
-    for i = 1, count do
+    for i = 1, 40 do
         local rosterName = GetRaidRosterInfo(i)
         local name = rosterName and self:NormalizeName(rosterName)
 
@@ -641,7 +639,7 @@ function addon:GetRaidRoster()
     end
 
     for i = 1, 40 do
-        local name, rank, subgroup, _, _, class = GetRaidRosterInfo(i)
+        local name, rank, subgroup, _, _, class, _, online = GetRaidRosterInfo(i)
         if name then
             local normalized = self:NormalizeName(name)
             local role = UnitGroupRolesAssigned(name)
@@ -652,12 +650,40 @@ function addon:GetRaidRoster()
                 class = class,
                 role = role,
                 subgroup = subgroup,
+                online = online,
                 raidIndex = i,
             }
         end
     end
 
     return roster
+end
+
+function addon:GetRaidLeaderName()
+    local roster = self:GetRaidRoster()
+
+    for name, member in pairs(roster) do
+        if member.rank == 2 then
+            return name, member
+        end
+    end
+
+    return nil
+end
+
+function addon:GetImportedRosterEntry(name)
+    local normalized = self:NormalizeName(name)
+    if not normalized then
+        return nil
+    end
+
+    for _, entry in ipairs(self.db.char.importedRoster or {}) do
+        if self:NormalizeName(entry.normalizedName) == normalized then
+            return entry
+        end
+    end
+
+    return nil
 end
 
 function addon:AddUnitToSet(set, unit)
@@ -725,7 +751,7 @@ function addon:CreateLeadershipIcon(parent, relativeTo)
     return icon
 end
 
-function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSize)
+function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSize, desaturated)
     local normalPadding = roleIconSize + 4
     local leadershipPadding = roleIconSize + self.LEADERSHIP_ICON_SIZE + 7
 
@@ -735,14 +761,16 @@ function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSi
 
     if iconTexture then
         frame.leaderIcon:SetTexture(iconTexture)
+        frame.leaderIcon:SetDesaturated(desaturated == true)
         frame.leaderIcon:Show()
     else
+        frame.leaderIcon:SetDesaturated(false)
         frame.leaderIcon:Hide()
     end
 end
 
-function addon:SetLeaderIconState(frame, isLeader, leftOffset, roleIconSize)
-    self:SetLeadershipIconState(frame, isLeader and self.LEADER_ICON_TEXTURE or nil, leftOffset, roleIconSize)
+function addon:SetLeaderIconState(frame, isLeader, leftOffset, roleIconSize, desaturated)
+    self:SetLeadershipIconState(frame, isLeader and self.LEADER_ICON_TEXTURE or nil, leftOffset, roleIconSize, desaturated)
 end
 
 --------------------------------------------------------------------------------
@@ -806,6 +834,37 @@ end
 
 function addon:SetSlotTemplate(slotIndex, class, role)
     self:SetSlotText(slotIndex, self:EncodeTemplate(class, role))
+end
+
+function addon:EnsureRaidLeaderSlotOne(showMessage)
+    local leaderName = self:GetRaidLeaderName()
+    if not leaderName then
+        return false
+    end
+
+    for slotIndex = 1, 40 do
+        if self:IsSlotPlayer(slotIndex) and self:NormalizeName(self:GetSlotText(slotIndex)) == leaderName then
+            local groupStart = math.floor((slotIndex - 1) / 5) * 5 + 1
+            if slotIndex == groupStart then
+                return false
+            end
+
+            local leaderText = self:GetSlotText(slotIndex)
+            for i = slotIndex, groupStart + 1, -1 do
+                self:SetSlotText(i, self:GetSlotText(i - 1))
+            end
+
+            self:SetSlotText(groupStart, leaderText)
+
+            if showMessage and self.ShowToast then
+                self:ShowToast("Raid leader must be in position 1 of subgroup")
+            end
+
+            return true
+        end
+    end
+
+    return false
 end
 
 function addon:IsSlotEmpty(slotIndex)
@@ -1131,26 +1190,6 @@ local function SplitByRole(items, roster)
     return sideA, sideB
 end
 
--- Move the raid leader to position 1 in whichever side they landed on,
--- matching how WoW always displays the leader first in their group.
-local function PinLeaderFirst(sideA, sideB, roster)
-    for _, side in ipairs({ sideA, sideB }) do
-        for i, item in ipairs(side) do
-            local info = roster[item]
-            if info and info.raidIndex == 1 then
-                local groupStart = math.floor((i - 1) / 5) * 5 + 1
-                if i > groupStart then
-                    table.remove(side, i)
-                    table.insert(side, groupStart, item)
-                    addon:ShowToast("Raid leader must be in position 1 of subgroup")
-                end
-
-                return
-            end
-        end
-    end
-end
-
 --------------------------------------------------------------------------------
 -- Split functions
 --------------------------------------------------------------------------------
@@ -1173,10 +1212,10 @@ function addon:SplitOddEven()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
-    PinLeaderFirst(oddItems, evenItems, roster)
 
     PlaceItemsInGroups(oddItems, oddGroups)
     PlaceItemsInGroups(evenItems, evenGroups)
+    self:EnsureRaidLeaderSlotOne(false)
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()
@@ -1197,7 +1236,6 @@ function addon:SplitHalves()
     ClearGroups(allGroups)
 
     local firstItems, secondItems = SplitByRole(items, roster)
-    PinLeaderFirst(firstItems, secondItems, roster)
 
     -- Pack each half into only as many groups as needed
     local firstCount = GroupsNeeded(#firstItems)
@@ -1215,6 +1253,7 @@ function addon:SplitHalves()
 
     PlaceItemsInGroups(firstItems, firstGroups)
     PlaceItemsInGroups(secondItems, secondGroups)
+    self:EnsureRaidLeaderSlotOne(false)
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()

@@ -7,19 +7,23 @@ local FRAME_HEIGHT = 600
 local FRAME_SCALE_MIN = 50
 local FRAME_SCALE_MAX = 150
 local FRAME_SCALE_STEP = 5
-local SCALE_BUTTON_WIDTH = 72
-local SCALE_BUTTON_HEIGHT = 14
-local TITLE_ICON_BUTTON_SIZE = 14
+
+local SCALE_BUTTON_WIDTH = 60
+local SCALE_BUTTON_HEIGHT = 20
+
+local TITLE_ICON_BUTTON_SIZE = 18
 local TITLE_BUTTON_GAP = 6
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
+
 local FONT = addon.FONT
+
 local BUTTON_HEIGHT = 24
 local BUTTON_PADDING = 6
 local BOTTOM_BUTTON_FONT_SIZE = 12
-local BOTTOM_BUTTON_TEXT_PADDING = 12
+local BOTTOM_BUTTON_TEXT_PADDING = 6
 local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
-local BOTTOM_BUTTON_MIN_WIDTH = 40
-local BOTTOM_BAR_HEIGHT = 40
+local BOTTOM_BUTTON_MIN_WIDTH = 30
+local BOTTOM_BAR_HEIGHT = 38
 
 local GRID_WIDTH = 314
 local UNASSIGNED_WIDTH = 180
@@ -191,7 +195,7 @@ local function CreateLeadershipHelpButton(parent)
     btn.icon:SetTexture(addon.LEADER_ICON_TEXTURE)
 
     btn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:AddLine("Leadership Controls")
         GameTooltip:AddLine("Middle-click subgroup slots or Raid rows to promote to assist or demote from assist.", 0.85, 0.85, 0.85, true)
         GameTooltip:AddLine("Middle-click Roster tab members to mark who should be assistant.", 0.85, 0.85, 0.85, true)

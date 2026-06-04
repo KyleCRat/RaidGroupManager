@@ -28,6 +28,8 @@ addon.TITLE_HEIGHT = 28
 addon.LEADERSHIP_ICON_SIZE = 12
 addon.LEADER_ICON_TEXTURE = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
 addon.ASSIST_ICON_TEXTURE = "Interface\\GroupFrame\\UI-Group-AssistantIcon"
+addon.ROW_BG_ALPHA = 0.4
+addon.PANEL_BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.8 }
 
 local playerRealm = nil
 
@@ -659,6 +661,49 @@ function addon:GetRaidRoster()
     return roster
 end
 
+local function AddLiveUnitToRoster(roster, unit)
+    if not UnitExists(unit) then
+        return
+    end
+
+    local name, realm = UnitFullName(unit)
+    if not name then
+        return
+    end
+
+    local fullName = addon:BuildFullName(name, realm)
+    local normalized = addon:NormalizeName(fullName)
+    local _, class = UnitClass(unit)
+
+    roster[normalized] = {
+        name = fullName,
+        normalizedName = normalized,
+        rank = 0,
+        class = class,
+        role = UnitGroupRolesAssigned(unit),
+        subgroup = 1,
+        online = UnitIsUnit(unit, "player") or UnitIsConnected(unit),
+        unitToken = unit,
+    }
+end
+
+function addon:GetGroupDisplayRoster()
+    if IsInRaid() then
+        return self:GetRaidRoster()
+    end
+
+    local roster = {}
+    AddLiveUnitToRoster(roster, "player")
+
+    if IsInGroup() then
+        for i = 1, 4 do
+            AddLiveUnitToRoster(roster, "party" .. i)
+        end
+    end
+
+    return roster
+end
+
 function addon:GetRaidLeaderName()
     local roster = self:GetRaidRoster()
 
@@ -1047,7 +1092,7 @@ function addon:GetCombatRole(member)
     end
 
     -- Check spec ID (cache first, then live API)
-    local unit = "raid" .. member.raidIndex
+    local unit = member.unitToken or ("raid" .. member.raidIndex)
     local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
     local roles = self.ClassSpecRoles
     local specRole = roles and roles:GetCombatRoleForSpecID(specID, member.class)

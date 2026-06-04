@@ -3,6 +3,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 local FONT = addon.FONT
 local ROW_HEIGHT = 24
 local MAX_LAYOUT_ROWS = 20
+local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
 
 local dragSourceIndex = nil
 
@@ -171,7 +172,7 @@ function addon:CreateLayoutPanel(parent)
         edgeFile = "Interface\\Buttons\\WHITE8x8",
         edgeSize = 1,
     })
-    scrollBg:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
+    scrollBg:SetBackdropColor(PANEL_BG_COLOR.r, PANEL_BG_COLOR.g, PANEL_BG_COLOR.b, PANEL_BG_COLOR.a)
     scrollBg:SetBackdropBorderColor(0, 0, 0, 1)
 
     -- Scroll frame for layout list

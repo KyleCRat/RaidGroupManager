@@ -9,6 +9,7 @@ local FRAME_SCALE_MAX = 150
 local FRAME_SCALE_STEP = 5
 local SCALE_BUTTON_WIDTH = 72
 local SCALE_BUTTON_HEIGHT = 14
+local TITLE_ICON_BUTTON_SIZE = 14
 local TITLE_BUTTON_GAP = 6
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
 local FONT = addon.FONT
@@ -181,6 +182,30 @@ end
 
 addon.CreateCloseButton = CreateCloseButton
 
+local function CreateLeadershipHelpButton(parent)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(TITLE_ICON_BUTTON_SIZE, TITLE_ICON_BUTTON_SIZE)
+
+    btn.icon = btn:CreateTexture(nil, "ARTWORK")
+    btn.icon:SetAllPoints()
+    btn.icon:SetTexture(addon.LEADER_ICON_TEXTURE)
+
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Leadership Controls")
+        GameTooltip:AddLine("Middle-click subgroup slots or Raid rows to promote to assist or demote from assist.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine("Middle-click Roster tab members to mark who should be assistant.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine("Those choices are saved and promoted during invites or while you are raid leader.", 0.85, 0.85, 0.85, true)
+        GameTooltip:Show()
+    end)
+
+    btn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return btn
+end
+
 function addon:CreateMainFrame()
     if self.mainFrame then
         return
@@ -257,6 +282,10 @@ function addon:CreateMainFrame()
     })
     frame.scalePopup:SetValue(initialScale, true)
     frame.scaleButton = scaleButton
+
+    local leadershipHelp = CreateLeadershipHelpButton(titleBar)
+    leadershipHelp:SetPoint("RIGHT", scaleButton, "LEFT", -TITLE_BUTTON_GAP, 0)
+    frame.leadershipHelpButton = leadershipHelp
 
     frame.titleBar = titleBar
     self.mainFrame = frame

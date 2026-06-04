@@ -10,14 +10,18 @@ local GROUP_GAP = addon.GROUP_GAP
 local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
 local ROLE_ICON_SIZE = 16
 local LEADER_ICON_SIZE = addon.LEADERSHIP_ICON_SIZE
+local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
 
-local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
+local COLOR_EMPTY_BG = PANEL_BG_COLOR
 local COLOR_EMPTY_TEXT = { r = 0.4, g = 0.4, b = 0.4, a = 0.5 }
 local COLOR_GRAY = { r = 0.7, g = 0.7, b = 0.7 }
 local COLOR_BORDER_NORMAL = { r = 0, g = 0, b = 0 }
 local COLOR_BORDER_UNMATCHED = { r = 0.5, g = 0.25, b = 0.3 }
 local COLOR_DRAG_HIGHLIGHT = { r = 0.4, g = 0.6, b = 1, a = 0.3 }
 local DRAG_SOURCE_ALPHA = 0.2
+local ROW_BG_ALPHA = addon.ROW_BG_ALPHA
+local OFFLINE_DESATURATION = 0.85
+local OFFLINE_DESATURATION_GRAY_MULTIPLIER = 0.5
 
 local ROLE_ICON_PATH = "Interface\\AddOns\\RaidGroupManager\\Media\\Icons\\"
 
@@ -28,14 +32,20 @@ local ROLE_TEXTURES = {
     RANGED = ROLE_ICON_PATH .. "rangeddps",
 }
 
-local COLOR_TEMPLATE_BG_ALPHA = 0.3
-
 local ROLE_DISPLAY_NAMES = {
     TANK = "Tank",
     HEALER = "Healer",
     MELEE = "Melee",
     RANGED = "Ranged",
 }
+
+local function DesaturateColor(r, g, b, amount)
+    local gray = ((0.299 * r) + (0.587 * g) + (0.114 * b)) * OFFLINE_DESATURATION_GRAY_MULTIPLIER
+
+    return r + ((gray - r) * amount),
+        g + ((gray - g) * amount),
+        b + ((gray - b) * amount)
+end
 
 -- Global drag state
 addon.dragSource = nil
@@ -209,7 +219,7 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     frame:SetSize(math.max(80, width, math.ceil(textWidth + iconWidth + 16)), math.max(SLOT_HEIGHT, height))
     frame:SetScale(sourceScale)
     SetDragPreviewCursorOffset(frame, sourceFrame)
-    frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, 0.75))
+    frame.bg:SetVertexColor(bgR, bgG, bgB, bgA or ROW_BG_ALPHA)
     frame.nameText:SetText(text)
     frame.nameText:SetTextColor(textR, textG, textB, textA or 1)
     self:SetLeadershipIconState(frame, leadershipTexture, 4, ROLE_ICON_SIZE)
@@ -445,17 +455,17 @@ function addon:RefreshSlot(slotIndex)
         if isGeneric then
             slot.nameText:SetText(ROLE_DISPLAY_NAMES[template.role] or template.role)
             slot.nameText:SetTextColor(0.8, 0.8, 0.8)
-            slot.bg:SetVertexColor(0.4, 0.4, 0.4, COLOR_TEMPLATE_BG_ALPHA)
+            slot.bg:SetVertexColor(0.4, 0.4, 0.4, ROW_BG_ALPHA)
         else
             slot.nameText:SetText(ClassSpecRoles:GetClassName(template.class))
 
             local classColor = C_ClassColor.GetClassColor(template.class)
             if classColor then
                 slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, COLOR_TEMPLATE_BG_ALPHA)
+                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, ROW_BG_ALPHA)
             else
                 slot.nameText:SetTextColor(0.6, 0.6, 0.6)
-                slot.bg:SetVertexColor(0.3, 0.3, 0.3, COLOR_TEMPLATE_BG_ALPHA)
+                slot.bg:SetVertexColor(0.3, 0.3, 0.3, ROW_BG_ALPHA)
             end
         end
 
@@ -476,8 +486,9 @@ function addon:RefreshSlot(slotIndex)
 
     -- Player slot
     slot.nameText:SetText(text)
-    local roster = self:GetRaidRoster()
-    local member = roster[text]
+    local normalizedText = self:NormalizeName(text)
+    local roster = self:GetGroupDisplayRoster()
+    local member = roster[normalizedText]
 
     if member then
         local isOffline = member.online == false
@@ -486,11 +497,16 @@ function addon:RefreshSlot(slotIndex)
         -- In raid — class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
-            slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-            slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.5)
+            local r, g, b = classColor.r, classColor.g, classColor.b
+            if isOffline then
+                r, g, b = DesaturateColor(r, g, b, OFFLINE_DESATURATION)
+            end
+
+            slot.nameText:SetTextColor(r, g, b)
+            slot.bg:SetVertexColor(r, g, b, ROW_BG_ALPHA)
         else
             slot.nameText:SetTextColor(1, 1, 1)
-            slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+            slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
         end
 
         -- Role icon
@@ -512,11 +528,12 @@ function addon:RefreshSlot(slotIndex)
 
             local classColor = rosterEntry.class and C_ClassColor.GetClassColor(rosterEntry.class)
             if classColor then
-                slot.nameText:SetTextColor(classColor.r * 0.65, classColor.g * 0.65, classColor.b * 0.65)
-                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, 0.18)
+                local r, g, b = DesaturateColor(classColor.r, classColor.g, classColor.b, OFFLINE_DESATURATION)
+                slot.nameText:SetTextColor(r, g, b)
+                slot.bg:SetVertexColor(r, g, b, ROW_BG_ALPHA)
             else
                 slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-                slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+                slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
             end
 
             local texture = rosterEntry.role and ROLE_TEXTURES[rosterEntry.role]
@@ -534,7 +551,7 @@ function addon:RefreshSlot(slotIndex)
         -- Not in raid — gray text
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-        slot.bg:SetVertexColor(0.5, 0.5, 0.5, 0.25)
+        slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
         roleIcon:SetDesaturated(false)
         roleIcon:Hide()
     end

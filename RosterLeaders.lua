@@ -188,6 +188,12 @@ function addon:IsRosterLeaderChangeLocked()
 end
 
 function addon:ToggleRaidAssist(name)
+    if not IsInRaid() then
+        self:Print("Cannot change assist: you are not in a raid.")
+
+        return
+    end
+
     local raidName, rank = FindRaidMemberByName(name)
     if not raidName then
         self:Print("Cannot change assist: " .. tostring(name) .. " is not in your raid.")

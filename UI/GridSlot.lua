@@ -10,18 +10,27 @@ local GROUP_GAP = addon.GROUP_GAP
 local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
 local ROLE_ICON_SIZE = 16
 local LEADER_ICON_SIZE = addon.LEADERSHIP_ICON_SIZE
-local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
 
-local COLOR_EMPTY_BG = PANEL_BG_COLOR
+local COLOR_WHITE = { r = 1, g = 1, b = 1, a = 1 }
+local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
 local COLOR_EMPTY_TEXT = { r = 0.4, g = 0.4, b = 0.4, a = 0.5 }
 local COLOR_GRAY = { r = 0.7, g = 0.7, b = 0.7 }
+local COLOR_GRAY_BG = { r = 0.5, g = 0.5, b = 0.5, a = 0.25 }
 local COLOR_BORDER_NORMAL = { r = 0, g = 0, b = 0 }
 local COLOR_BORDER_UNMATCHED = { r = 0.5, g = 0.25, b = 0.3 }
 local COLOR_DRAG_HIGHLIGHT = { r = 0.4, g = 0.6, b = 1, a = 0.3 }
+local COLOR_DRAG_PREVIEW_BG_FALLBACK = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
+local COLOR_DRAG_PREVIEW_BORDER = { r = 0, g = 0, b = 0, a = 1 }
+local COLOR_TEMPLATE_GENERIC_TEXT = { r = 0.8, g = 0.8, b = 0.8 }
+local COLOR_TEMPLATE_GENERIC_BG = { r = 0.4, g = 0.4, b = 0.4 }
+local COLOR_TEMPLATE_FALLBACK_TEXT = { r = 0.6, g = 0.6, b = 0.6 }
+local COLOR_TEMPLATE_FALLBACK_BG = { r = 0.3, g = 0.3, b = 0.3 }
+local COLOR_GROUP_HEADER = { r = 0.5, g = 0.5, b = 0.5, a = 0.7 }
 local DRAG_SOURCE_ALPHA = 0.2
-local ROW_BG_ALPHA = addon.ROW_BG_ALPHA
-local OFFLINE_DESATURATION = 0.85
-local OFFLINE_DESATURATION_GRAY_MULTIPLIER = 0.5
+local DRAG_PREVIEW_MIN_BG_ALPHA = 0.75
+local TEXT_ALPHA_DEFAULT = 1
+local PLAYER_CLASS_BG_ALPHA = 0.5
+local COLOR_TEMPLATE_BG_ALPHA = 0.3
 
 local ROLE_ICON_PATH = "Interface\\AddOns\\RaidGroupManager\\Media\\Icons\\"
 
@@ -38,14 +47,6 @@ local ROLE_DISPLAY_NAMES = {
     MELEE = "Melee",
     RANGED = "Ranged",
 }
-
-local function DesaturateColor(r, g, b, amount)
-    local gray = ((0.299 * r) + (0.587 * g) + (0.114 * b)) * OFFLINE_DESATURATION_GRAY_MULTIPLIER
-
-    return r + ((gray - r) * amount),
-        g + ((gray - g) * amount),
-        b + ((gray - b) * amount)
-end
 
 -- Global drag state
 addon.dragSource = nil
@@ -86,7 +87,7 @@ local function GetSourceTextColor(sourceFrame)
         return r, g, b, a
     end
 
-    return 1, 1, 1, 1
+    return COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b, COLOR_WHITE.a
 end
 
 local function CreateDragPreviewFrame()
@@ -105,25 +106,25 @@ local function CreateDragPreviewFrame()
     frame.borderTop:SetPoint("TOPLEFT")
     frame.borderTop:SetPoint("TOPRIGHT")
     frame.borderTop:SetHeight(1)
-    frame.borderTop:SetColorTexture(0, 0, 0, 1)
+    frame.borderTop:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
 
     frame.borderBottom = frame:CreateTexture(nil, "BORDER")
     frame.borderBottom:SetPoint("BOTTOMLEFT")
     frame.borderBottom:SetPoint("BOTTOMRIGHT")
     frame.borderBottom:SetHeight(1)
-    frame.borderBottom:SetColorTexture(0, 0, 0, 1)
+    frame.borderBottom:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
 
     frame.borderLeft = frame:CreateTexture(nil, "BORDER")
     frame.borderLeft:SetPoint("TOPLEFT")
     frame.borderLeft:SetPoint("BOTTOMLEFT")
     frame.borderLeft:SetWidth(1)
-    frame.borderLeft:SetColorTexture(0, 0, 0, 1)
+    frame.borderLeft:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
 
     frame.borderRight = frame:CreateTexture(nil, "BORDER")
     frame.borderRight:SetPoint("TOPRIGHT")
     frame.borderRight:SetPoint("BOTTOMRIGHT")
     frame.borderRight:SetWidth(1)
-    frame.borderRight:SetColorTexture(0, 0, 0, 1)
+    frame.borderRight:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
 
     frame.nameText = frame:CreateFontString(nil, "ARTWORK")
     frame.nameText:SetFont(FONT, 13, "OUTLINE")
@@ -188,7 +189,7 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     local text = sourceFrame.nameText and sourceFrame.nameText:GetText() or ""
     local textWidth = 0
     local textR, textG, textB, textA = GetSourceTextColor(sourceFrame)
-    local bgR, bgG, bgB, bgA = GetSourceVertexColor(sourceFrame, "bg", { r = 0.1, g = 0.1, b = 0.1, a = 0.9 })
+    local bgR, bgG, bgB, bgA = GetSourceVertexColor(sourceFrame, "bg", COLOR_DRAG_PREVIEW_BG_FALLBACK)
     local leadershipTexture
     local roleTexture
     local roleAtlas
@@ -219,9 +220,9 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     frame:SetSize(math.max(80, width, math.ceil(textWidth + iconWidth + 16)), math.max(SLOT_HEIGHT, height))
     frame:SetScale(sourceScale)
     SetDragPreviewCursorOffset(frame, sourceFrame)
-    frame.bg:SetVertexColor(bgR, bgG, bgB, bgA or ROW_BG_ALPHA)
+    frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, DRAG_PREVIEW_MIN_BG_ALPHA))
     frame.nameText:SetText(text)
-    frame.nameText:SetTextColor(textR, textG, textB, textA or 1)
+    frame.nameText:SetTextColor(textR, textG, textB, textA or TEXT_ALPHA_DEFAULT)
     self:SetLeadershipIconState(frame, leadershipTexture, 4, ROLE_ICON_SIZE)
 
     if roleAtlas and frame.roleIcon.SetAtlas then
@@ -454,18 +455,18 @@ function addon:RefreshSlot(slotIndex)
 
         if isGeneric then
             slot.nameText:SetText(ROLE_DISPLAY_NAMES[template.role] or template.role)
-            slot.nameText:SetTextColor(0.8, 0.8, 0.8)
-            slot.bg:SetVertexColor(0.4, 0.4, 0.4, ROW_BG_ALPHA)
+            slot.nameText:SetTextColor(COLOR_TEMPLATE_GENERIC_TEXT.r, COLOR_TEMPLATE_GENERIC_TEXT.g, COLOR_TEMPLATE_GENERIC_TEXT.b)
+            slot.bg:SetVertexColor(COLOR_TEMPLATE_GENERIC_BG.r, COLOR_TEMPLATE_GENERIC_BG.g, COLOR_TEMPLATE_GENERIC_BG.b, COLOR_TEMPLATE_BG_ALPHA)
         else
             slot.nameText:SetText(ClassSpecRoles:GetClassName(template.class))
 
             local classColor = C_ClassColor.GetClassColor(template.class)
             if classColor then
                 slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, ROW_BG_ALPHA)
+                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, COLOR_TEMPLATE_BG_ALPHA)
             else
-                slot.nameText:SetTextColor(0.6, 0.6, 0.6)
-                slot.bg:SetVertexColor(0.3, 0.3, 0.3, ROW_BG_ALPHA)
+                slot.nameText:SetTextColor(COLOR_TEMPLATE_FALLBACK_TEXT.r, COLOR_TEMPLATE_FALLBACK_TEXT.g, COLOR_TEMPLATE_FALLBACK_TEXT.b)
+                slot.bg:SetVertexColor(COLOR_TEMPLATE_FALLBACK_BG.r, COLOR_TEMPLATE_FALLBACK_BG.g, COLOR_TEMPLATE_FALLBACK_BG.b, COLOR_TEMPLATE_BG_ALPHA)
             end
         end
 
@@ -497,16 +498,11 @@ function addon:RefreshSlot(slotIndex)
         -- In raid — class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
-            local r, g, b = classColor.r, classColor.g, classColor.b
-            if isOffline then
-                r, g, b = DesaturateColor(r, g, b, OFFLINE_DESATURATION)
-            end
-
-            slot.nameText:SetTextColor(r, g, b)
-            slot.bg:SetVertexColor(r, g, b, ROW_BG_ALPHA)
+            slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+            slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, PLAYER_CLASS_BG_ALPHA)
         else
-            slot.nameText:SetTextColor(1, 1, 1)
-            slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
+            slot.nameText:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
+            slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
         end
 
         -- Role icon
@@ -526,15 +522,8 @@ function addon:RefreshSlot(slotIndex)
             local assistTexture = self:IsRosterLeader(text) and self.ASSIST_ICON_TEXTURE or nil
             self:SetLeadershipIconState(slot, assistTexture, 4, ROLE_ICON_SIZE, true)
 
-            local classColor = rosterEntry.class and C_ClassColor.GetClassColor(rosterEntry.class)
-            if classColor then
-                local r, g, b = DesaturateColor(classColor.r, classColor.g, classColor.b, OFFLINE_DESATURATION)
-                slot.nameText:SetTextColor(r, g, b)
-                slot.bg:SetVertexColor(r, g, b, ROW_BG_ALPHA)
-            else
-                slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-                slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
-            end
+            slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
+            slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
 
             local texture = rosterEntry.role and ROLE_TEXTURES[rosterEntry.role]
             if texture then
@@ -551,7 +540,7 @@ function addon:RefreshSlot(slotIndex)
         -- Not in raid — gray text
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-        slot.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
+        slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
         roleIcon:SetDesaturated(false)
         roleIcon:Hide()
     end
@@ -591,7 +580,7 @@ function addon:CreateGrid(parent)
         local header = parent:CreateFontString(nil, "ARTWORK")
         header:SetFont(FONT, 12, "OUTLINE")
         header:SetText("Group " .. g)
-        header:SetTextColor(0.5, 0.5, 0.5, 0.7)
+        header:SetTextColor(COLOR_GROUP_HEADER.r, COLOR_GROUP_HEADER.g, COLOR_GROUP_HEADER.b, COLOR_GROUP_HEADER.a)
 
         local headerCenterX = groupOffsetX + (slotWidth / 2)
         header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)

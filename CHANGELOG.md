@@ -14,6 +14,7 @@
 - Player and party members now display as online in subgroup slots outside raids without applying party reshapes
 - Split and apply flows now keep the raid leader in slot 1 of their subgroup
 - Mythic Flexible raids now use groups 1-5 for split, template resolution, and apply logic
+- Raid group sizing rules now cover party difficulties, Normal, Heroic, Looking For Raid, Timewalking, and unknown 40-player raids
 - Raid roster scanning and name matching now handle sparse raid slots and normalized names more consistently
 
 ### Fixed

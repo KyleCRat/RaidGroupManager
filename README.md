@@ -31,7 +31,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Role-balanced: each side gets equal tanks, healers, melee, and ranged
 - Class-paired: duplicate classes land at matching positions on each side
 - Deterministic: same roster always produces the same split
-- Mythic-aware: uses 4 groups for fixed Mythic and 5 groups for Mythic Flexible raids
+- Raid-size aware: uses 1 group for party difficulties, 6 groups for Normal, Heroic, Looking For Raid, and Timewalking raids, 4 for fixed Mythic, 5 for Mythic Flexible, and 8 for unknown raid types
 - Raid leader aware: split and apply actions keep the raid leader in slot 1 of their subgroup
 
 ### Unassigned Panel

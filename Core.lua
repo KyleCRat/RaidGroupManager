@@ -31,13 +31,6 @@ addon.ASSIST_ICON_TEXTURE = "Interface\\GroupFrame\\UI-Group-AssistantIcon"
 addon.ROW_BG_ALPHA = 0.4
 addon.PANEL_BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.8 }
 
-local MYTHIC_DIFFICULTY_ID = 16
-local MYTHIC_FLEXIBLE_DIFFICULTY_ID = 233
-
-local DEFAULT_ACTIVE_RAID_GROUPS = 8
-local MYTHIC_ACTIVE_RAID_GROUPS = 4
-local MYTHIC_FLEXIBLE_ACTIVE_RAID_GROUPS = 5
-
 local playerRealm = nil
 
 local defaults = {
@@ -94,24 +87,6 @@ function addon:OnEnable()
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
     self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnSpecChanged")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
-end
-
-function addon:GetActiveRaidGroupCount()
-    local _, _, difficultyID = GetInstanceInfo()
-
-    if difficultyID == MYTHIC_DIFFICULTY_ID then
-        return MYTHIC_ACTIVE_RAID_GROUPS
-    end
-
-    if difficultyID == MYTHIC_FLEXIBLE_DIFFICULTY_ID then
-        return MYTHIC_FLEXIBLE_ACTIVE_RAID_GROUPS
-    end
-
-    return DEFAULT_ACTIVE_RAID_GROUPS
-end
-
-function addon:GetActiveRaidSlotCount()
-    return self:GetActiveRaidGroupCount() * 5
 end
 
 function addon:WipeSpecCache()
@@ -1029,19 +1004,6 @@ end
 -- Group splitting
 --------------------------------------------------------------------------------
 
-local function BuildSequentialGroups(count)
-    local groups = {}
-    for g = 1, count do
-        groups[#groups + 1] = g
-    end
-
-    return groups
-end
-
-local function GetGroupCapacity(groups)
-    return #groups * 5
-end
-
 local function RebalanceSplitForCapacity(sideA, sideB, capacityA, capacityB)
     while #sideA > capacityA and #sideB < capacityB do
         table.insert(sideB, table.remove(sideA))
@@ -1280,25 +1242,23 @@ end
 --------------------------------------------------------------------------------
 
 function addon:SplitOddEven()
-    local activeGroupCount = self:GetActiveRaidGroupCount()
+    local allGroups = self:GetActiveRaidGroups()
     local oddGroups, evenGroups = {}, {}
 
-    for g = 1, activeGroupCount do
-        if g % 2 == 1 then
-            oddGroups[#oddGroups + 1] = g
+    for _, group in ipairs(allGroups) do
+        if group % 2 == 1 then
+            oddGroups[#oddGroups + 1] = group
         else
-            evenGroups[#evenGroups + 1] = g
+            evenGroups[#evenGroups + 1] = group
         end
     end
-
-    local allGroups = BuildSequentialGroups(activeGroupCount)
 
     local items = CollectSlotContents(allGroups)
     local roster = self:GetRaidRoster()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
-    RebalanceSplitForCapacity(oddItems, evenItems, GetGroupCapacity(oddGroups), GetGroupCapacity(evenGroups))
+    RebalanceSplitForCapacity(oddItems, evenItems, self:GetGroupSlotCapacity(oddGroups), self:GetGroupSlotCapacity(evenGroups))
 
     PlaceItemsInGroups(oddItems, oddGroups)
     PlaceItemsInGroups(evenItems, evenGroups)
@@ -1310,9 +1270,7 @@ function addon:SplitOddEven()
 end
 
 function addon:SplitHalves()
-    local activeGroupCount = math.min(self:GetActiveRaidGroupCount(), 6)
-    local activeGroups = BuildSequentialGroups(activeGroupCount)
-    local allGroups = activeGroups
+    local allGroups = self:GetActiveRaidGroups()
 
     local items = CollectSlotContents(allGroups)
     local roster = self:GetRaidRoster()
@@ -1324,9 +1282,9 @@ function addon:SplitHalves()
     local firstCount = GroupsNeeded(#firstItems)
     local secondCount = GroupsNeeded(#secondItems)
 
-    if firstCount + secondCount > #activeGroups then
-        local maxSecondCount = math.floor(#activeGroups / 2)
-        local maxFirstCount = #activeGroups - maxSecondCount
+    if firstCount + secondCount > #allGroups then
+        local maxSecondCount = math.floor(#allGroups / 2)
+        local maxFirstCount = #allGroups - maxSecondCount
         RebalanceSplitForCapacity(firstItems, secondItems, maxFirstCount * 5, maxSecondCount * 5)
         firstCount = math.min(GroupsNeeded(#firstItems), maxFirstCount)
         secondCount = math.min(GroupsNeeded(#secondItems), maxSecondCount)
@@ -1334,12 +1292,12 @@ function addon:SplitHalves()
 
     local firstGroups = {}
     for i = 1, firstCount do
-        firstGroups[i] = activeGroups[i]
+        firstGroups[i] = allGroups[i]
     end
 
     local secondGroups = {}
     for i = 1, secondCount do
-        secondGroups[i] = activeGroups[firstCount + i]
+        secondGroups[i] = allGroups[firstCount + i]
     end
 
     PlaceItemsInGroups(firstItems, firstGroups)

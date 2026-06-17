@@ -51,23 +51,20 @@ end
 local function BuildDesiredState()
     local desired = {}
     local seen = {}
-    local activeSlotCount = addon:GetActiveRaidSlotCount()
 
-    for i = 1, activeSlotCount do
-        if addon:IsSlotPlayer(i) then
-            local text = addon:GetSlotText(i)
+    addon:ForEachGroupSlot(addon:GetActiveRaidGroups(), function(slotIndex, group, pos)
+        if addon:IsSlotPlayer(slotIndex) then
+            local text = addon:GetSlotText(slotIndex)
             local normalized = addon:NormalizeName(text)
             if not seen[normalized] then
                 seen[normalized] = true
-                local group = math.ceil(i / 5)
-                local pos = ((i - 1) % 5) + 1
                 desired[normalized] = {
                     desiredGroup = group,
                     desiredPosition = pos,
                 }
             end
         end
-    end
+    end)
 
     return desired
 end
@@ -152,7 +149,6 @@ end
 
 function addon:ResolveTemplates()
     local roster = self:GetRaidRoster()
-    local activeSlotCount = self:GetActiveRaidSlotCount()
 
     -- Build set of names already explicitly assigned to player slots
     local namedPlayers = {}
@@ -173,17 +169,17 @@ function addon:ResolveTemplates()
     -- Separate template slots into class-specific and generic (ANY)
     local classTemplates = {}
     local genericTemplates = {}
-    for i = 1, activeSlotCount do
-        if self:IsSlotTemplate(i) then
-            local template = self:GetSlotTemplate(i)
-            local entry = { index = i, template = template }
+    self:ForEachGroupSlot(self:GetActiveRaidGroups(), function(slotIndex)
+        if self:IsSlotTemplate(slotIndex) then
+            local template = self:GetSlotTemplate(slotIndex)
+            local entry = { index = slotIndex, template = template }
             if template.class == "ANY" then
                 table.insert(genericTemplates, entry)
             else
                 table.insert(classTemplates, entry)
             end
         end
-    end
+    end)
 
     if #classTemplates == 0 and #genericTemplates == 0 then
 
@@ -295,14 +291,14 @@ function addon:ResolveTemplates()
 end
 
 function addon:HasTemplateSlots()
-    for i = 1, self:GetActiveRaidSlotCount() do
-        if self:IsSlotTemplate(i) then
-
-            return true
+    local found = false
+    self:ForEachGroupSlot(self:GetActiveRaidGroups(), function(slotIndex)
+        if not found and self:IsSlotTemplate(slotIndex) then
+            found = true
         end
-    end
+    end)
 
-    return false
+    return found
 end
 
 -- Check if any raid member is in combat

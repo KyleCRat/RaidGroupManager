@@ -2,7 +2,7 @@
 ## Title: Raid Group Manager
 ## Notes: Organize and apply raid group layouts
 ## Author: Yvairel
-## Version: 12.0.7-8
+## Version: 12.0.7-10
 ## SavedVariables: RaidGroupManagerDB
 
 # Libraries

@@ -1,6 +1,15 @@
 # Changelog
 
-## [12.0.7-9] - 2026-06-17
+## [12.0.7-10] - 2026-06-17
+
+### Added
+- Added difficulty-based active subgroup rules for party, Normal, Heroic, Looking For Raid, Timewalking, Mythic, and Mythic Flexible raid sizes
+
+### Changed
+- Mythic Flexible raids now use groups 1-5 for split, template resolution, and apply logic
+- Split and apply now share the same active subgroup sizing rules, with unknown raid types defaulting to all 8 groups
+
+## [12.0.7-9] - 2026-06-04
 
 ### Added
 - Added middle-click assistant controls for subgroup slots and Raid tab rows when you are raid leader
@@ -13,25 +22,8 @@
 - Offline roster-backed subgroup members now use muted row styling while keeping desaturated role and assistant icons
 - Player and party members now display as online in subgroup slots outside raids without applying party reshapes
 - Split and apply flows now keep the raid leader in slot 1 of their subgroup
-- Mythic Flexible raids now use groups 1-5 for split, template resolution, and apply logic
-- Raid group sizing rules now cover party difficulties, Normal, Heroic, Looking For Raid, Timewalking, and unknown 40-player raids
 - Raid roster scanning and name matching now handle sparse raid slots and normalized names more consistently
 
 ### Fixed
 - Assist changes outside a raid now report that you are not in a raid before checking the target player
 - Applying a layout now moves the raid leader into slot 1 and shows the required-position message when needed
-
-## [12.0.7-8] - 2026-05-29
-
-### Added
-- Added a top-right Scale button with a 50% to 150% frame scale slider
-- Added LibPopupSlider-1.0 and moved embedded library loading into embeds.xml
-- Added cursor-following drag previews for grid slots, raid/guild/roster rows, and role templates
-
-### Changed
-- Drag sources now fade more strongly while dragging so the cursor preview is the primary visual
-- Button borders now use a clearer normal and hover state
-- Unassigned panel tabs now show a background hover state
-- Main and modal frames now raise as a whole when selected to avoid child-frame layering issues
-- Bottom button width calculation now accounts for unbounded text width to prevent label clipping
-- Removed the redundant Scale tooltip from the scale button

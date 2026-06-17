@@ -1,6 +1,6 @@
 # Changelog
 
-## [12.0.7-9] - 2026-06-04
+## [12.0.7-9] - 2026-06-17
 
 ### Added
 - Added middle-click assistant controls for subgroup slots and Raid tab rows when you are raid leader
@@ -13,6 +13,7 @@
 - Offline roster-backed subgroup members now use muted row styling while keeping desaturated role and assistant icons
 - Player and party members now display as online in subgroup slots outside raids without applying party reshapes
 - Split and apply flows now keep the raid leader in slot 1 of their subgroup
+- Mythic Flexible raids now use groups 1-5 for split, template resolution, and apply logic
 - Raid roster scanning and name matching now handle sparse raid slots and normalized names more consistently
 
 ### Fixed

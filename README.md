@@ -26,12 +26,12 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Preset layouts included for common mythic and heroic compositions
 
 ### Smart Group Splitting
-- **Split Odd/Even**: Distribute players across odd (1/3/5/7) and even (2/4/6/8) groups
-- **Split Halves**: Pack players into two contiguous group blocks (1-2 and 3-4 for mythic)
+- **Split Odd/Even**: Distribute players across odd and even active raid groups
+- **Split Halves**: Pack players into two contiguous active group blocks
 - Role-balanced: each side gets equal tanks, healers, melee, and ranged
 - Class-paired: duplicate classes land at matching positions on each side
 - Deterministic: same roster always produces the same split
-- Mythic-aware: automatically uses 4 groups in mythic difficulty
+- Mythic-aware: uses 4 groups for fixed Mythic and 5 groups for Mythic Flexible raids
 - Raid leader aware: split and apply actions keep the raid leader in slot 1 of their subgroup
 
 ### Unassigned Panel

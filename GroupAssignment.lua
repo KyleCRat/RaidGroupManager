@@ -51,8 +51,9 @@ end
 local function BuildDesiredState()
     local desired = {}
     local seen = {}
+    local activeSlotCount = addon:GetActiveRaidSlotCount()
 
-    for i = 1, 40 do
+    for i = 1, activeSlotCount do
         if addon:IsSlotPlayer(i) then
             local text = addon:GetSlotText(i)
             local normalized = addon:NormalizeName(text)
@@ -151,6 +152,7 @@ end
 
 function addon:ResolveTemplates()
     local roster = self:GetRaidRoster()
+    local activeSlotCount = self:GetActiveRaidSlotCount()
 
     -- Build set of names already explicitly assigned to player slots
     local namedPlayers = {}
@@ -171,7 +173,7 @@ function addon:ResolveTemplates()
     -- Separate template slots into class-specific and generic (ANY)
     local classTemplates = {}
     local genericTemplates = {}
-    for i = 1, 40 do
+    for i = 1, activeSlotCount do
         if self:IsSlotTemplate(i) then
             local template = self:GetSlotTemplate(i)
             local entry = { index = i, template = template }
@@ -293,7 +295,7 @@ function addon:ResolveTemplates()
 end
 
 function addon:HasTemplateSlots()
-    for i = 1, 40 do
+    for i = 1, self:GetActiveRaidSlotCount() do
         if self:IsSlotTemplate(i) then
 
             return true

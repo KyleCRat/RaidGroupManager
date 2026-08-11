@@ -284,6 +284,15 @@ end
 local INSPECT_INTERVAL = 1.5
 local INSPECT_SAFETY_TIMEOUT = 3.0
 
+local function GetPublicInspectSpecialization(unit)
+    local specID = C_SpecializationInfo.GetInspectSpecialization(unit)
+    if issecretvalue(specID) or type(specID) ~= "number" or specID <= 0 then
+        return 0
+    end
+
+    return specID
+end
+
 function addon:QueueInspect(name)
     if self.specCache[name] then
 
@@ -450,7 +459,7 @@ function addon:OnInspectReady(_, inspecteeGUID)
     for i = 1, 40 do
         local unit = "raid" .. i
         if UnitGUID(unit) == inspecteeGUID then
-            local specID = GetInspectSpecialization(unit)
+            local specID = GetPublicInspectSpecialization(unit)
             local rosterName = GetRaidRosterInfo(i)
             local name = rosterName and self:NormalizeName(rosterName)
 
@@ -1065,7 +1074,7 @@ end
 -- Role detection for balanced splits
 --------------------------------------------------------------------------------
 
--- Get a unit's specialization ID. GetInspectSpecialization requires an
+-- Get a unit's specialization ID. Inspect specialization data requires an
 -- active inspect session, so it returns 0 for most raid members. For the
 -- player character we can use GetSpecialization directly.
 local function GetUnitSpecID(unit)
@@ -1078,7 +1087,7 @@ local function GetUnitSpecID(unit)
         return 0
     end
 
-    return GetInspectSpecialization(unit) or 0
+    return GetPublicInspectSpecialization(unit)
 end
 
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"

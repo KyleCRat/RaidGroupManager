@@ -3,6 +3,24 @@ local addon = LibStub("AceAddon-3.0"):NewAddon("RaidGroupManager",
 
 addon.printName = "RGM"
 
+function addon:Print(...)
+    local frame = DEFAULT_CHAT_FRAME
+    local firstArgument = ...
+    local firstMessageArgument = 1
+
+    if type(firstArgument) == "table" and firstArgument.AddMessage then
+        frame = firstArgument
+        firstMessageArgument = 2
+    end
+
+    local parts = { "|cffb3b3b3" .. self.printName .. ":|r" }
+    for index = firstMessageArgument, select("#", ...) do
+        parts[#parts + 1] = tostring((select(index, ...)))
+    end
+
+    frame:AddMessage(table.concat(parts, " "))
+end
+
 local addonMeta = getmetatable(addon)
 if addonMeta then
     addonMeta.__tostring = function(self)

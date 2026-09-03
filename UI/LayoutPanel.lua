@@ -133,44 +133,32 @@ end
 
 local function RefreshLayoutRowTooltip(row)
     if not row.layoutIndex then
-        if GameTooltip:IsOwned(row) then
-            GameTooltip:Hide()
-        end
+        addon:HideTooltip(row)
 
         return
     end
 
     local layout = addon.db.profile.layouts[row.layoutIndex]
     if not layout then
-        if GameTooltip:IsOwned(row) then
-            GameTooltip:Hide()
-        end
+        addon:HideTooltip(row)
 
         return
     end
 
-    if not GameTooltip:IsOwned(row) then
-        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    end
-
-    GameTooltip:ClearLines()
-    GameTooltip:AddLine(layout.name)
+    local lines = {}
 
     if layout.time then
-        GameTooltip:AddLine(date("%Y-%m-%d %H:%M", layout.time), 0.7, 0.7, 0.7)
+        lines[#lines + 1] = date("%Y-%m-%d %H:%M", layout.time)
     end
 
     if addon.selectedLayout == layout then
-        GameTooltip:AddLine(
-            "Click again to stop editing this layout. The board will remain unchanged.",
-            0.75,
-            0.75,
-            0.75,
-            true
-        )
+        lines[#lines + 1] = "Click again to deselect. The board stays unchanged."
+    else
+        lines[#lines + 1] = "Click to load and select."
     end
 
-    GameTooltip:Show()
+    lines[#lines + 1] = "Drag to reorder."
+    addon:ShowTooltip(row, layout.name, lines, "ANCHOR_RIGHT")
 end
 
 local function CreateLayoutRow(parent)
@@ -196,15 +184,12 @@ local function CreateLayoutRow(parent)
 
     deleteBtn:SetScript("OnEnter", function(self)
         self.icon:SetVertexColor(1, 1, 1, 1)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:ClearLines()
-        GameTooltip:AddLine("Delete this saved layout.", 0.75, 0.75, 0.75, true)
-        GameTooltip:Show()
+        addon:ShowTooltip(self, nil, "Delete this saved layout.", "ANCHOR_RIGHT")
     end)
 
     deleteBtn:SetScript("OnLeave", function(self)
         self.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
-        GameTooltip:Hide()
+        addon:HideTooltip(self)
 
         if row:IsMouseOver() then
             RefreshLayoutRowTooltip(row)
@@ -251,7 +236,7 @@ local function CreateLayoutRow(parent)
 
     row:SetScript("OnLeave", function(self)
         self.hoverHighlight:Hide()
-        GameTooltip:Hide()
+        addon:HideTooltip(self)
     end)
 
     row:SetScript("OnDragStart", function(self)
@@ -371,23 +356,10 @@ function addon:CreateLayoutPanel(parent)
         end,
     })
     autoSaveCheck:SetChecked(self.autoSave == true)
-    autoSaveCheck:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:ClearLines()
-        GameTooltip:AddLine(
-            "Automatically saves subgroup board changes to the selected layout.",
-            0.75,
-            0.75,
-            0.75,
-            true
-        )
-        GameTooltip:Show()
-    end)
-    autoSaveCheck:SetScript("OnLeave", function(self)
-        if GameTooltip:IsOwned(self) then
-            GameTooltip:Hide()
-        end
-    end)
+    addon.AttachSimpleTooltip(
+        autoSaveCheck,
+        "Automatically save board changes to the selected layout."
+    )
     self.layoutAutoSaveCheck = autoSaveCheck
 
     local scrollBg = CreateFrame("Frame", nil, parent)
@@ -478,7 +450,7 @@ function addon:RefreshLayoutList()
         local row = self.layoutRows[displayIndex]
 
         if GameTooltip:IsOwned(row) then
-            GameTooltip:Hide()
+            addon:HideTooltip(row)
         end
 
         row:Hide()
@@ -721,10 +693,10 @@ function addon:PromptClearGrid()
         return
     end
 
-    local message = "Clear all subgroup slots from the board?"
+    local message = "Clear all group slots from the board?"
 
     if self.autoSave and self.selectedLayout then
-        message = "Clear all subgroup slots and save the empty board to '"
+        message = "Clear all group slots and save the empty board to '"
             .. self.selectedLayout.name
             .. "'?"
     end

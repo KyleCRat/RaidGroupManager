@@ -274,6 +274,31 @@ local function ParseWowUtilsRoster(jsonText, groupByMember)
     return roster
 end
 
+local function GetEntryRowTooltipLines(row)
+    if row.template then
+        return { "Drag this role onto the board." }
+    end
+
+    if not row.playerName then
+        return nil
+    end
+
+    local lines = { "Drag this player onto the board." }
+    local leadershipLines
+
+    if addon.unassignedMode == MODE_RAID then
+        leadershipLines = addon:GetRaidAssistTooltipLines(row.playerName)
+    elseif addon.unassignedMode == MODE_ROSTER then
+        leadershipLines = addon:GetRosterAssistTooltipLines(row.playerName)
+    end
+
+    for _, line in ipairs(leadershipLines or {}) do
+        lines[#lines + 1] = line
+    end
+
+    return lines
+end
+
 local function CreateEntryRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
     row.rowIndex = index
@@ -365,6 +390,8 @@ local function CreateEntryRow(parent, index)
 
         addon:ClearDragState()
     end)
+
+    addon.AttachSimpleTooltip(row, GetEntryRowTooltipLines)
 
     return row
 end
@@ -634,6 +661,14 @@ local function SetUnassignedDisplayOrder(displayOrder)
     local content = addon.unassignedContent
     content.rgmDisplayOrder = displayOrder
     LayoutUnassignedContent()
+
+    for _, row in ipairs(addon.unassignedRows) do
+        if GameNoHeaderTooltip:IsOwned(row) then
+            addon.RefreshSimpleTooltip(row)
+
+            break
+        end
+    end
 end
 
 -- Build the set of player names currently assigned in the grid (excludes templates)
@@ -1118,6 +1153,10 @@ function addon:ShowRosterImportWindow()
 
     local groupByMemberCheck = addon.CreateModernCheckbox(frame, "Group by Member Name")
     groupByMemberCheck:SetChecked(self.db.char.importedRosterGroupByMember == true)
+    addon.AttachSimpleTooltip(groupByMemberCheck, {
+        "Group characters by WowUtils member name and keep their export order.",
+        "When unchecked, sort by role and name.",
+    }, "ANCHOR_TOP")
 
     self.rosterImportGroupByMemberCheck = groupByMemberCheck
 

@@ -13,8 +13,11 @@ function addon:SetupMinimapButton()
             end
         end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Raid Group Manager")
-            tooltip:AddLine("|cffffffffLeft-click|r to toggle window", 0.8, 0.8, 0.8)
+            addon:SetTooltipContent(
+                tooltip,
+                "Raid Group Manager",
+                "Left-click to toggle window."
+            )
         end,
     })
 

@@ -34,7 +34,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Class-paired: duplicate classes land at matching positions on each side
 - Deterministic: same roster always produces the same split
 - Raid-size aware: uses 1 group for party difficulties, 6 groups for Normal, Heroic, Looking For Raid, and Timewalking raids, 4 for fixed Mythic, 5 for Mythic Flexible, and 8 for unknown raid types
-- Raid leader aware: split and apply actions keep the raid leader in slot 1 of their subgroup
+- Raid leader aware: split and apply actions keep the raid leader in slot 1 of their group
 
 ### Unassigned Panel
 Four browsing modes via tab bar:
@@ -44,7 +44,7 @@ Four browsing modes via tab bar:
 - **Roster**: Import your external roster from wowutils JSON exports
 
 ### Assistant Management
-- Middle-click subgroup slots or Raid tab rows to promote or demote raid assistants when you are raid leader
+- Middle-click group slots or Raid tab rows to promote or demote raid assistants when you are raid leader
 - Middle-click Roster tab members to save who should be assistant in your ideal raid roster
 - Saved assistant choices are promoted during invites and sync to the live raid while you are raid leader
 - Title-bar crown help icon summarizes the assistant controls in-game
@@ -82,7 +82,7 @@ Four browsing modes via tab bar:
 - Frame position and scale remember where you left them
 - Auto-hides during boss encounters, reopens when you're alive after
 - Group assignment aborts if raid membership changes while applying a layout
-- Player and party members show as online in subgroup slots outside raids without applying party reshapes
+- Player and party members show as online in group slots outside raids without applying party reshapes
 - Toast notifications for layout apply results and other feedback
 - Clearer button borders and tab hover states for easier interaction
 - Custom role icons distinguishing melee DPS from ranged DPS

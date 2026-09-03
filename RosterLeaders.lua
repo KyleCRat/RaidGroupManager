@@ -187,6 +187,56 @@ function addon:IsRosterLeaderChangeLocked()
     return (self.IsInviteFlowActive and self:IsInviteFlowActive()) or assistState ~= nil
 end
 
+function addon:GetRaidAssistTooltipLines(name)
+    if not IsInRaid() then
+        return {
+            "Middle-click to change this player's assistant status in the current raid.",
+            "You must be the raid leader.",
+        }
+    end
+
+    local _, rank = FindRaidMemberByName(name)
+    if rank == nil then
+        return {
+            "Middle-click to change this player's assistant status in the current raid.",
+            "This player is not in your raid.",
+        }
+    end
+
+    if rank == 2 then
+        return { "The raid leader's status cannot be changed here." }
+    end
+
+    local lines = {}
+    if rank == 1 then
+        lines[1] = "Middle-click to demote this player from assistant."
+    else
+        lines[1] = "Middle-click to promote this player to assistant."
+    end
+
+    if not UnitIsGroupLeader("player") then
+        lines[2] = "Only the raid leader can change assistants."
+    elseif IsEveryoneAssistant and IsEveryoneAssistant() then
+        lines[2] = "Individual assistants cannot be changed while everyone is assistant."
+    end
+
+    return lines
+end
+
+function addon:GetRosterAssistTooltipLines(name)
+    local lines = {}
+
+    if self:IsRosterLeader(name) then
+        lines[1] = "Middle-click to stop automatically promoting this player."
+    else
+        lines[1] = "Middle-click to automatically promote this player to assistant."
+    end
+
+    lines[2] = "This choice is saved for invites and raids you lead."
+
+    return lines
+end
+
 function addon:ToggleRaidAssist(name)
     if not IsInRaid() then
         self:Print("Cannot change assist: you are not in a raid.")

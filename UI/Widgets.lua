@@ -18,6 +18,8 @@ local INPUT_BACKGROUND = { r = 0.14, g = 0.14, b = 0.14, a = 0.95 }
 local INPUT_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
 local INPUT_BORDER_FOCUS = { r = 0.7, g = 0.7, b = 0.7, a = 1 }
 local INPUT_PLACEHOLDER = { r = 0.55, g = 0.55, b = 0.55, a = 0.9 }
+local TOOLTIP_TITLE_TEXT = { r = 1, g = 0.82, b = 0 }
+local TOOLTIP_BODY_TEXT = { r = 0.75, g = 0.75, b = 0.75 }
 local TITLE_BACKGROUND = { r = 0, g = 0, b = 0, a = 0.2 }
 local WINDOW_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 }
 
@@ -50,6 +52,125 @@ end
 
 local function SetColor(region, color)
     region:SetVertexColor(color.r, color.g, color.b, color.a)
+end
+
+local function NormalizeTooltipLines(content)
+    if type(content) == "string" then
+        if content == "" then
+            return nil
+        end
+
+        return { content }
+    end
+
+    if type(content) == "table" then
+        return content
+    end
+
+    return nil
+end
+
+function addon:SetTooltipContent(tooltip, title, content)
+    local lines = NormalizeTooltipLines(content)
+    local hasContent = false
+
+    tooltip:ClearLines()
+
+    if type(title) == "string" and title ~= "" then
+        tooltip:AddLine(
+            title,
+            TOOLTIP_TITLE_TEXT.r,
+            TOOLTIP_TITLE_TEXT.g,
+            TOOLTIP_TITLE_TEXT.b,
+            true
+        )
+        hasContent = true
+    end
+
+    for _, line in ipairs(lines or {}) do
+        if type(line) == "string" and line ~= "" then
+            tooltip:AddLine(
+                line,
+                TOOLTIP_BODY_TEXT.r,
+                TOOLTIP_BODY_TEXT.g,
+                TOOLTIP_BODY_TEXT.b,
+                true
+            )
+            hasContent = true
+        end
+    end
+
+    return hasContent
+end
+
+function addon:ShowTooltip(owner, title, content, anchor)
+    local hasTitle = type(title) == "string" and title ~= ""
+    local tooltip = hasTitle and GameTooltip or GameNoHeaderTooltip
+    local otherTooltip = hasTitle and GameNoHeaderTooltip or GameTooltip
+
+    otherTooltip:Hide()
+    tooltip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
+
+    if self:SetTooltipContent(tooltip, title, content) then
+        tooltip:Show()
+    else
+        tooltip:Hide()
+    end
+end
+
+function addon:HideTooltip(owner)
+    if GameTooltip:IsOwned(owner) then
+        GameTooltip:Hide()
+    end
+
+    if GameNoHeaderTooltip:IsOwned(owner) then
+        GameNoHeaderTooltip:Hide()
+    end
+end
+
+local function GetSimpleTooltipLines(frame)
+    local content = frame.rgmSimpleTooltipContent
+    if type(content) == "function" then
+        content = content(frame)
+    end
+
+    return NormalizeTooltipLines(content)
+end
+
+local function ShowSimpleTooltip(frame)
+    local lines = GetSimpleTooltipLines(frame)
+    if not lines then
+        addon:HideTooltip(frame)
+
+        return
+    end
+
+    addon:ShowTooltip(frame, nil, lines, frame.rgmSimpleTooltipAnchor)
+end
+
+function addon.AttachSimpleTooltip(frame, content, anchor)
+    frame.rgmSimpleTooltipContent = content
+    frame.rgmSimpleTooltipAnchor = anchor or "ANCHOR_RIGHT"
+
+    if frame.SetMotionScriptsWhileDisabled then
+        frame:SetMotionScriptsWhileDisabled(true)
+    end
+
+    if frame.rgmSimpleTooltipAttached then
+        return
+    end
+
+    frame.rgmSimpleTooltipAttached = true
+    frame:HookScript("OnEnter", ShowSimpleTooltip)
+    frame:HookScript("OnLeave", function(self)
+        addon:HideTooltip(self)
+    end)
+end
+
+function addon.RefreshSimpleTooltip(frame)
+    if frame and GameNoHeaderTooltip:IsOwned(frame) then
+        ShowSimpleTooltip(frame)
+    end
 end
 
 local function UpdateStyledButtonState(button)

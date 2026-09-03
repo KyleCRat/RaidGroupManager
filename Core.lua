@@ -964,7 +964,7 @@ function addon:EnsureRaidLeaderSlotOne(showMessage)
             self:SetSlotText(groupStart, leaderText)
 
             if showMessage and self.ShowToast then
-                self:ShowToast("Raid leader must be in position 1 of subgroup")
+                self:ShowToast("Raid leader must be in the first slot of their group")
             end
 
             return true

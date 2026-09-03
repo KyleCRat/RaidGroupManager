@@ -103,16 +103,15 @@ local function CreateLeadershipHelpButton(parent)
     btn.icon:SetTexture(addon.LEADER_ICON_TEXTURE)
 
     btn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:AddLine("Leadership Controls")
-        GameTooltip:AddLine("Middle-click subgroup slots or Raid rows to promote to assist or demote from assist.", 0.85, 0.85, 0.85, true)
-        GameTooltip:AddLine("Middle-click Roster tab members to mark who should be assistant.", 0.85, 0.85, 0.85, true)
-        GameTooltip:AddLine("Those choices are saved and promoted during invites or while you are raid leader.", 0.85, 0.85, 0.85, true)
-        GameTooltip:Show()
+        addon:ShowTooltip(self, "Leadership Controls", {
+            "Middle-click group slots or Raid rows to change raid assistants.",
+            "Middle-click Roster rows to choose who is automatically promoted.",
+            "Roster choices are saved for invites and raids you lead.",
+        }, "ANCHOR_TOPLEFT")
     end)
 
-    btn:SetScript("OnLeave", function()
-        GameTooltip:Hide()
+    btn:SetScript("OnLeave", function(self)
+        addon:HideTooltip(self)
     end)
 
     return btn
@@ -381,22 +380,41 @@ function addon:CreateMainFrame()
     btnLoadRoster:SetScript("OnClick", function()
         self:LoadCurrentRoster()
     end)
+    addon.AttachSimpleTooltip(
+        btnLoadRoster,
+        "Load players from your current raid roster.",
+        "ANCHOR_TOP"
+    )
 
     local btnApply = CreateActionButton(bottomBar, "Apply")
     btnApply:SetScript("OnClick", function()
         self:StartApply()
     end)
+    addon.AttachSimpleTooltip(btnApply, {
+        "Move raid members to match the groups shown on the board.",
+        "Requires raid leader or assistant.",
+    }, "ANCHOR_TOP")
     self.applyButton = btnApply
 
     local btnSplitOddEven = CreateActionButton(bottomBar, "Split Odd/Even")
     btnSplitOddEven:SetScript("OnClick", function()
         self:SplitOddEven()
     end)
+    addon.AttachSimpleTooltip(
+        btnSplitOddEven,
+        "Split players into two balanced teams using odd- and even-numbered groups.",
+        "ANCHOR_TOP"
+    )
 
     local btnSplitHalves = CreateActionButton(bottomBar, "Split Halves")
     btnSplitHalves:SetScript("OnClick", function()
         self:SplitHalves()
     end)
+    addon.AttachSimpleTooltip(
+        btnSplitHalves,
+        "Split players into two balanced teams and keep each team together in consecutive groups.",
+        "ANCHOR_TOP"
+    )
 
     local btnInvite = CreateActionButton(bottomBar, "Invite")
     btnInvite:SetScript("OnClick", function()

@@ -266,6 +266,31 @@ local function SwapSlotContents(indexA, indexB)
     addon:TryAutoSave()
 end
 
+local function GetSlotTooltipLines(slot)
+    if slot.playerName == "" then
+        return nil
+    end
+
+    local template = addon:DecodeTemplate(slot.playerName)
+    if template then
+        return {
+            "Drag to move or swap.",
+            "Right-click to remove from the board.",
+        }
+    end
+
+    local lines = {
+        "Drag to move or swap.",
+        "Right-click to remove from the board.",
+    }
+
+    for _, line in ipairs(addon:GetRaidAssistTooltipLines(slot.playerName)) do
+        lines[#lines + 1] = line
+    end
+
+    return lines
+end
+
 local function CreateSlotFrame(parent, slotIndex)
     local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent)
     slot.slotIndex = slotIndex
@@ -371,6 +396,8 @@ local function CreateSlotFrame(parent, slotIndex)
         self.dragHighlight:Hide()
     end)
 
+    addon.AttachSimpleTooltip(slot, GetSlotTooltipLines)
+
     return slot
 end
 
@@ -419,6 +446,7 @@ function addon:RefreshSlot(slotIndex)
 
     local text = slot.playerName or ""
     local roleIcon = slot.roleIcon
+    addon.RefreshSimpleTooltip(slot)
 
     if text == "" then
         slot.nameText:SetText("")

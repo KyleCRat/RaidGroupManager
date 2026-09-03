@@ -34,21 +34,25 @@ local TITLE_BACKGROUND = { r = 0, g = 0, b = 0, a = 0.2 }
 local LAYOUT_NAME_ACTIVE = { r = 0.9, g = 0.9, b = 0.9, a = 1 }
 local LAYOUT_NAME_INACTIVE = { r = 0.35, g = 0.35, b = 0.35, a = 1 }
 
+local function GetActionButtonWidth(fontString, text)
+    return math.max(
+        BOTTOM_BUTTON_MIN_WIDTH,
+        math.ceil(
+            fontString:GetUnboundedStringWidthForText(text)
+            + (BOTTOM_BUTTON_TEXT_PADDING * 2)
+            + BOTTOM_BUTTON_TEXT_FIT_BUFFER
+        )
+    )
+end
+
 local function CreateActionButton(parent, label)
     local btn = addon.CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
     btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
-
-    local textWidth = btn.label:GetStringWidth() or 0
-    if btn.label.GetUnboundedStringWidth then
-        textWidth = btn.label:GetUnboundedStringWidth() or textWidth
-    end
-
-    local width = math.max(BOTTOM_BUTTON_MIN_WIDTH, math.ceil(textWidth + (BOTTOM_BUTTON_TEXT_PADDING * 2) + BOTTOM_BUTTON_TEXT_FIT_BUFFER))
-    addon.SetStyledButtonSize(btn, width, BUTTON_HEIGHT)
     btn.label:SetJustifyH("CENTER")
     btn.label:SetWordWrap(false)
 
     PixelPerfect.RegisterLayout(btn, function()
+        addon.SetStyledButtonSize(btn, GetActionButtonWidth(btn.label, label), BUTTON_HEIGHT)
         btn.label:ClearAllPoints()
         PixelPerfect.Point(btn.label, "LEFT", btn, "LEFT", BOTTOM_BUTTON_TEXT_PADDING, 0)
         PixelPerfect.Point(btn.label, "RIGHT", btn, "RIGHT", -BOTTOM_BUTTON_TEXT_PADDING, 0)
@@ -475,7 +479,11 @@ function addon:CreateMainFrame()
         PixelPerfect.Point(btnExport, "RIGHT", btnImport, "LEFT", -UI_SPACING, 0)
     end)
 
-    frame:HookScript("OnShow", PixelPerfect.RequestRefresh)
+    frame:HookScript("OnShow", function()
+        -- Cold-start custom font metrics may not be available until after the
+        -- frame has completed its first visible update.
+        C_Timer.After(0, PixelPerfect.RequestRefresh)
+    end)
     self:RefreshLayoutHeader()
 end
 

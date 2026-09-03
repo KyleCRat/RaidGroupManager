@@ -5,6 +5,9 @@
 ### Added
 - Added `/rgm disband` and `/rgm d` commands for the confirmed raid-disband workflow
 
+### Fixed
+- Prevented action button labels from being truncated when the window is first opened after login
+
 ## [12.1.0-14] - 2026-09-03
 
 ### Added

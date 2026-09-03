@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Added a confirmed, raid-leader-only Disband control to remove all other raid members
+
+### Changed
+- Shortened the bottom-bar invite button label to Invite
+
 ## [12.1.0-12] - 2026-08-11
 
 ### Fixed

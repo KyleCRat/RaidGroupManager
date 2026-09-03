@@ -17,6 +17,7 @@ PresetLayouts.lua
 MinimapButton.lua
 GroupAssignment.lua
 Invite.lua
+Disband.lua
 UI/MainFrame.lua
 UI/GridSlot.lua
 UI/UnassignedPanel.lua

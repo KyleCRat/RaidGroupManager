@@ -55,12 +55,13 @@ Four browsing modes via tab bar:
 - Mark imported roster members who should receive assistant when you invite or lead the raid
 - Built-in import popup includes the Wowutils roster export steps and a copyable URL
 
-### Group Invites
+### Group Management
 - Invite assigned group members or imported roster characters from the button bar
 - Skips known-offline characters using group, guild, and friend status data
 - Automatically converts parties to raids when needed, including starter invites when you are solo
 - Promotes saved assistant choices during invite flows when you are raid leader
 - Prints invite summaries for invited, offline, not invited, and did-not-accept characters
+- Raid leaders can disband the current raid from the button bar after confirmation
 
 ### Spec Detection
 - Background inspect cache queues raid members for inspection as they join

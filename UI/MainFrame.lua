@@ -382,10 +382,16 @@ function addon:CreateMainFrame()
         self:SplitHalves()
     end)
 
-    local btnInvite = CreateBottomBarButton(bottomBar, "Invite to Group")
+    local btnInvite = CreateBottomBarButton(bottomBar, "Invite")
     btnInvite:SetPoint("LEFT", btnSplitHalves, "RIGHT", BUTTON_PADDING, 0)
     btnInvite:SetScript("OnClick", function()
         self:ShowInviteToGroupPopup()
+    end)
+
+    local btnDisband = CreateBottomBarButton(bottomBar, "Disband")
+    btnDisband:SetPoint("LEFT", btnInvite, "RIGHT", BUTTON_PADDING, 0)
+    btnDisband:SetScript("OnClick", function()
+        self:PromptDisbandRaid()
     end)
 
     local btnImport = CreateBottomBarButton(bottomBar, "Import")

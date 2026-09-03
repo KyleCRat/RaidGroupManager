@@ -5,6 +5,7 @@
 ### Added
 - Added an optional WowUtils import mode that groups roster characters under member names while preserving export order
 - Added selected-layout Save, Save As, and Clear controls above the subgroup board, plus an inline New Blank Layout action
+- Added compact guild-rank headers above draggable characters in the Guild tab
 
 ### Changed
 - Made the selected layout an explicit, reload-persistent save target that can be deselected without changing the board

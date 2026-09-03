@@ -4,7 +4,7 @@ local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
 local ROLE_ICON_SIZE = 16
 local ROW_HEIGHT = 20
-local MEMBER_HEADER_HEIGHT = 12
+local LIST_HEADER_HEIGHT = 12
 local MAX_ROWS = 40
 local ROW_BG_ALPHA = addon.ROW_BG_ALPHA
 local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
@@ -43,7 +43,7 @@ local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
 local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local COLOR_TAB_HOVER = { r = 0.22, g = 0.22, b = 0.22, a = 0.95 }
 local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
-local COLOR_MEMBER_HEADER = { r = 0.6, g = 0.6, b = 0.6, a = 1 }
+local COLOR_LIST_HEADER = { r = 0.6, g = 0.6, b = 0.6, a = 1 }
 
 --------------------------------------------------------------------------------
 -- Minimal JSON parser for wowutils roster imports
@@ -369,17 +369,17 @@ local function CreateEntryRow(parent, index)
     return row
 end
 
-local function CreateRosterMemberHeader(parent)
+local function CreateListHeader(parent)
     local header = CreateFrame("Frame", nil, parent)
-    header.rgmIsMemberHeader = true
+    header.rgmIsListHeader = true
 
     header.nameText = header:CreateFontString(nil, "ARTWORK")
     header.nameText:SetFont(FONT, 9, "OUTLINE")
     header.nameText:SetTextColor(
-        COLOR_MEMBER_HEADER.r,
-        COLOR_MEMBER_HEADER.g,
-        COLOR_MEMBER_HEADER.b,
-        COLOR_MEMBER_HEADER.a
+        COLOR_LIST_HEADER.r,
+        COLOR_LIST_HEADER.g,
+        COLOR_LIST_HEADER.b,
+        COLOR_LIST_HEADER.a
     )
     header.nameText:SetJustifyH("LEFT")
     header.nameText:SetWordWrap(false)
@@ -410,7 +410,7 @@ local function LayoutUnassignedContent()
     end
 
     local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
-    local headerHeight = PixelPerfect.Scale(content, MEMBER_HEADER_HEIGHT)
+    local headerHeight = PixelPerfect.Scale(content, LIST_HEADER_HEIGHT)
 
     for _, row in ipairs(addon.unassignedRows) do
         row:SetHeight(rowHeight)
@@ -420,7 +420,7 @@ local function LayoutUnassignedContent()
         PixelPerfect.Point(row.roleIcon, "RIGHT", row, "RIGHT", -2, 0)
     end
 
-    for _, header in ipairs(addon.unassignedMemberHeaders) do
+    for _, header in ipairs(addon.unassignedHeaders) do
         header:SetHeight(headerHeight)
 
         header.nameText:ClearAllPoints()
@@ -441,7 +441,7 @@ local function LayoutUnassignedContent()
             region:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
         end
 
-        contentHeight = contentHeight + (region.rgmIsMemberHeader and headerHeight or rowHeight)
+        contentHeight = contentHeight + (region.rgmIsListHeader and headerHeight or rowHeight)
         previousRegion = region
     end
 
@@ -449,19 +449,19 @@ local function LayoutUnassignedContent()
     content:SetHeight(math.max(minimumHeight, contentHeight))
 end
 
-local function GetRosterMemberHeader(index)
-    local header = addon.unassignedMemberHeaders[index]
+local function GetUnassignedHeader(index)
+    local header = addon.unassignedHeaders[index]
     if not header then
-        header = CreateRosterMemberHeader(addon.unassignedContent)
-        addon.unassignedMemberHeaders[index] = header
+        header = CreateListHeader(addon.unassignedContent)
+        addon.unassignedHeaders[index] = header
     end
 
     return header
 end
 
-local function HideRosterMemberHeaders(startIndex)
-    for index = startIndex or 1, #addon.unassignedMemberHeaders do
-        addon.unassignedMemberHeaders[index]:Hide()
+local function HideUnassignedHeaders(startIndex)
+    for index = startIndex or 1, #addon.unassignedHeaders do
+        addon.unassignedHeaders[index]:Hide()
     end
 end
 
@@ -534,7 +534,7 @@ function addon:CreateUnassignedPanel(parent)
 
     self.unassignedContent = content
     self.unassignedRows = {}
-    self.unassignedMemberHeaders = {}
+    self.unassignedHeaders = {}
 
     for i = 1, MAX_ROWS do
         self.unassignedRows[i] = CreateEntryRow(content, i)
@@ -673,15 +673,15 @@ function addon:GetUnassignedGuildMembers()
     local numGuild = GetNumGuildMembers()
 
     for i = 1, numGuild do
-        local name, _, rankIndex, level, _, _, _, _, _, _, classFile = GetGuildRosterInfo(i)
+        local name, rankName, rankIndex, level, _, _, _, _, _, _, classFile = GetGuildRosterInfo(i)
         if name and level >= playerLevel then
             local normalized = self:NormalizeName(name)
             if not assigned[normalized] then
                 table.insert(unassigned, {
                     normalizedName = normalized,
-                    displayName = "[" .. rankIndex .. "] " .. normalized,
                     class = classFile,
                     role = "NONE",
+                    rankName = rankName,
                     rankIndex = rankIndex,
                 })
             end
@@ -723,14 +723,26 @@ function addon:RefreshUnassigned()
         entries = self:GetUnassignedRaidMembers()
     end
 
-    HideRosterMemberHeaders()
+    HideUnassignedHeaders()
     local displayOrder = {}
+    local currentGuildRank = nil
+    local headerCount = 0
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]
         local entry = entries[i]
 
         if entry then
+            if self.unassignedMode == MODE_GUILD and entry.rankIndex ~= currentGuildRank then
+                currentGuildRank = entry.rankIndex
+                headerCount = headerCount + 1
+
+                local header = GetUnassignedHeader(headerCount)
+                header.nameText:SetText(entry.rankName or "Guild Rank")
+                header:Show()
+                displayOrder[#displayOrder + 1] = header
+            end
+
             local displayName = entry.displayName or entry.normalizedName
             row.nameText:SetText(displayName)
             row.playerName = entry.normalizedName
@@ -777,7 +789,7 @@ end
 function addon:RefreshUnassignedRoleMode()
     local entries = ClassSpecRoles:GetClassRoleCombos()
 
-    HideRosterMemberHeaders()
+    HideUnassignedHeaders()
     local displayOrder = {}
 
     for i = 1, MAX_ROWS do
@@ -894,7 +906,7 @@ function addon:RefreshUnassignedRosterMode()
 
     if not groupByMember then
         table.sort(entries, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
-        HideRosterMemberHeaders()
+        HideUnassignedHeaders()
     end
 
     local currentMemberKey = nil
@@ -912,7 +924,7 @@ function addon:RefreshUnassignedRosterMode()
                     headerCount = headerCount + 1
                     currentMemberKey = memberKey
 
-                    local header = GetRosterMemberHeader(headerCount)
+                    local header = GetUnassignedHeader(headerCount)
                     header.nameText:SetText(GetRosterMemberName(entry))
                     header:Show()
                     displayOrder[#displayOrder + 1] = header
@@ -930,7 +942,7 @@ function addon:RefreshUnassignedRosterMode()
     end
 
     if groupByMember then
-        HideRosterMemberHeaders(headerCount + 1)
+        HideUnassignedHeaders(headerCount + 1)
     end
 
     SetUnassignedDisplayOrder(displayOrder)

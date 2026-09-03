@@ -39,7 +39,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 ### Unassigned Panel
 Four browsing modes via tab bar:
 - **Raid**: Shows current raid members not yet placed in the grid
-- **Guild**: Shows guild members at your level or above
+- **Guild**: Shows guild members at your level or above, grouped by guild rank
 - **Role**: Shows all role/class template combinations for drag-and-drop
 - **Roster**: Import your external roster from wowutils JSON exports
 

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Added an optional WowUtils import mode that groups roster characters under member names while preserving export order
+
 ### Changed
 - Reworked interface scaling so borders remain one physical pixel, rows retain consistent pixel-snapped spacing, and the frame height follows the resulting content at every supported scale
 - Standardized main frame padding, column spacing, and action gaps at 8 pixels while keeping tab and list headers attached to their content

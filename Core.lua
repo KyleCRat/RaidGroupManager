@@ -63,6 +63,7 @@ local defaults = {
     },
     char = {
         importedRoster = {},
+        importedRosterGroupByMember = false,
         rosterLeaders = {},
     },
 }

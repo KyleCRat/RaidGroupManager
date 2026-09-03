@@ -4,6 +4,7 @@ local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
 local ROLE_ICON_SIZE = 16
 local ROW_HEIGHT = 20
+local MEMBER_HEADER_HEIGHT = 12
 local MAX_ROWS = 40
 local ROW_BG_ALPHA = addon.ROW_BG_ALPHA
 local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
@@ -42,6 +43,7 @@ local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
 local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local COLOR_TAB_HOVER = { r = 0.22, g = 0.22, b = 0.22, a = 0.95 }
 local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
+local COLOR_MEMBER_HEADER = { r = 0.6, g = 0.6, b = 0.6, a = 1 }
 
 --------------------------------------------------------------------------------
 -- Minimal JSON parser for wowutils roster imports
@@ -232,16 +234,16 @@ local function ShouldImportCharacter(member, char)
     return charId == member.mainCharacterId
 end
 
-local function ParseWowUtilsRoster(jsonText)
+local function ParseWowUtilsRoster(jsonText, groupByMember)
     local ok, data = pcall(ParseJSON, jsonText)
-    if not ok or type(data) ~= "table" or not data.members then
+    if not ok or type(data) ~= "table" or type(data.members) ~= "table" then
         return nil
     end
 
     local roster = {}
     local playerRealm = addon:GetPlayerRealm()
 
-    for _, member in ipairs(data.members) do
+    for memberIndex, member in ipairs(data.members) do
         if type(member.characters) == "table" then
             for _, char in ipairs(member.characters) do
                 if ShouldImportCharacter(member, char) then
@@ -258,13 +260,16 @@ local function ParseWowUtilsRoster(jsonText)
                         class = classToken,
                         role = ClassSpecRoles:GetImportedCharacterRole(member, classToken, char),
                         displayName = member.displayName,
+                        memberIndex = memberIndex,
                     })
                 end
             end
         end
     end
 
-    table.sort(roster, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
+    if not groupByMember then
+        table.sort(roster, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
+    end
 
     return roster
 end
@@ -364,6 +369,25 @@ local function CreateEntryRow(parent, index)
     return row
 end
 
+local function CreateRosterMemberHeader(parent)
+    local header = CreateFrame("Frame", nil, parent)
+    header.rgmIsMemberHeader = true
+
+    header.nameText = header:CreateFontString(nil, "ARTWORK")
+    header.nameText:SetFont(FONT, 9, "OUTLINE")
+    header.nameText:SetTextColor(
+        COLOR_MEMBER_HEADER.r,
+        COLOR_MEMBER_HEADER.g,
+        COLOR_MEMBER_HEADER.b,
+        COLOR_MEMBER_HEADER.a
+    )
+    header.nameText:SetJustifyH("LEFT")
+    header.nameText:SetWordWrap(false)
+    header:Hide()
+
+    return header
+end
+
 local function SetRowLeadershipIconState(row, iconTexture)
     addon:SetLeadershipIconState(row, iconTexture, 2, ROLE_ICON_SIZE)
 end
@@ -376,6 +400,68 @@ local function UpdateTabHighlights(tabs, activeMode)
     for mode, tab in pairs(tabs) do
         local c = (mode == activeMode) and COLOR_TAB_ACTIVE or COLOR_TAB_INACTIVE
         tab.bg:SetVertexColor(c.r, c.g, c.b, c.a)
+    end
+end
+
+local function LayoutUnassignedContent()
+    local content = addon.unassignedContent
+    if not content then
+        return
+    end
+
+    local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
+    local headerHeight = PixelPerfect.Scale(content, MEMBER_HEADER_HEIGHT)
+
+    for _, row in ipairs(addon.unassignedRows) do
+        row:SetHeight(rowHeight)
+
+        row.roleIcon:ClearAllPoints()
+        PixelPerfect.Size(row.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+        PixelPerfect.Point(row.roleIcon, "RIGHT", row, "RIGHT", -2, 0)
+    end
+
+    for _, header in ipairs(addon.unassignedMemberHeaders) do
+        header:SetHeight(headerHeight)
+
+        header.nameText:ClearAllPoints()
+        PixelPerfect.Point(header.nameText, "LEFT", header, "LEFT", 2, 0)
+        PixelPerfect.Point(header.nameText, "RIGHT", header, "RIGHT", -2, 0)
+    end
+
+    local contentHeight = 0
+    local previousRegion = nil
+
+    for _, region in ipairs(content.rgmDisplayOrder or {}) do
+        region:ClearAllPoints()
+        if previousRegion then
+            region:SetPoint("TOPLEFT", previousRegion, "BOTTOMLEFT", 0, 0)
+            region:SetPoint("TOPRIGHT", previousRegion, "BOTTOMRIGHT", 0, 0)
+        else
+            region:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+            region:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
+        end
+
+        contentHeight = contentHeight + (region.rgmIsMemberHeader and headerHeight or rowHeight)
+        previousRegion = region
+    end
+
+    local minimumHeight = PixelPerfect.Scale(content, 1, 1)
+    content:SetHeight(math.max(minimumHeight, contentHeight))
+end
+
+local function GetRosterMemberHeader(index)
+    local header = addon.unassignedMemberHeaders[index]
+    if not header then
+        header = CreateRosterMemberHeader(addon.unassignedContent)
+        addon.unassignedMemberHeaders[index] = header
+    end
+
+    return header
+end
+
+local function HideRosterMemberHeaders(startIndex)
+    for index = startIndex or 1, #addon.unassignedMemberHeaders do
+        addon.unassignedMemberHeaders[index]:Hide()
     end
 end
 
@@ -448,6 +534,7 @@ function addon:CreateUnassignedPanel(parent)
 
     self.unassignedContent = content
     self.unassignedRows = {}
+    self.unassignedMemberHeaders = {}
 
     for i = 1, MAX_ROWS do
         self.unassignedRows[i] = CreateEntryRow(content, i)
@@ -481,8 +568,6 @@ function addon:CreateUnassignedPanel(parent)
 
     PixelPerfect.RegisterLayout(parent, function()
         local parentWidth = parent:GetWidth()
-        local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
-        local minimumContentHeight = PixelPerfect.Scale(content, 1, 1)
 
         for tabIndex, mode in ipairs(TAB_MODES) do
             local tab = self.unassignedTabs[mode]
@@ -526,19 +611,7 @@ function addon:CreateUnassignedPanel(parent)
         PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -22, 2)
 
         content:SetWidth(math.max(PixelPerfect.Scale(content, 1, 1), scrollFrame:GetWidth()))
-        content:SetHeight(math.max(minimumContentHeight, (content.rgmEntryCount or 0) * rowHeight))
-
-        for index = 1, MAX_ROWS do
-            local row = self.unassignedRows[index]
-            row:ClearAllPoints()
-            row:SetHeight(rowHeight)
-            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -((index - 1) * rowHeight))
-            row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-
-            row.roleIcon:ClearAllPoints()
-            PixelPerfect.Size(row.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
-            PixelPerfect.Point(row.roleIcon, "RIGHT", row, "RIGHT", -2, 0)
-        end
+        LayoutUnassignedContent()
 
         addEditBox:ClearAllPoints()
         PixelPerfect.Point(addEditBox, "BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
@@ -557,13 +630,10 @@ function addon:CreateUnassignedPanel(parent)
     end)
 end
 
-local function SetUnassignedContentHeight(entryCount)
+local function SetUnassignedDisplayOrder(displayOrder)
     local content = addon.unassignedContent
-    local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
-    local minimumHeight = PixelPerfect.Scale(content, 1, 1)
-
-    content.rgmEntryCount = entryCount
-    content:SetHeight(math.max(minimumHeight, entryCount * rowHeight))
+    content.rgmDisplayOrder = displayOrder
+    LayoutUnassignedContent()
 end
 
 -- Build the set of player names currently assigned in the grid (excludes templates)
@@ -653,6 +723,9 @@ function addon:RefreshUnassigned()
         entries = self:GetUnassignedRaidMembers()
     end
 
+    HideRosterMemberHeaders()
+    local displayOrder = {}
+
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]
         local entry = entries[i]
@@ -689,6 +762,7 @@ function addon:RefreshUnassigned()
             end
 
             row:Show()
+            displayOrder[#displayOrder + 1] = row
         else
             row:Hide()
             row.playerName = nil
@@ -697,11 +771,14 @@ function addon:RefreshUnassigned()
         end
     end
 
-    SetUnassignedContentHeight(#entries)
+    SetUnassignedDisplayOrder(displayOrder)
 end
 
 function addon:RefreshUnassignedRoleMode()
     local entries = ClassSpecRoles:GetClassRoleCombos()
+
+    HideRosterMemberHeaders()
+    local displayOrder = {}
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]
@@ -733,6 +810,7 @@ function addon:RefreshUnassignedRoleMode()
             end
 
             row:Show()
+            displayOrder[#displayOrder + 1] = row
         else
             row:Hide()
             row.playerName = nil
@@ -741,7 +819,7 @@ function addon:RefreshUnassignedRoleMode()
         end
     end
 
-    SetUnassignedContentHeight(#entries)
+    SetUnassignedDisplayOrder(displayOrder)
 end
 
 --------------------------------------------------------------------------------
@@ -762,8 +840,43 @@ function addon:UpdateRosterImportButton()
     PixelPerfect.RequestRefresh()
 end
 
+local function SetRosterEntryRow(row, entry)
+    row.nameText:SetText(entry.normalizedName)
+    row.playerName = entry.normalizedName
+    row.template = nil
+    SetRowLeaderState(row, addon:IsRosterLeader(entry.normalizedName))
+
+    local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
+    if classColor then
+        row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+        row.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, ROW_BG_ALPHA)
+    else
+        row.nameText:SetTextColor(0.5, 0.5, 0.5)
+        row.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
+    end
+
+    local texture = entry.role and ROLE_TEXTURES[entry.role]
+    if texture then
+        row.roleIcon:SetTexture(texture)
+        row.roleIcon:Show()
+    else
+        row.roleIcon:Hide()
+    end
+
+    row:Show()
+end
+
+local function GetRosterMemberName(entry)
+    if type(entry.displayName) == "string" and entry.displayName ~= "" then
+        return entry.displayName
+    end
+
+    return entry.normalizedName
+end
+
 function addon:RefreshUnassignedRosterMode()
     local roster = self.db.char.importedRoster or {}
+    local groupByMember = self.db.char.importedRosterGroupByMember == true
     local assigned = {}
 
     for i = 1, 40 do
@@ -779,36 +892,35 @@ function addon:RefreshUnassignedRosterMode()
         end
     end
 
-    table.sort(entries, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
+    if not groupByMember then
+        table.sort(entries, ClassSpecRoles.CompareRosterEntriesByRoleThenName)
+        HideRosterMemberHeaders()
+    end
+
+    local currentMemberKey = nil
+    local displayOrder = {}
+    local headerCount = 0
 
     for i = 1, MAX_ROWS do
         local row = self.unassignedRows[i]
         local entry = entries[i]
 
         if entry then
-            row.nameText:SetText(entry.normalizedName)
-            row.playerName = entry.normalizedName
-            row.template = nil
-            SetRowLeaderState(row, self:IsRosterLeader(entry.normalizedName))
+            if groupByMember then
+                local memberKey = entry.memberIndex or entry.displayName or entry.normalizedName
+                if memberKey ~= currentMemberKey then
+                    headerCount = headerCount + 1
+                    currentMemberKey = memberKey
 
-            local classColor = entry.class and C_ClassColor.GetClassColor(entry.class)
-            if classColor then
-                row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                row.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, ROW_BG_ALPHA)
-            else
-                row.nameText:SetTextColor(0.5, 0.5, 0.5)
-                row.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
+                    local header = GetRosterMemberHeader(headerCount)
+                    header.nameText:SetText(GetRosterMemberName(entry))
+                    header:Show()
+                    displayOrder[#displayOrder + 1] = header
+                end
             end
 
-            local texture = entry.role and ROLE_TEXTURES[entry.role]
-            if texture then
-                row.roleIcon:SetTexture(texture)
-                row.roleIcon:Show()
-            else
-                row.roleIcon:Hide()
-            end
-
-            row:Show()
+            SetRosterEntryRow(row, entry)
+            displayOrder[#displayOrder + 1] = row
         else
             row:Hide()
             row.playerName = nil
@@ -817,7 +929,11 @@ function addon:RefreshUnassignedRosterMode()
         end
     end
 
-    SetUnassignedContentHeight(#entries)
+    if groupByMember then
+        HideRosterMemberHeaders(headerCount + 1)
+    end
+
+    SetUnassignedDisplayOrder(displayOrder)
 end
 
 --------------------------------------------------------------------------------
@@ -988,6 +1104,16 @@ function addon:ShowRosterImportWindow()
         self:DoRosterImport()
     end)
 
+    local groupByMemberCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    groupByMemberCheck:SetChecked(self.db.char.importedRosterGroupByMember == true)
+
+    local groupByMemberLabel = frame:CreateFontString(nil, "ARTWORK")
+    groupByMemberLabel:SetFont(FONT, 11, "OUTLINE")
+    groupByMemberLabel:SetText("Group by Member Name")
+    groupByMemberLabel:SetTextColor(0.75, 0.75, 0.75, 1)
+
+    self.rosterImportGroupByMemberCheck = groupByMemberCheck
+
     PixelPerfect.RegisterLayout(frame, function()
         local importFooterHeight = UI_SPACING + IMPORT_BUTTON_HEIGHT + UI_SPACING
         local editTopOffset = instructionTop
@@ -1012,6 +1138,13 @@ function addon:ShowRosterImportWindow()
 
         importBtn:ClearAllPoints()
         PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -UI_SPACING, UI_SPACING)
+
+        groupByMemberCheck:ClearAllPoints()
+        PixelPerfect.Point(groupByMemberCheck, "RIGHT", groupByMemberLabel, "LEFT", -2, 0)
+        PixelPerfect.Size(groupByMemberCheck, 20, 20)
+
+        groupByMemberLabel:ClearAllPoints()
+        PixelPerfect.Point(groupByMemberLabel, "RIGHT", importBtn, "LEFT", -UI_SPACING, 0)
     end)
 
     frame:Show()
@@ -1026,7 +1159,8 @@ function addon:DoRosterImport()
         return
     end
 
-    local roster = ParseWowUtilsRoster(text)
+    local groupByMember = self.rosterImportGroupByMemberCheck:GetChecked() == true
+    local roster = ParseWowUtilsRoster(text, groupByMember)
     if not roster then
         self:Print("Could not parse roster JSON. Check the format.")
 
@@ -1034,7 +1168,8 @@ function addon:DoRosterImport()
     end
 
     self.db.char.importedRoster = roster
-    self:Print("Imported " .. #roster .. " roster members.")
+    self.db.char.importedRosterGroupByMember = groupByMember
+    self:Print("Imported " .. #roster .. " roster characters.")
     self:RefreshUnassigned()
 
     if self.rosterImportFrame then

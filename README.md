@@ -50,6 +50,7 @@ Four browsing modes via tab bar:
 ### Roster Import
 - Import your guild roster from [wowutils](https://wowutils.com) JSON exports
 - Extracts each member's main and alt characters with class and role information
+- Optionally groups characters under compact member-name headings in the order defined by the export
 - Imported roster persists across sessions
 - Drag roster members directly into grid slots
 - Mark imported roster members who should receive assistant when you invite or lead the raid

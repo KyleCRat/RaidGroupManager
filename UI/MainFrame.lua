@@ -3,7 +3,9 @@ local LibPopupSlider = LibStub("LibPopupSlider-1.0")
 local PixelPerfect = addon.PixelPerfect
 
 local FRAME_WIDTH = 700
-local FRAME_HEIGHT = 600
+local FRAME_INITIAL_HEIGHT = 600
+local FRAME_SIDE_PADDING = 10
+local FRAME_BOTTOM_PADDING = 8
 local FRAME_SCALE_MIN = 50
 local FRAME_SCALE_MAX = 150
 local FRAME_SCALE_STEP = 5
@@ -19,6 +21,8 @@ local FONT = addon.FONT
 
 local BUTTON_HEIGHT = 24
 local BUTTON_PADDING = 6
+local BOTTOM_BAR_GAP = 6
+local CONTENT_COLUMN_GAP = 10
 local BOTTOM_BUTTON_FONT_SIZE = 12
 local BOTTOM_BUTTON_TEXT_PADDING = 6
 local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
@@ -128,7 +132,7 @@ function addon:CreateMainFrame()
     frame:SetClampedToScreen(true)
     frame:Hide()
 
-    PixelPerfect.Size(frame, FRAME_WIDTH, FRAME_HEIGHT)
+    PixelPerfect.Size(frame, FRAME_WIDTH, FRAME_INITIAL_HEIGHT)
     self:RestoreFramePosition(frame)
 
     frame:SetMovable(true)
@@ -226,7 +230,6 @@ function addon:CreateMainFrame()
 
     -- GridSlot.lua owns the snapped grid dimensions.
     local gridArea = CreateFrame("Frame", nil, frame)
-    PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", 10, gridTop)
     frame.gridArea = gridArea
 
     -- Create grid slots
@@ -235,28 +238,74 @@ function addon:CreateMainFrame()
     -- Panels span from helper text level to grid bottom
     -- Unassigned panel (center-right)
     local unassignedArea = CreateFrame("Frame", nil, frame)
-    PixelPerfect.Point(unassignedArea, "TOPLEFT", gridArea, "TOPRIGHT", 10, contentTop - gridTop)
-    PixelPerfect.Point(unassignedArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
-    PixelPerfect.Width(unassignedArea, UNASSIGNED_WIDTH)
     frame.unassignedArea = unassignedArea
-
-    self:CreateUnassignedPanel(unassignedArea)
 
     -- Layout panel (far right), bottom-aligned with the grid.
     local layoutArea = CreateFrame("Frame", nil, frame)
-    PixelPerfect.Point(layoutArea, "TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
-    PixelPerfect.Point(layoutArea, "RIGHT", frame, "RIGHT", -10, 0)
-    PixelPerfect.Point(layoutArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
     frame.layoutArea = layoutArea
-
-    self:CreateLayoutPanel(layoutArea)
 
     -- Bottom button bar
     local bottomBar = CreateFrame("Frame", nil, frame)
-    PixelPerfect.Point(bottomBar, "BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
-    PixelPerfect.Point(bottomBar, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 8)
-    PixelPerfect.Height(bottomBar, BUTTON_HEIGHT)
     frame.bottomBar = bottomBar
+
+    local function LayoutMainContent()
+        PixelPerfect.Width(frame, FRAME_WIDTH)
+
+        helperText:ClearAllPoints()
+        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", FRAME_SIDE_PADDING, contentTop)
+
+        gridArea:ClearAllPoints()
+        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", FRAME_SIDE_PADDING, gridTop)
+
+        local sidePadding = PixelPerfect.Scale(frame, FRAME_SIDE_PADDING)
+        local columnGap = PixelPerfect.Scale(frame, CONTENT_COLUMN_GAP)
+        local contentTopOffset = PixelPerfect.Scale(frame, contentTop)
+        local unassignedWidth = PixelPerfect.Scale(unassignedArea, UNASSIGNED_WIDTH)
+
+        unassignedArea:ClearAllPoints()
+        unassignedArea:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            sidePadding + gridArea:GetWidth() + columnGap,
+            contentTopOffset
+        )
+        unassignedArea:SetPoint("BOTTOMLEFT", gridArea, "BOTTOMRIGHT", columnGap, 0)
+        unassignedArea:SetWidth(unassignedWidth)
+
+        layoutArea:ClearAllPoints()
+        layoutArea:SetPoint("TOPLEFT", unassignedArea, "TOPRIGHT", columnGap, 0)
+        layoutArea:SetPoint("BOTTOMLEFT", unassignedArea, "BOTTOMRIGHT", columnGap, 0)
+        layoutArea:SetWidth(
+            frame:GetWidth()
+            - (sidePadding * 2)
+            - gridArea:GetWidth()
+            - (columnGap * 2)
+            - unassignedWidth
+        )
+
+        local gridTopInset = -PixelPerfect.Scale(gridArea, gridTop)
+        local bottomBarGap = PixelPerfect.Scale(bottomBar, BOTTOM_BAR_GAP)
+        local bottomBarHeight = PixelPerfect.Scale(bottomBar, BUTTON_HEIGHT)
+        local bottomPadding = PixelPerfect.Scale(frame, FRAME_BOTTOM_PADDING)
+
+        bottomBar:ClearAllPoints()
+        bottomBar:SetPoint("TOPLEFT", gridArea, "BOTTOMLEFT", 0, -bottomBarGap)
+        bottomBar:SetSize(frame:GetWidth() - (sidePadding * 2), bottomBarHeight)
+
+        frame:SetHeight(
+            gridTopInset
+            + gridArea:GetHeight()
+            + bottomBarGap
+            + bottomBarHeight
+            + bottomPadding
+        )
+        self:RestoreFramePosition(frame)
+    end
+
+    LayoutMainContent()
+    self:CreateUnassignedPanel(unassignedArea)
+    self:CreateLayoutPanel(layoutArea)
 
     local btnLoadRoster = CreateBottomBarButton(bottomBar, "Load Roster")
     btnLoadRoster:SetScript("OnClick", function()
@@ -305,9 +354,6 @@ function addon:CreateMainFrame()
     end)
 
     PixelPerfect.RegisterLayout(frame, function()
-        PixelPerfect.Size(frame, FRAME_WIDTH, FRAME_HEIGHT)
-        self:RestoreFramePosition(frame)
-
         titleBar:ClearAllPoints()
         PixelPerfect.Point(titleBar, "TOPLEFT", frame, "TOPLEFT", 1, -1)
         PixelPerfect.Point(titleBar, "TOPRIGHT", frame, "TOPRIGHT", -1, -1)
@@ -325,26 +371,7 @@ function addon:CreateMainFrame()
         leadershipHelp:ClearAllPoints()
         PixelPerfect.Point(leadershipHelp, "RIGHT", scaleButton, "LEFT", -TITLE_BUTTON_GAP, 0)
 
-        helperText:ClearAllPoints()
-        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", 10, contentTop)
-
-        gridArea:ClearAllPoints()
-        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", 10, gridTop)
-
-        unassignedArea:ClearAllPoints()
-        PixelPerfect.Point(unassignedArea, "TOPLEFT", gridArea, "TOPRIGHT", 10, contentTop - gridTop)
-        PixelPerfect.Point(unassignedArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
-        PixelPerfect.Width(unassignedArea, UNASSIGNED_WIDTH)
-
-        layoutArea:ClearAllPoints()
-        PixelPerfect.Point(layoutArea, "TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
-        PixelPerfect.Point(layoutArea, "RIGHT", frame, "RIGHT", -10, 0)
-        PixelPerfect.Point(layoutArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
-
-        bottomBar:ClearAllPoints()
-        PixelPerfect.Point(bottomBar, "BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
-        PixelPerfect.Point(bottomBar, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 8)
-        PixelPerfect.Height(bottomBar, BUTTON_HEIGHT)
+        LayoutMainContent()
 
         btnLoadRoster:ClearAllPoints()
         PixelPerfect.Point(btnLoadRoster, "LEFT", bottomBar, "LEFT", 0, 0)

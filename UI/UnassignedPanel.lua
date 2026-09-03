@@ -440,7 +440,7 @@ function addon:CreateUnassignedPanel(parent)
     self.importRosterBtn = importRosterBtn
 
     -- Scroll frame for entries
-    local scrollFrame = CreateFrame("ScrollFrame", "RGMUnassignedScroll", scrollBg, "UIPanelScrollFrameTemplate")
+    local scrollFrame = addon.CreateScrollFrame(scrollBg, "RGMUnassignedScroll")
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     PixelPerfect.Size(content, 1, 1, 1, 1)
@@ -960,7 +960,7 @@ function addon:ShowRosterImportWindow()
     -- Edit box area
     local editBg = CreateFrame("Frame", nil, frame)
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, editBg, "UIPanelScrollFrameTemplate")
+    local scrollFrame = addon.CreateScrollFrame(editBg)
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)

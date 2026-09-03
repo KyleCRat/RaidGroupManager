@@ -19,12 +19,26 @@ local WINDOW_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 }
 
 local INPUT_TEXT_INSET = 6
 local MULTILINE_TEXT_INSET = 2
+local SCROLL_BAR_OFFSET_X = 6
 
 local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
 local function UpdateEditBoxPlaceholder(editBox, placeholder)
     local text = editBox:GetText()
     placeholder:SetShown(not text or text == "")
+end
+
+function addon.CreateScrollFrame(parent, name)
+    local scrollFrame = CreateFrame("ScrollFrame", name, parent, "ScrollFrameTemplate")
+    local scrollBar = scrollFrame.ScrollBar
+
+    PixelPerfect.RegisterLayout(scrollFrame, function()
+        scrollBar:ClearAllPoints()
+        PixelPerfect.Point(scrollBar, "TOPLEFT", scrollFrame, "TOPRIGHT", SCROLL_BAR_OFFSET_X, 0)
+        PixelPerfect.Point(scrollBar, "BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", SCROLL_BAR_OFFSET_X, 0)
+    end)
+
+    return scrollFrame
 end
 
 function addon.SetStyledButtonSize(button, width, height)

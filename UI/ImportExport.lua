@@ -230,7 +230,7 @@ local function CreateMultiLineEditBox(parent, topOffset, bottomOffset, placehold
     -- Background behind the scroll area
     local bg = CreateFrame("Frame", nil, parent)
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
+    local scrollFrame = addon.CreateScrollFrame(bg)
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)

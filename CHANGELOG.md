@@ -6,6 +6,7 @@
 - Reworked interface scaling so borders remain one physical pixel, rows retain consistent pixel-snapped spacing, and the frame height follows the resulting content at every supported scale
 - Standardized main frame padding, column spacing, and action gaps at 8 pixels while keeping tab and list headers attached to their content
 - Made text inputs easier to identify with consistent surfaces, focus borders, and placeholder labels
+- Replaced legacy panel scrollbars with Blizzard's modern minimal scrollbar style and balanced their vertical spacing
 - Replaced the embedded LibPixelPerfect copy with RGM-owned pixel utilities and moved LibPopupSlider to its canonical Git submodule
 
 ## [12.1.0-13] - 2026-09-03

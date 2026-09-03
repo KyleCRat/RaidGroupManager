@@ -160,7 +160,7 @@ function addon:CreateLayoutPanel(parent)
     PixelPerfect.CreateSurface(scrollBg, PANEL_BG_COLOR, COLOR_BLACK, 1)
 
     -- Scroll frame for layout list
-    local scrollFrame = CreateFrame("ScrollFrame", "RGMLayoutScroll", scrollBg, "UIPanelScrollFrameTemplate")
+    local scrollFrame = addon.CreateScrollFrame(scrollBg, "RGMLayoutScroll")
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     PixelPerfect.Size(content, 1, 1, 1, 1)

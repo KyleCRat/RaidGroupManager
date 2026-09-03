@@ -194,17 +194,26 @@ local function CreateLayoutRow(parent)
     deleteBtn.icon:SetTexture("Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close")
     deleteBtn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
 
-    deleteBtn:SetScript("OnEnter", function()
-        deleteBtn.icon:SetVertexColor(1, 1, 1, 1)
+    deleteBtn:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(1, 1, 1, 1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("Delete this saved layout.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
     end)
 
-    deleteBtn:SetScript("OnLeave", function()
-        deleteBtn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+    deleteBtn:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+        GameTooltip:Hide()
+
+        if row:IsMouseOver() then
+            RefreshLayoutRowTooltip(row)
+        end
     end)
 
     deleteBtn:SetScript("OnClick", function()
         if row.layoutIndex then
-            addon:DeleteLayout(row.layoutIndex)
+            addon:PromptDeleteLayout(row.layoutIndex)
         end
     end)
     row.deleteBtn = deleteBtn
@@ -362,6 +371,23 @@ function addon:CreateLayoutPanel(parent)
         end,
     })
     autoSaveCheck:SetChecked(self.autoSave == true)
+    autoSaveCheck:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine(
+            "Automatically saves subgroup board changes to the selected layout.",
+            0.75,
+            0.75,
+            0.75,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    autoSaveCheck:SetScript("OnLeave", function(self)
+        if GameTooltip:IsOwned(self) then
+            GameTooltip:Hide()
+        end
+    end)
     self.layoutAutoSaveCheck = autoSaveCheck
 
     local scrollBg = CreateFrame("Frame", nil, parent)
@@ -495,9 +521,23 @@ function addon:SelectAndLoadLayout(layoutIndex)
     self:LoadLayoutToGrid(layout)
 end
 
-function addon:DeleteLayout(layoutIndex)
-    local layout = self.db.profile.layouts[layoutIndex]
+function addon:DeleteLayoutById(layoutId)
+    local layout = self:FindLayoutById(layoutId)
     if not layout then
+        return
+    end
+
+    local layoutIndex = nil
+
+    for index, candidate in ipairs(self.db.profile.layouts) do
+        if candidate == layout then
+            layoutIndex = index
+
+            break
+        end
+    end
+
+    if not layoutIndex then
         return
     end
 
@@ -530,6 +570,19 @@ function addon:ReportLayoutCreationError(name, reason)
         addon:Print("Enter a layout name.")
     end
 end
+
+StaticPopupDialogs["RGM_DELETE_LAYOUT"] = {
+    text = "Delete layout '%s'?",
+    button1 = "Delete",
+    button2 = "Cancel",
+    OnAccept = function(_, layoutId)
+        addon:DeleteLayoutById(layoutId)
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
 
 StaticPopupDialogs["RGM_SAVE_LAYOUT_AS"] = {
     text = "Enter a name for a copy of the current board:",
@@ -609,6 +662,15 @@ StaticPopupDialogs["RGM_CLEAR_LAYOUT_BOARD"] = {
 
 function addon:PromptSaveLayoutAs()
     StaticPopup_Show("RGM_SAVE_LAYOUT_AS")
+end
+
+function addon:PromptDeleteLayout(layoutIndex)
+    local layout = self.db.profile.layouts[layoutIndex]
+    if not layout then
+        return
+    end
+
+    StaticPopup_Show("RGM_DELETE_LAYOUT", layout.name, nil, layout.id)
 end
 
 function addon:SaveCurrentLayoutAs(name)

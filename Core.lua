@@ -37,10 +37,10 @@ end)
 
 addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\Fonts\\PTSansNarrow-Bold.ttf"
 
+addon.UI_SPACING = 8
 addon.SLOT_WIDTH = 150
 addon.SLOT_HEIGHT = 20
 addon.SLOT_GAP = 2
-addon.GROUP_GAP = 6
 addon.GROUP_HEADER_HEIGHT = 16
 addon.TITLE_HEIGHT = 28
 addon.LEADERSHIP_ICON_SIZE = 12

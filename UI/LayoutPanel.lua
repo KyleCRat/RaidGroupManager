@@ -8,6 +8,8 @@ local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
 local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
 local ROW_BACKGROUND = { r = 0.15, g = 0.15, b = 0.15, a = 0.9 }
 
+local HEADER_HEIGHT = 20
+
 local dragSourceIndex = nil
 
 local function CreateLayoutRow(parent, index)
@@ -133,16 +135,18 @@ local function CreateLayoutRow(parent, index)
 end
 
 function addon:CreateLayoutPanel(parent)
-    local headerText = parent:CreateFontString(nil, "ARTWORK")
+    local header = CreateFrame("Frame", nil, parent)
+
+    local headerText = header:CreateFontString(nil, "ARTWORK")
     headerText:SetFont(FONT, 12, "OUTLINE")
     headerText:SetText("Layouts")
     headerText:SetTextColor(1, 1, 1, 1)
 
     -- Auto-save checkbox
-    local autoSaveCheck = CreateFrame("CheckButton", "RGMAutoSaveCheck", parent, "UICheckButtonTemplate")
+    local autoSaveCheck = CreateFrame("CheckButton", "RGMAutoSaveCheck", header, "UICheckButtonTemplate")
     autoSaveCheck:SetChecked(false)
 
-    local autoSaveLabel = parent:CreateFontString(nil, "ARTWORK")
+    local autoSaveLabel = header:CreateFontString(nil, "ARTWORK")
     autoSaveLabel:SetFont(FONT, 10, "OUTLINE")
     autoSaveLabel:SetText("Auto-save")
     autoSaveLabel:SetTextColor(0.7, 0.7, 0.7, 1)
@@ -172,18 +176,23 @@ function addon:CreateLayoutPanel(parent)
     PixelPerfect.RegisterLayout(parent, function()
         local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
 
+        header:ClearAllPoints()
+        PixelPerfect.Point(header, "TOPLEFT", parent, "TOPLEFT", 0, 0)
+        PixelPerfect.Point(header, "TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+        PixelPerfect.Height(header, HEADER_HEIGHT)
+
         headerText:ClearAllPoints()
-        PixelPerfect.Point(headerText, "TOPLEFT", parent, "TOPLEFT", 0, -2)
+        PixelPerfect.Point(headerText, "LEFT", header, "LEFT", 0, 0)
 
         autoSaveCheck:ClearAllPoints()
-        PixelPerfect.Point(autoSaveCheck, "TOPRIGHT", parent, "TOPRIGHT", 0, 2)
+        PixelPerfect.Point(autoSaveCheck, "RIGHT", header, "RIGHT", 0, 0)
         PixelPerfect.Size(autoSaveCheck, 20, 20)
 
         autoSaveLabel:ClearAllPoints()
         PixelPerfect.Point(autoSaveLabel, "RIGHT", autoSaveCheck, "LEFT", -2, 0)
 
         scrollBg:ClearAllPoints()
-        PixelPerfect.Point(scrollBg, "TOPLEFT", parent, "TOPLEFT", 0, -22)
+        PixelPerfect.Point(scrollBg, "TOPLEFT", header, "BOTTOMLEFT", 0, 0)
         PixelPerfect.Point(scrollBg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
 
         scrollFrame:ClearAllPoints()
@@ -295,6 +304,7 @@ StaticPopupDialogs["RGM_SAVE_LAYOUT"] = {
         end
     end,
     OnShow = function(self)
+        addon.SetEditBoxPlaceholder(self.EditBox, "Layout name")
         self.EditBox:SetFocus()
     end,
     timeout = 0,

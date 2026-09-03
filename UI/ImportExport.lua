@@ -2,7 +2,10 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
 local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
-local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
+local UI_SPACING = addon.UI_SPACING
+
+local FORMAT_BUTTON_HEIGHT = 20
+local IMPORT_BUTTON_HEIGHT = 24
 
 local FORMAT_PAIRED = 1
 local FORMAT_HORIZONTAL = 2
@@ -223,18 +226,14 @@ local function CreateModalFrame(title, width, height)
     return frame
 end
 
-local function CreateMultiLineEditBox(parent, topOffset, bottomOffset)
+local function CreateMultiLineEditBox(parent, topOffset, bottomOffset, placeholderText)
     -- Background behind the scroll area
     local bg = CreateFrame("Frame", nil, parent)
-    PixelPerfect.CreateBackground(bg, COLOR_BLACK)
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)
-    editBox:SetAutoFocus(false)
-    editBox:SetFont(FONT, 12, "OUTLINE")
-    editBox:SetTextColor(1, 1, 1, 1)
     editBox:SetScript("OnEscapePressed", function(self)
         self:ClearFocus()
     end)
@@ -243,6 +242,10 @@ local function CreateMultiLineEditBox(parent, topOffset, bottomOffset)
     end)
 
     scrollFrame:SetScrollChild(editBox)
+    addon.StyleEditBox(editBox, placeholderText, {
+        multiline = true,
+        surface = bg,
+    })
     scrollFrame.bg = bg
 
     -- Catch clicks in the empty area below text and redirect to editBox
@@ -253,8 +256,8 @@ local function CreateMultiLineEditBox(parent, topOffset, bottomOffset)
 
     PixelPerfect.RegisterLayout(bg, function()
         bg:ClearAllPoints()
-        PixelPerfect.Point(bg, "TOPLEFT", parent, "TOPLEFT", 10, -(addon.TITLE_HEIGHT + topOffset))
-        PixelPerfect.Point(bg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", -10, bottomOffset)
+        PixelPerfect.Point(bg, "TOPLEFT", parent, "TOPLEFT", UI_SPACING, -(addon.TITLE_HEIGHT + topOffset))
+        PixelPerfect.Point(bg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", -UI_SPACING, bottomOffset)
 
         scrollFrame:ClearAllPoints()
         PixelPerfect.Point(scrollFrame, "TOPLEFT", bg, "TOPLEFT", 4, -4)
@@ -289,7 +292,7 @@ function addon:ShowExportWindow()
     }
 
     for _, fmt in ipairs(formats) do
-        local btn = addon.CreateStyledButton(frame, 80, 20, fmt.label)
+        local btn = addon.CreateStyledButton(frame, 80, FORMAT_BUTTON_HEIGHT, fmt.label)
         btn.label:SetFont(FONT, 10, "OUTLINE")
 
         btn.formatId = fmt.id
@@ -305,7 +308,13 @@ function addon:ShowExportWindow()
     self.exportFormatButtons = formatButtons
 
     -- Text area
-    local _, editBox = CreateMultiLineEditBox(frame, 32, 10)
+    local exportEditTop = UI_SPACING + FORMAT_BUTTON_HEIGHT + UI_SPACING
+    local _, editBox = CreateMultiLineEditBox(
+        frame,
+        exportEditTop,
+        UI_SPACING,
+        "Exported layout data"
+    )
     self.exportEditBox = editBox
 
     PixelPerfect.RegisterLayout(frame, function()
@@ -316,9 +325,16 @@ function addon:ShowExportWindow()
             button:ClearAllPoints()
 
             if previousButton then
-                PixelPerfect.Point(button, "LEFT", previousButton, "RIGHT", 4, 0)
+                PixelPerfect.Point(button, "LEFT", previousButton, "RIGHT", UI_SPACING, 0)
             else
-                PixelPerfect.Point(button, "TOPLEFT", frame, "TOPLEFT", 10, -(addon.TITLE_HEIGHT + 6))
+                PixelPerfect.Point(
+                    button,
+                    "TOPLEFT",
+                    frame,
+                    "TOPLEFT",
+                    UI_SPACING,
+                    -(addon.TITLE_HEIGHT + UI_SPACING)
+                )
             end
 
             previousButton = button
@@ -363,6 +379,7 @@ function addon:UpdateExportText()
     end
 
     self.exportEditBox:SetText(text or "")
+    self.exportEditBox:SetCursorPosition(0)
     self.exportEditBox:HighlightText()
     self.exportEditBox:SetFocus()
 end
@@ -382,17 +399,23 @@ function addon:ShowImportWindow()
     frame:SetFrameLevel(frame:GetFrameLevel() + 20)
     self.importFrame = frame
 
-    local _, editBox = CreateMultiLineEditBox(frame, 10, 50)
+    local importFooterHeight = UI_SPACING + IMPORT_BUTTON_HEIGHT + UI_SPACING
+    local _, editBox = CreateMultiLineEditBox(
+        frame,
+        UI_SPACING,
+        importFooterHeight,
+        "Paste layout data here"
+    )
     self.importEditBox = editBox
 
-    local importBtn = addon.CreateStyledButton(frame, 80, 24, "Import")
+    local importBtn = addon.CreateStyledButton(frame, 80, IMPORT_BUTTON_HEIGHT, "Import")
     importBtn:SetScript("OnClick", function()
         self:DoImport()
     end)
 
     PixelPerfect.RegisterLayout(frame, function()
         importBtn:ClearAllPoints()
-        PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
+        PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -UI_SPACING, UI_SPACING)
     end)
 
     frame:Show()
@@ -413,6 +436,7 @@ StaticPopupDialogs["RGM_IMPORT_LAYOUT"] = {
         end
     end,
     OnShow = function(self)
+        addon.SetEditBoxPlaceholder(self.EditBox, "Imported layout name")
         self.EditBox:SetFocus()
     end,
     timeout = 0,

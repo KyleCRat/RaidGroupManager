@@ -6,8 +6,8 @@ local FONT = addon.FONT
 local SLOT_WIDTH = addon.SLOT_WIDTH
 local SLOT_HEIGHT = addon.SLOT_HEIGHT
 local SLOT_GAP = addon.SLOT_GAP
-local GROUP_GAP = addon.GROUP_GAP
 local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
+local UI_SPACING = addon.UI_SPACING
 local ROLE_ICON_SIZE = 16
 local LEADER_ICON_SIZE = addon.LEADERSHIP_ICON_SIZE
 
@@ -563,8 +563,8 @@ function addon:CreateGrid(parent)
         local slotWidth = PixelPerfect.Scale(parent, SLOT_WIDTH)
         local slotHeight = PixelPerfect.Scale(parent, SLOT_HEIGHT)
         local slotGap = PixelPerfect.Scale(parent, SLOT_GAP)
-        local columnGap = PixelPerfect.Scale(parent, 14)
-        local groupGap = PixelPerfect.Scale(parent, GROUP_GAP)
+        local columnGap = PixelPerfect.Scale(parent, UI_SPACING)
+        local groupGap = PixelPerfect.Scale(parent, UI_SPACING)
         local headerHeight = PixelPerfect.Scale(parent, GROUP_HEADER_HEIGHT)
         local groupSlotHeight = (5 * slotHeight) + (4 * slotGap)
         local groupStride = headerHeight + groupSlotHeight + groupGap

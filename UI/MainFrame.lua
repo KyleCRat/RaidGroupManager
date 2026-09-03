@@ -4,8 +4,6 @@ local PixelPerfect = addon.PixelPerfect
 
 local FRAME_WIDTH = 700
 local FRAME_INITIAL_HEIGHT = 600
-local FRAME_SIDE_PADDING = 10
-local FRAME_BOTTOM_PADDING = 8
 local FRAME_SCALE_MIN = 50
 local FRAME_SCALE_MAX = 150
 local FRAME_SCALE_STEP = 5
@@ -14,15 +12,13 @@ local SCALE_BUTTON_WIDTH = 60
 local SCALE_BUTTON_HEIGHT = 20
 
 local TITLE_ICON_BUTTON_SIZE = 18
-local TITLE_BUTTON_GAP = 6
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
+local UI_SPACING = addon.UI_SPACING
 
 local FONT = addon.FONT
 
 local BUTTON_HEIGHT = 24
-local BUTTON_PADDING = 6
-local BOTTOM_BAR_GAP = 6
-local CONTENT_COLUMN_GAP = 10
+local HELPER_TEXT_HEIGHT = 12
 local BOTTOM_BUTTON_FONT_SIZE = 12
 local BOTTOM_BUTTON_TEXT_PADDING = 6
 local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
@@ -218,15 +214,15 @@ function addon:CreateMainFrame()
     self.mainFrame = frame
 
     -- Content area starts below title bar
-    local contentTop = -(TITLE_HEIGHT + 4)
+    local contentTop = -(TITLE_HEIGHT + UI_SPACING)
 
     -- Helper text at top of body
     local helperText = frame:CreateFontString(nil, "ARTWORK")
-    helperText:SetFont(FONT, 12, "OUTLINE")
+    helperText:SetFont(FONT, HELPER_TEXT_HEIGHT, "OUTLINE")
     helperText:SetText("Drag slots to swap players")
     helperText:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
-    local gridTop = contentTop - 16
+    local gridTop = contentTop - HELPER_TEXT_HEIGHT - UI_SPACING
 
     -- GridSlot.lua owns the snapped grid dimensions.
     local gridArea = CreateFrame("Frame", nil, frame)
@@ -252,13 +248,13 @@ function addon:CreateMainFrame()
         PixelPerfect.Width(frame, FRAME_WIDTH)
 
         helperText:ClearAllPoints()
-        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", FRAME_SIDE_PADDING, contentTop)
+        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, contentTop)
 
         gridArea:ClearAllPoints()
-        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", FRAME_SIDE_PADDING, gridTop)
+        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, gridTop)
 
-        local sidePadding = PixelPerfect.Scale(frame, FRAME_SIDE_PADDING)
-        local columnGap = PixelPerfect.Scale(frame, CONTENT_COLUMN_GAP)
+        local sidePadding = PixelPerfect.Scale(frame, UI_SPACING)
+        local columnGap = PixelPerfect.Scale(frame, UI_SPACING)
         local contentTopOffset = PixelPerfect.Scale(frame, contentTop)
         local unassignedWidth = PixelPerfect.Scale(unassignedArea, UNASSIGNED_WIDTH)
 
@@ -285,9 +281,9 @@ function addon:CreateMainFrame()
         )
 
         local gridTopInset = -PixelPerfect.Scale(gridArea, gridTop)
-        local bottomBarGap = PixelPerfect.Scale(bottomBar, BOTTOM_BAR_GAP)
+        local bottomBarGap = PixelPerfect.Scale(bottomBar, UI_SPACING)
         local bottomBarHeight = PixelPerfect.Scale(bottomBar, BUTTON_HEIGHT)
-        local bottomPadding = PixelPerfect.Scale(frame, FRAME_BOTTOM_PADDING)
+        local bottomPadding = PixelPerfect.Scale(frame, UI_SPACING)
 
         bottomBar:ClearAllPoints()
         bottomBar:SetPoint("TOPLEFT", gridArea, "BOTTOMLEFT", 0, -bottomBarGap)
@@ -360,38 +356,38 @@ function addon:CreateMainFrame()
         PixelPerfect.Height(titleBar, TITLE_HEIGHT)
 
         titleBar.text:ClearAllPoints()
-        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", 8, 0)
+        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", UI_SPACING, 0)
 
         close:ClearAllPoints()
-        PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -6, 1)
+        PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -UI_SPACING, 1)
 
         scaleButton:ClearAllPoints()
-        PixelPerfect.Point(scaleButton, "RIGHT", close, "LEFT", -TITLE_BUTTON_GAP, 0)
+        PixelPerfect.Point(scaleButton, "RIGHT", close, "LEFT", -UI_SPACING, 0)
 
         leadershipHelp:ClearAllPoints()
-        PixelPerfect.Point(leadershipHelp, "RIGHT", scaleButton, "LEFT", -TITLE_BUTTON_GAP, 0)
+        PixelPerfect.Point(leadershipHelp, "RIGHT", scaleButton, "LEFT", -UI_SPACING, 0)
 
         LayoutMainContent()
 
         btnLoadRoster:ClearAllPoints()
         PixelPerfect.Point(btnLoadRoster, "LEFT", bottomBar, "LEFT", 0, 0)
         btnApply:ClearAllPoints()
-        PixelPerfect.Point(btnApply, "LEFT", btnLoadRoster, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnApply, "LEFT", btnLoadRoster, "RIGHT", UI_SPACING, 0)
         btnSave:ClearAllPoints()
-        PixelPerfect.Point(btnSave, "LEFT", btnApply, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnSave, "LEFT", btnApply, "RIGHT", UI_SPACING, 0)
         btnSplitOddEven:ClearAllPoints()
-        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnSave, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnSave, "RIGHT", UI_SPACING, 0)
         btnSplitHalves:ClearAllPoints()
-        PixelPerfect.Point(btnSplitHalves, "LEFT", btnSplitOddEven, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnSplitHalves, "LEFT", btnSplitOddEven, "RIGHT", UI_SPACING, 0)
         btnInvite:ClearAllPoints()
-        PixelPerfect.Point(btnInvite, "LEFT", btnSplitHalves, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnInvite, "LEFT", btnSplitHalves, "RIGHT", UI_SPACING, 0)
         btnDisband:ClearAllPoints()
-        PixelPerfect.Point(btnDisband, "LEFT", btnInvite, "RIGHT", BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnDisband, "LEFT", btnInvite, "RIGHT", UI_SPACING, 0)
 
         btnImport:ClearAllPoints()
         PixelPerfect.Point(btnImport, "RIGHT", bottomBar, "RIGHT", 0, 0)
         btnExport:ClearAllPoints()
-        PixelPerfect.Point(btnExport, "RIGHT", btnImport, "LEFT", -BUTTON_PADDING, 0)
+        PixelPerfect.Point(btnExport, "RIGHT", btnImport, "LEFT", -UI_SPACING, 0)
     end)
 
     frame:HookScript("OnShow", PixelPerfect.RequestRefresh)

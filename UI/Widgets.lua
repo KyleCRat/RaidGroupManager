@@ -3,16 +3,29 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
 local TITLE_HEIGHT = addon.TITLE_HEIGHT
+local UI_SPACING = addon.UI_SPACING
 
 local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
 local BUTTON_BACKGROUND = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local BUTTON_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
 local BUTTON_BORDER_HOVER = COLOR_BLACK
 local BUTTON_HIGHLIGHT = { r = 0.3, g = 0.3, b = 0.3, a = 0.5 }
+local INPUT_BACKGROUND = { r = 0.14, g = 0.14, b = 0.14, a = 0.95 }
+local INPUT_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
+local INPUT_BORDER_FOCUS = { r = 0.7, g = 0.7, b = 0.7, a = 1 }
+local INPUT_PLACEHOLDER = { r = 0.55, g = 0.55, b = 0.55, a = 0.9 }
 local TITLE_BACKGROUND = { r = 0, g = 0, b = 0, a = 0.2 }
 local WINDOW_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 }
 
+local INPUT_TEXT_INSET = 6
+local MULTILINE_TEXT_INSET = 2
+
 local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
+
+local function UpdateEditBoxPlaceholder(editBox, placeholder)
+    local text = editBox:GetText()
+    placeholder:SetShown(not text or text == "")
+end
 
 function addon.SetStyledButtonSize(button, width, height)
     button.rgmWidth = width or button.rgmWidth
@@ -50,6 +63,80 @@ function addon.CreateStyledButton(parent, width, height, label)
     end)
 
     return button
+end
+
+function addon.SetEditBoxPlaceholder(editBox, placeholderText)
+    local placeholder = editBox.rgmPlaceholder or editBox.Instructions
+    if not placeholder then
+        return
+    end
+
+    placeholder:SetText(placeholderText)
+    UpdateEditBoxPlaceholder(editBox, placeholder)
+end
+
+function addon.StyleEditBox(editBox, placeholderText, options)
+    options = options or {}
+
+    local surface = options.surface or editBox
+    local multiline = options.multiline == true
+    local textInset = multiline and MULTILINE_TEXT_INSET or INPUT_TEXT_INSET
+
+    surface.rgmInputBackground = PixelPerfect.CreateSurface(
+        surface,
+        INPUT_BACKGROUND,
+        INPUT_BORDER_NORMAL,
+        1
+    )
+
+    editBox:SetAutoFocus(false)
+    editBox:SetFont(FONT, 12, "OUTLINE")
+    editBox:SetTextColor(1, 1, 1, 1)
+    editBox:SetJustifyH("LEFT")
+    editBox:SetJustifyV(multiline and "TOP" or "MIDDLE")
+    if multiline then
+        editBox:SetTextInsets(textInset, textInset, textInset, textInset)
+    else
+        editBox:SetTextInsets(textInset, textInset, 0, 0)
+    end
+
+    local placeholder = editBox:CreateFontString(nil, "ARTWORK")
+    placeholder:SetFont(FONT, 12, "OUTLINE")
+    placeholder:SetTextColor(
+        INPUT_PLACEHOLDER.r,
+        INPUT_PLACEHOLDER.g,
+        INPUT_PLACEHOLDER.b,
+        INPUT_PLACEHOLDER.a
+    )
+    placeholder:SetJustifyH("LEFT")
+    placeholder:SetJustifyV(multiline and "TOP" or "MIDDLE")
+    placeholder:SetWordWrap(multiline)
+    editBox.rgmPlaceholder = placeholder
+
+    PixelPerfect.RegisterLayout(editBox, function()
+        placeholder:ClearAllPoints()
+        if multiline then
+            PixelPerfect.Point(placeholder, "TOPLEFT", editBox, "TOPLEFT", textInset, -textInset)
+            PixelPerfect.Point(placeholder, "RIGHT", editBox, "RIGHT", -textInset, 0)
+        else
+            PixelPerfect.Point(placeholder, "LEFT", editBox, "LEFT", textInset, 0)
+            PixelPerfect.Point(placeholder, "RIGHT", editBox, "RIGHT", -textInset, 0)
+        end
+    end)
+
+    addon.SetEditBoxPlaceholder(editBox, placeholderText)
+
+    editBox:HookScript("OnTextChanged", function(self)
+        UpdateEditBoxPlaceholder(self, self.rgmPlaceholder)
+    end)
+
+    editBox:HookScript("OnEditFocusGained", function()
+        PixelPerfect.SetBorderColor(surface, INPUT_BORDER_FOCUS)
+    end)
+
+    editBox:HookScript("OnEditFocusLost", function()
+        PixelPerfect.SetBorderColor(surface, INPUT_BORDER_NORMAL)
+    end)
 end
 
 function addon.CreateCloseButton(parent, targetFrame)
@@ -116,10 +203,10 @@ function addon.CreateWindowFrame(title, width, height, backgroundAlpha)
         titleBar:SetFrameLevel(frame:GetFrameLevel() + 1)
 
         titleBar.text:ClearAllPoints()
-        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", 8, 0)
+        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", UI_SPACING, 0)
 
         close:ClearAllPoints()
-        PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -6, 1)
+        PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -UI_SPACING, 1)
     end)
 
     frame:HookScript("OnShow", PixelPerfect.RequestRefresh)

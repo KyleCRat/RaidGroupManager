@@ -64,7 +64,7 @@ Four browsing modes via tab bar:
 - Automatically converts parties to raids when needed, including starter invites when you are solo
 - Promotes saved assistant choices during invite flows when you are raid leader
 - Prints invite summaries for invited, offline, not invited, and did-not-accept characters
-- Raid leaders can disband the current raid from the button bar after confirmation
+- Raid leaders can disband the current raid from the button bar or a slash command after confirmation
 
 ### Spec Detection
 - Background inspect cache queues raid members for inspection as they join
@@ -95,6 +95,7 @@ Four browsing modes via tab bar:
 | `/rgm` | Toggle the main window |
 | `/rgm apply <name>` | Apply a saved layout by name |
 | `/rgm presets` | Re-add preset layouts to your list |
+| `/rgm disband`, `/rgm d` | Confirm and disband the current raid |
 | `/rgm debug` | Toggle debug messages |
 | `/rgm help` | Show command help |
 

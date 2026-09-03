@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Added `/rgm disband` and `/rgm d` commands for the confirmed raid-disband workflow
+
 ## [12.1.0-14] - 2026-09-03
 
 ### Added

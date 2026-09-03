@@ -248,6 +248,12 @@ function addon:SlashCommand(input)
         return
     end
 
+    if cmd == "disband" or cmd == "d" then
+        self:PromptDisbandRaid()
+
+        return
+    end
+
     if cmd == "debug" then
         self.debugMode = not self.debugMode
         self.db.profile.debugMode = self.debugMode
@@ -261,6 +267,7 @@ function addon:SlashCommand(input)
         self:Print("  /rgm - Toggle the main window")
         self:Print("  /rgm apply <name> - Apply a saved layout")
         self:Print("  /rgm presets - Add preset layouts to your list")
+        self:Print("  /rgm disband or /rgm d - Disband the raid")
         self:Print("  /rgm debug - Toggle debug messages")
         self:Print("  /rgm help - Show this help")
 

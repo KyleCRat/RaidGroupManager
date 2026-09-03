@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [12.1.0-15] - 2026-09-03
 
 ### Added
 - Added `/rgm disband` and `/rgm d` commands for the confirmed raid-disband workflow
@@ -35,12 +35,3 @@
 - Prevented Load Roster from clearing the board when you are not in a raid
 - Ensured `/rgm apply <name>` can load its layout before the main window has been opened
 - Refreshed layout tooltips immediately when the selected save target changes
-
-## [12.1.0-13] - 2026-09-03
-
-### Added
-- Added a confirmed, raid-leader-only Disband control to remove all other raid members
-
-### Changed
-- Shortened the bottom-bar invite button label to Invite
-- Routed chat output directly through Raid Group Manager with a light-gray RGM: prefix so chat addons can identify its messages correctly

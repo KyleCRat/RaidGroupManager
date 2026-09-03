@@ -1,5 +1,5 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
-local LPP = LibStub("LibPixelPerfect-1.0")
+local PixelPerfect = addon.PixelPerfect
 
 local ClassSpecRoles = addon.ClassSpecRoles
 local FONT = addon.FONT
@@ -98,47 +98,32 @@ local function CreateDragPreviewFrame()
     frame:EnableMouse(false)
     frame:Hide()
 
-    frame.bg = frame:CreateTexture(nil, "BACKGROUND")
-    frame.bg:SetAllPoints()
-    frame.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-
-    frame.borderTop = frame:CreateTexture(nil, "BORDER")
-    frame.borderTop:SetPoint("TOPLEFT")
-    frame.borderTop:SetPoint("TOPRIGHT")
-    frame.borderTop:SetHeight(1)
-    frame.borderTop:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
-
-    frame.borderBottom = frame:CreateTexture(nil, "BORDER")
-    frame.borderBottom:SetPoint("BOTTOMLEFT")
-    frame.borderBottom:SetPoint("BOTTOMRIGHT")
-    frame.borderBottom:SetHeight(1)
-    frame.borderBottom:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
-
-    frame.borderLeft = frame:CreateTexture(nil, "BORDER")
-    frame.borderLeft:SetPoint("TOPLEFT")
-    frame.borderLeft:SetPoint("BOTTOMLEFT")
-    frame.borderLeft:SetWidth(1)
-    frame.borderLeft:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
-
-    frame.borderRight = frame:CreateTexture(nil, "BORDER")
-    frame.borderRight:SetPoint("TOPRIGHT")
-    frame.borderRight:SetPoint("BOTTOMRIGHT")
-    frame.borderRight:SetWidth(1)
-    frame.borderRight:SetColorTexture(COLOR_DRAG_PREVIEW_BORDER.r, COLOR_DRAG_PREVIEW_BORDER.g, COLOR_DRAG_PREVIEW_BORDER.b, COLOR_DRAG_PREVIEW_BORDER.a)
+    frame.rgmWidth = 80
+    frame.rgmHeight = SLOT_HEIGHT
+    frame.bg = PixelPerfect.CreateBackground(frame, COLOR_DRAG_PREVIEW_BG_FALLBACK)
+    PixelPerfect.CreateBorder(frame, 1, COLOR_DRAG_PREVIEW_BORDER)
 
     frame.nameText = frame:CreateFontString(nil, "ARTWORK")
     frame.nameText:SetFont(FONT, 13, "OUTLINE")
-    frame.nameText:SetPoint("LEFT", 4, 0)
-    frame.nameText:SetPoint("RIGHT", -(ROLE_ICON_SIZE + 4), 0)
     frame.nameText:SetJustifyH("LEFT")
     frame.nameText:SetWordWrap(false)
 
     frame.roleIcon = frame:CreateTexture(nil, "ARTWORK")
-    frame.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
-    frame.roleIcon:SetPoint("RIGHT", -2, 0)
     frame.roleIcon:Hide()
 
     frame.leaderIcon = addon:CreateLeadershipIcon(frame, frame.roleIcon)
+
+    PixelPerfect.RegisterLayout(frame, function()
+        PixelPerfect.Size(frame, frame.rgmWidth, frame.rgmHeight)
+
+        frame.nameText:ClearAllPoints()
+        PixelPerfect.Point(frame.nameText, "LEFT", frame, "LEFT", 4, 0)
+        PixelPerfect.Point(frame.nameText, "RIGHT", frame, "RIGHT", -(ROLE_ICON_SIZE + 4), 0)
+
+        frame.roleIcon:ClearAllPoints()
+        PixelPerfect.Size(frame.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+        PixelPerfect.Point(frame.roleIcon, "RIGHT", frame, "RIGHT", -2, 0)
+    end)
 
     return frame
 end
@@ -217,8 +202,11 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
 
     local iconWidth = ROLE_ICON_SIZE + (leadershipTexture and LEADER_ICON_SIZE + 3 or 0)
 
-    frame:SetSize(math.max(80, width, math.ceil(textWidth + iconWidth + 16)), math.max(SLOT_HEIGHT, height))
     frame:SetScale(sourceScale)
+    frame.rgmWidth = math.max(80, width, math.ceil(textWidth + iconWidth + 16))
+    frame.rgmHeight = math.max(SLOT_HEIGHT, height)
+    PixelPerfect.Size(frame, frame.rgmWidth, frame.rgmHeight)
+    PixelPerfect.RequestRefresh()
     SetDragPreviewCursorOffset(frame, sourceFrame)
     frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, DRAG_PREVIEW_MIN_BG_ALPHA))
     frame.nameText:SetText(text)
@@ -279,7 +267,6 @@ end
 
 local function CreateSlotFrame(parent, slotIndex)
     local slot = CreateFrame("Frame", "RGMSlot" .. slotIndex, parent)
-    slot:SetSize(SLOT_WIDTH, SLOT_HEIGHT)
     slot.slotIndex = slotIndex
     slot.playerName = ""
 
@@ -290,27 +277,23 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.bg = slot:CreateTexture(nil, "BORDER")
     slot.bg:SetAllPoints()
     slot.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    PixelPerfect.DisablePixelSnap(slot.bg)
     slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
 
     -- Name text
     slot.nameText = slot:CreateFontString(nil, "ARTWORK")
     slot.nameText:SetFont(FONT, 14, "OUTLINE")
-    slot.nameText:SetPoint("LEFT", 4, 0)
-    slot.nameText:SetPoint("RIGHT", -(ROLE_ICON_SIZE + 4), 0)
     slot.nameText:SetJustifyH("LEFT")
     slot.nameText:SetWordWrap(false)
 
     -- Faded "Empty" text
     slot.emptyText = slot:CreateFontString(nil, "ARTWORK")
     slot.emptyText:SetFont(FONT, 12, "OUTLINE")
-    slot.emptyText:SetPoint("CENTER")
     slot.emptyText:SetText("Empty")
     slot.emptyText:SetTextColor(COLOR_EMPTY_TEXT.r, COLOR_EMPTY_TEXT.g, COLOR_EMPTY_TEXT.b, COLOR_EMPTY_TEXT.a)
 
     -- Role icon
     slot.roleIcon = slot:CreateTexture(nil, "ARTWORK")
-    slot.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
-    slot.roleIcon:SetPoint("RIGHT", -2, 0)
     slot.roleIcon:Hide()
 
     slot.leaderIcon = addon:CreateLeadershipIcon(slot, slot.roleIcon)
@@ -319,6 +302,7 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.dragHighlight = slot:CreateTexture(nil, "OVERLAY")
     slot.dragHighlight:SetAllPoints()
     slot.dragHighlight:SetColorTexture(COLOR_DRAG_HIGHLIGHT.r, COLOR_DRAG_HIGHLIGHT.g, COLOR_DRAG_HIGHLIGHT.b, COLOR_DRAG_HIGHLIGHT.a)
+    PixelPerfect.DisablePixelSnap(slot.dragHighlight)
     slot.dragHighlight:SetBlendMode("ADD")
     slot.dragHighlight:Hide()
 
@@ -553,49 +537,66 @@ function addon:RefreshAllSlots()
 end
 
 -- Create the 8-group x 5-slot grid layout
--- Create the 8-group x 5-slot grid layout
 -- 4 rows of 2 groups side by side, pixel-perfect spacing
 function addon:CreateGrid(parent)
-    local PS = LPP.PScale
+    local headers = {}
 
-    local slotWidth = PS(SLOT_WIDTH)
-    local slotHeight = PS(SLOT_HEIGHT)
-    local slotGap = PS(SLOT_GAP)
-    local groupGap = PS(GROUP_GAP)
-    local headerHeight = PS(GROUP_HEADER_HEIGHT)
-    local colWidth = PS(SLOT_WIDTH + 10)
-    local colSpacing = PS(4)
-
-    local groupSlotHeight = 5 * slotHeight + 4 * slotGap
-    local groupStride = headerHeight + groupSlotHeight + groupGap
-
-    for g = 1, 8 do
-        local col = (g - 1) % 2
-        local row = (g - 1 - col) / 2
-
-        local groupOffsetX = col * (colWidth + colSpacing)
-        local groupOffsetY = -(row * groupStride)
+    for groupIndex = 1, 8 do
 
         -- Group header — small, centered, faded
         local header = parent:CreateFontString(nil, "ARTWORK")
         header:SetFont(FONT, 12, "OUTLINE")
-        header:SetText("Group " .. g)
+        header:SetText("Group " .. groupIndex)
         header:SetTextColor(COLOR_GROUP_HEADER.r, COLOR_GROUP_HEADER.g, COLOR_GROUP_HEADER.b, COLOR_GROUP_HEADER.a)
-
-        local headerCenterX = groupOffsetX + (slotWidth / 2)
-        header:SetPoint("TOP", parent, "TOPLEFT", headerCenterX, groupOffsetY)
+        headers[groupIndex] = header
 
         -- Slots
-        for p = 1, 5 do
-            local slotIndex = (g - 1) * 5 + p
-            local slot = CreateSlotFrame(parent, slotIndex)
-
-            LPP.PSize(slot, SLOT_WIDTH, SLOT_HEIGHT)
-
-            local slotOffsetY = groupOffsetY - headerHeight - ((p - 1) * (slotHeight + slotGap))
-            slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
-
-            self.slots[slotIndex] = slot
+        for position = 1, 5 do
+            local slotIndex = (groupIndex - 1) * 5 + position
+            self.slots[slotIndex] = CreateSlotFrame(parent, slotIndex)
         end
     end
+
+    parent.groupHeaders = headers
+
+    PixelPerfect.RegisterLayout(parent, function()
+        local slotWidth = PixelPerfect.Scale(parent, SLOT_WIDTH)
+        local slotHeight = PixelPerfect.Scale(parent, SLOT_HEIGHT)
+        local slotGap = PixelPerfect.Scale(parent, SLOT_GAP)
+        local columnGap = PixelPerfect.Scale(parent, 14)
+        local groupGap = PixelPerfect.Scale(parent, GROUP_GAP)
+        local headerHeight = PixelPerfect.Scale(parent, GROUP_HEADER_HEIGHT)
+        local groupSlotHeight = (5 * slotHeight) + (4 * slotGap)
+        local groupStride = headerHeight + groupSlotHeight + groupGap
+
+        parent:SetSize((2 * slotWidth) + columnGap, (4 * groupStride) - groupGap)
+
+        for groupIndex = 1, 8 do
+            local column = (groupIndex - 1) % 2
+            local row = (groupIndex - 1 - column) / 2
+            local groupOffsetX = column * (slotWidth + columnGap)
+            local groupOffsetY = -(row * groupStride)
+            local header = headers[groupIndex]
+
+            header:ClearAllPoints()
+            header:SetPoint("TOP", parent, "TOPLEFT", groupOffsetX + (slotWidth / 2), groupOffsetY)
+
+            for position = 1, 5 do
+                local slotIndex = (groupIndex - 1) * 5 + position
+                local slot = self.slots[slotIndex]
+                local slotOffsetY = groupOffsetY - headerHeight - ((position - 1) * (slotHeight + slotGap))
+
+                slot:ClearAllPoints()
+                slot:SetSize(slotWidth, slotHeight)
+                slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
+
+                slot.emptyText:ClearAllPoints()
+                slot.emptyText:SetPoint("CENTER", slot, "CENTER", 0, 0)
+
+                slot.roleIcon:ClearAllPoints()
+                PixelPerfect.Size(slot.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+                PixelPerfect.Point(slot.roleIcon, "RIGHT", slot, "RIGHT", -2, 0)
+            end
+        end
+    end)
 end

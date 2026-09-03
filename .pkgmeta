@@ -6,7 +6,13 @@ manual-changelog:
 
 enable-nolib-creation: yes
 
+externals:
+    Libs/LibPopupSlider-1.0:
+        url: https://github.com/KyleCRat/LibPopupSlider.git
+        tag: 1.1.0
+
 ignore:
     - Docs
+    - "Libs/LibPopupSlider-1.0/tests"
     - "*.png"
     - "*.afdesign"

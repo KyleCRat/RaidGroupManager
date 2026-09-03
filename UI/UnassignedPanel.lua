@@ -1,5 +1,6 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
+local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
 local ROLE_ICON_SIZE = 16
 local ROW_HEIGHT = 20
@@ -33,6 +34,8 @@ local TAB_MODES = { MODE_RAID, MODE_GUILD, MODE_ROLE, MODE_ROSTER }
 local COLOR_TAB_ACTIVE = { r = 0.3, g = 0.3, b = 0.3, a = 0.9 }
 local COLOR_TAB_INACTIVE = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local COLOR_TAB_HOVER = { r = 0.22, g = 0.22, b = 0.22, a = 0.95 }
+local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
+local COLOR_EDIT_BACKGROUND = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 
 --------------------------------------------------------------------------------
 -- Minimal JSON parser for wowutils roster imports
@@ -262,27 +265,22 @@ end
 
 local function CreateEntryRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -((index - 1) * ROW_HEIGHT))
-    row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    row.rowIndex = index
     row:EnableMouse(true)
     row:RegisterForDrag("LeftButton")
 
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
     row.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    PixelPerfect.DisablePixelSnap(row.bg)
     row.bg:SetVertexColor(0.5, 0.5, 0.5, ROW_BG_ALPHA)
 
     row.nameText = row:CreateFontString(nil, "ARTWORK")
     row.nameText:SetFont(FONT, 12, "OUTLINE")
-    row.nameText:SetPoint("LEFT", 2, 0)
-    row.nameText:SetPoint("RIGHT", -(ROLE_ICON_SIZE + 4), 0)
     row.nameText:SetJustifyH("LEFT")
     row.nameText:SetWordWrap(false)
 
     row.roleIcon = row:CreateTexture(nil, "ARTWORK")
-    row.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
-    row.roleIcon:SetPoint("RIGHT", -2, 0)
     row.roleIcon:Hide()
 
     row.leaderIcon = addon:CreateLeadershipIcon(row, row.roleIcon)
@@ -380,22 +378,13 @@ function addon:CreateUnassignedPanel(parent)
     self.unassignedMode = MODE_RAID
     self.unassignedTabs = {}
 
-    local tabWidth = math.floor(parent:GetWidth() / #TAB_MODES)
-    local prevTab
-
     for _, mode in ipairs(TAB_MODES) do
         local tab = CreateFrame("Button", nil, parent)
-        tab:SetSize(tabWidth, 18)
-
-        if prevTab then
-            tab:SetPoint("LEFT", prevTab, "RIGHT", 0, 0)
-        else
-            tab:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-        end
 
         tab.bg = tab:CreateTexture(nil, "BACKGROUND")
         tab.bg:SetAllPoints()
         tab.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+        PixelPerfect.DisablePixelSnap(tab.bg)
 
         tab.label = tab:CreateFontString(nil, "OVERLAY")
         tab.label:SetFont(FONT, 11, "OUTLINE")
@@ -424,16 +413,13 @@ function addon:CreateUnassignedPanel(parent)
         end)
 
         self.unassignedTabs[mode] = tab
-        prevTab = tab
     end
 
     UpdateTabHighlights(self.unassignedTabs, MODE_RAID)
 
     -- Roster import button (visible only in Roster mode)
-    local importRosterBtn = self.CreateStyledButton(parent, parent:GetWidth(), 18, "Import Roster from WowUtils")
+    local importRosterBtn = addon.CreateStyledButton(parent, 1, 18, "Import Roster from WowUtils")
     importRosterBtn.label:SetFont(FONT, 10, "OUTLINE")
-    importRosterBtn:SetPoint("TOPLEFT", 0, -20)
-    importRosterBtn:SetPoint("TOPRIGHT", 0, -20)
     importRosterBtn:Hide()
 
     importRosterBtn:SetScript("OnClick", function()
@@ -443,25 +429,15 @@ function addon:CreateUnassignedPanel(parent)
     self.importRosterBtn = importRosterBtn
 
     -- Dark background container for scroll area
-    local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    scrollBg:SetPoint("TOPLEFT", 0, -20)
-    scrollBg:SetPoint("BOTTOMRIGHT", 0, 30)
+    local scrollBg = CreateFrame("Frame", nil, parent)
     self.unassignedScrollBg = scrollBg
-    scrollBg:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    scrollBg:SetBackdropColor(PANEL_BG_COLOR.r, PANEL_BG_COLOR.g, PANEL_BG_COLOR.b, PANEL_BG_COLOR.a)
-    scrollBg:SetBackdropBorderColor(0, 0, 0, 1)
+    PixelPerfect.CreateSurface(scrollBg, PANEL_BG_COLOR, COLOR_BLACK, 1)
 
     -- Scroll frame for entries
     local scrollFrame = CreateFrame("ScrollFrame", "RGMUnassignedScroll", scrollBg, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 2, -2)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 2)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
-    content:SetSize(scrollFrame:GetWidth(), 1)
+    PixelPerfect.Size(content, 1, 1, 1, 1)
     scrollFrame:SetScrollChild(content)
 
     self.unassignedContent = content
@@ -472,21 +448,12 @@ function addon:CreateUnassignedPanel(parent)
     end
 
     -- Name input field + Add button at the bottom
-    local addEditBox = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
-    addEditBox:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
-    addEditBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -44, 0)
-    addEditBox:SetHeight(20)
+    local addEditBox = CreateFrame("EditBox", nil, parent)
     addEditBox:SetFont(FONT, 12, "OUTLINE")
     addEditBox:SetAutoFocus(false)
     addEditBox:SetTextColor(1, 1, 1, 1)
     addEditBox:SetMaxLetters(40)
-    addEditBox:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    addEditBox:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
-    addEditBox:SetBackdropBorderColor(0, 0, 0, 1)
+    PixelPerfect.CreateSurface(addEditBox, COLOR_EDIT_BACKGROUND, COLOR_BLACK, 1)
     addEditBox:SetTextInsets(4, 4, 0, 0)
 
     addEditBox:SetScript("OnEnterPressed", function(self)
@@ -501,8 +468,7 @@ function addon:CreateUnassignedPanel(parent)
         self:ClearFocus()
     end)
 
-    local addBtn = self.CreateStyledButton(parent, 40, 20, "Add")
-    addBtn:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    local addBtn = addon.CreateStyledButton(parent, 40, 20, "Add")
     addBtn:SetScript("OnClick", function()
         local name = strtrim(addEditBox:GetText())
         if name ~= "" then
@@ -510,6 +476,73 @@ function addon:CreateUnassignedPanel(parent)
             addEditBox:SetText("")
         end
     end)
+
+    PixelPerfect.RegisterLayout(parent, function()
+        local parentWidth = parent:GetWidth()
+        local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
+        local minimumContentHeight = PixelPerfect.Scale(content, 1, 1)
+
+        for tabIndex, mode in ipairs(TAB_MODES) do
+            local tab = self.unassignedTabs[mode]
+            local left = PixelPerfect.Scale(parent, parentWidth * (tabIndex - 1) / #TAB_MODES)
+            local right = PixelPerfect.Scale(parent, parentWidth * tabIndex / #TAB_MODES)
+
+            tab:ClearAllPoints()
+            tab:SetSize(right - left, PixelPerfect.Scale(tab, 18))
+            tab:SetPoint("TOPLEFT", parent, "TOPLEFT", left, 0)
+        end
+
+        importRosterBtn:ClearAllPoints()
+        addon.SetStyledButtonSize(importRosterBtn, parentWidth, 18)
+        PixelPerfect.Point(importRosterBtn, "TOPLEFT", parent, "TOPLEFT", 0, -20)
+
+        scrollBg:ClearAllPoints()
+        PixelPerfect.Point(
+            scrollBg,
+            "TOPLEFT",
+            parent,
+            "TOPLEFT",
+            0,
+            self.unassignedMode == MODE_ROSTER and -40 or -20
+        )
+        PixelPerfect.Point(scrollBg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 30)
+
+        scrollFrame:ClearAllPoints()
+        PixelPerfect.Point(scrollFrame, "TOPLEFT", scrollBg, "TOPLEFT", 2, -2)
+        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -22, 2)
+
+        content:SetWidth(math.max(PixelPerfect.Scale(content, 1, 1), scrollFrame:GetWidth()))
+        content:SetHeight(math.max(minimumContentHeight, (content.rgmEntryCount or 0) * rowHeight))
+
+        for index = 1, MAX_ROWS do
+            local row = self.unassignedRows[index]
+            row:ClearAllPoints()
+            row:SetHeight(rowHeight)
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -((index - 1) * rowHeight))
+            row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+            row.roleIcon:ClearAllPoints()
+            PixelPerfect.Size(row.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
+            PixelPerfect.Point(row.roleIcon, "RIGHT", row, "RIGHT", -2, 0)
+        end
+
+        addEditBox:ClearAllPoints()
+        PixelPerfect.Point(addEditBox, "BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
+        PixelPerfect.Point(addEditBox, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", -44, 0)
+        PixelPerfect.Height(addEditBox, 20)
+
+        addBtn:ClearAllPoints()
+        PixelPerfect.Point(addBtn, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    end)
+end
+
+local function SetUnassignedContentHeight(entryCount)
+    local content = addon.unassignedContent
+    local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
+    local minimumHeight = PixelPerfect.Scale(content, 1, 1)
+
+    content.rgmEntryCount = entryCount
+    content:SetHeight(math.max(minimumHeight, entryCount * rowHeight))
 end
 
 -- Build the set of player names currently assigned in the grid (excludes templates)
@@ -643,8 +676,7 @@ function addon:RefreshUnassigned()
         end
     end
 
-    local totalHeight = math.max(1, #entries * ROW_HEIGHT)
-    self.unassignedContent:SetHeight(totalHeight)
+    SetUnassignedContentHeight(#entries)
 end
 
 function addon:RefreshUnassignedRoleMode()
@@ -688,8 +720,7 @@ function addon:RefreshUnassignedRoleMode()
         end
     end
 
-    local totalHeight = math.max(1, #entries * ROW_HEIGHT)
-    self.unassignedContent:SetHeight(totalHeight)
+    SetUnassignedContentHeight(#entries)
 end
 
 --------------------------------------------------------------------------------
@@ -703,11 +734,11 @@ function addon:UpdateRosterImportButton()
 
     if self.unassignedMode == MODE_ROSTER then
         self.importRosterBtn:Show()
-        self.unassignedScrollBg:SetPoint("TOPLEFT", 0, -40)
     else
         self.importRosterBtn:Hide()
-        self.unassignedScrollBg:SetPoint("TOPLEFT", 0, -20)
     end
+
+    PixelPerfect.RequestRefresh()
 end
 
 function addon:RefreshUnassignedRosterMode()
@@ -765,19 +796,12 @@ function addon:RefreshUnassignedRosterMode()
         end
     end
 
-    local totalHeight = math.max(1, #entries * ROW_HEIGHT)
-    self.unassignedContent:SetHeight(totalHeight)
+    SetUnassignedContentHeight(#entries)
 end
 
 --------------------------------------------------------------------------------
 -- Roster import modal
 --------------------------------------------------------------------------------
-
-local ROSTER_BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1,
-}
 
 local WOWUTILS_ROSTER_URL = "https://wowutils.com/viserio-cooldowns/groups"
 local ROSTER_IMPORT_FRAME_LEVEL = 100
@@ -796,8 +820,12 @@ local function CreateRosterImportInstructionLine(parent, text, yOffset)
     local line = parent:CreateFontString(nil, "ARTWORK")
     line:SetFont(FONT, 12, "OUTLINE")
     line:SetTextColor(0.9, 0.9, 0.9, 1)
-    line:SetPoint("TOPLEFT", 12, yOffset)
     line:SetText(text)
+
+    PixelPerfect.RegisterLayout(line, function()
+        line:ClearAllPoints()
+        PixelPerfect.Point(line, "TOPLEFT", parent, "TOPLEFT", 12, yOffset)
+    end)
 
     return line
 end
@@ -813,51 +841,18 @@ function addon:ShowWowutilsRosterURLWindow()
         return
     end
 
-    local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    frame:SetSize(430, 120)
-    frame:SetPoint("CENTER")
-    frame:SetBackdrop(ROSTER_BACKDROP)
-    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.98)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetToplevel(true)
-    frame:EnableMouse(true)
-
-    local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(addon.TITLE_HEIGHT)
-
-    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
-    titleBar.bg:SetAllPoints()
-    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
-
-    titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
-    titleBar.text:SetFont(FONT, 16, "OUTLINE")
-    titleBar.text:SetPoint("LEFT", 8, 0)
-    titleBar.text:SetText("Wowutils URL")
-    titleBar.text:SetTextColor(1, 1, 1, 1)
-
-    local close = addon.CreateCloseButton(titleBar, frame)
-    close:SetPoint("RIGHT", -6, 1)
+    local frame = addon.CreateWindowFrame("Wowutils URL", 430, 120, 0.98)
 
     local hint = frame:CreateFontString(nil, "ARTWORK")
     hint:SetFont(FONT, 12, "OUTLINE")
-    hint:SetPoint("TOPLEFT", 12, -(addon.TITLE_HEIGHT + 10))
     hint:SetText("Press Ctrl+C to copy.")
     hint:SetTextColor(0.85, 0.85, 0.85, 1)
 
-    local editBox = CreateFrame("EditBox", nil, frame, "BackdropTemplate")
-    editBox:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
-    editBox:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
-    editBox:SetHeight(24)
+    local editBox = CreateFrame("EditBox", nil, frame)
     editBox:SetFont(FONT, 12, "OUTLINE")
     editBox:SetAutoFocus(false)
     editBox:SetTextColor(1, 1, 1, 1)
-    editBox:SetBackdrop(ROSTER_BACKDROP)
-    editBox:SetBackdropColor(0, 0, 0, 1)
-    editBox:SetBackdropBorderColor(0, 0, 0, 1)
+    PixelPerfect.CreateSurface(editBox, COLOR_BLACK, COLOR_BLACK, 1)
     editBox:SetTextInsets(6, 6, 0, 0)
     editBox:SetText(WOWUTILS_ROSTER_URL)
     editBox:SetScript("OnEscapePressed", function(eb)
@@ -881,6 +876,16 @@ function addon:ShowWowutilsRosterURLWindow()
     self.wowutilsRosterURLFrame = frame
     self.wowutilsRosterURLEditBox = editBox
 
+    PixelPerfect.RegisterLayout(frame, function()
+        hint:ClearAllPoints()
+        PixelPerfect.Point(hint, "TOPLEFT", frame, "TOPLEFT", 12, -(addon.TITLE_HEIGHT + 10))
+
+        editBox:ClearAllPoints()
+        PixelPerfect.Point(editBox, "TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
+        PixelPerfect.Point(editBox, "RIGHT", frame, "RIGHT", -12, 0)
+        PixelPerfect.Height(editBox, 24)
+    end)
+
     frame:SetFrameLevel(ROSTER_URL_FRAME_LEVEL)
 
     frame:Show()
@@ -897,22 +902,9 @@ function addon:ShowRosterImportWindow()
         return
     end
 
-    local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    frame:SetSize(580, 520)
-    frame:SetPoint("CENTER")
-    frame:SetBackdrop(ROSTER_BACKDROP)
-    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
-    frame:SetFrameStrata("DIALOG")
+    local frame, titleBar = addon.CreateWindowFrame("Import Roster from Wowutils via JSON", 580, 520)
     frame:SetFrameLevel(ROSTER_IMPORT_FRAME_LEVEL)
-    frame:SetToplevel(true)
     frame:SetMovable(true)
-    frame:EnableMouse(true)
-
-    local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(addon.TITLE_HEIGHT)
     titleBar:EnableMouse(true)
 
     titleBar:SetScript("OnMouseDown", function(_, button)
@@ -923,33 +915,18 @@ function addon:ShowRosterImportWindow()
 
     titleBar:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
+        PixelPerfect.SnapCurrentPoint(frame)
     end)
-
-    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
-    titleBar.bg:SetAllPoints()
-    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
-
-    titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
-    titleBar.text:SetFont(FONT, 16, "OUTLINE")
-    titleBar.text:SetPoint("LEFT", 8, 0)
-    titleBar.text:SetText("Import Roster from Wowutils via JSON")
-    titleBar.text:SetTextColor(1, 1, 1, 1)
-
-    local close = addon.CreateCloseButton(titleBar, frame)
-    close:SetPoint("RIGHT", -6, 1)
 
     local firstLine = CreateRosterImportInstructionLine(frame, "Go to", -(addon.TITLE_HEIGHT + 12))
 
     local urlText = frame:CreateFontString(nil, "ARTWORK")
     urlText:SetFont(FONT, 12, "OUTLINE")
     urlText:SetTextColor(0.45, 0.75, 1, 1)
-    urlText:SetPoint("LEFT", firstLine, "RIGHT", 5, 0)
     urlText:SetText(WOWUTILS_ROSTER_URL)
 
     local copyURLBtn = addon.CreateStyledButton(frame, 68, 20, "Copy URL")
     copyURLBtn.label:SetFont(FONT, 10, "OUTLINE")
-    copyURLBtn:SetPoint("LEFT", urlText, "RIGHT", 8, 0)
     copyURLBtn:SetScript("OnClick", function()
         self:ShowWowutilsRosterURLWindow()
     end)
@@ -959,21 +936,16 @@ function addon:ShowRosterImportWindow()
     end
 
     -- Edit box area
-    local editBg = frame:CreateTexture(nil, "BACKGROUND")
-    editBg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 158))
-    editBg:SetPoint("BOTTOMRIGHT", -10, 50)
-    editBg:SetColorTexture(0, 0, 0, 1)
+    local editBg = CreateFrame("Frame", nil, frame)
+    PixelPerfect.CreateBackground(editBg, COLOR_BLACK)
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", editBg, "TOPLEFT", 4, -4)
-    scrollFrame:SetPoint("BOTTOMRIGHT", editBg, "BOTTOMRIGHT", -22, 4)
+    local scrollFrame = CreateFrame("ScrollFrame", nil, editBg, "UIPanelScrollFrameTemplate")
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)
     editBox:SetAutoFocus(false)
     editBox:SetFont(FONT, 12, "OUTLINE")
     editBox:SetTextColor(1, 1, 1, 1)
-    editBox:SetWidth(scrollFrame:GetWidth())
 
     editBox:SetScript("OnEscapePressed", function(eb)
         eb:ClearFocus()
@@ -990,9 +962,28 @@ function addon:ShowRosterImportWindow()
     self.rosterImportFrame = frame
 
     local importBtn = addon.CreateStyledButton(frame, 80, 24, "Import")
-    importBtn:SetPoint("BOTTOMRIGHT", -10, 10)
     importBtn:SetScript("OnClick", function()
         self:DoRosterImport()
+    end)
+
+    PixelPerfect.RegisterLayout(frame, function()
+        urlText:ClearAllPoints()
+        PixelPerfect.Point(urlText, "LEFT", firstLine, "RIGHT", 5, 0)
+
+        copyURLBtn:ClearAllPoints()
+        PixelPerfect.Point(copyURLBtn, "LEFT", urlText, "RIGHT", 8, 0)
+
+        editBg:ClearAllPoints()
+        PixelPerfect.Point(editBg, "TOPLEFT", frame, "TOPLEFT", 10, -(addon.TITLE_HEIGHT + 158))
+        PixelPerfect.Point(editBg, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 50)
+
+        scrollFrame:ClearAllPoints()
+        PixelPerfect.Point(scrollFrame, "TOPLEFT", editBg, "TOPLEFT", 4, -4)
+        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", editBg, "BOTTOMRIGHT", -22, 4)
+        editBox:SetWidth(math.max(PixelPerfect.Scale(editBox, 1, 1), scrollFrame:GetWidth()))
+
+        importBtn:ClearAllPoints()
+        PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
     end)
 
     frame:Show()

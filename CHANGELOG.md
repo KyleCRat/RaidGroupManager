@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Reworked interface scaling so borders remain one physical pixel and grid, roster, and layout rows retain consistent pixel-snapped spacing at every supported scale
+- Replaced the embedded LibPixelPerfect copy with RGM-owned pixel utilities and moved LibPopupSlider to its canonical Git submodule
+
 ## [12.1.0-13] - 2026-09-03
 
 ### Added

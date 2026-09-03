@@ -813,10 +813,32 @@ function addon:GetLeadershipIconTextureForRank(rank)
     return nil
 end
 
+local function LayoutLeadershipName(frame)
+    local normalPadding = frame.rgmLeadershipRoleIconSize + 4
+    local leadershipPadding = frame.rgmLeadershipRoleIconSize + addon.LEADERSHIP_ICON_SIZE + 7
+
+    frame.nameText:ClearAllPoints()
+    addon.PixelPerfect.Point(frame.nameText, "LEFT", frame, "LEFT", frame.rgmLeadershipLeftOffset, 0)
+    addon.PixelPerfect.Point(
+        frame.nameText,
+        "RIGHT",
+        frame,
+        "RIGHT",
+        frame.rgmHasLeadershipIcon and -leadershipPadding or -normalPadding,
+        0
+    )
+end
+
 function addon:CreateLeadershipIcon(parent, relativeTo)
     local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(self.LEADERSHIP_ICON_SIZE, self.LEADERSHIP_ICON_SIZE)
-    icon:SetPoint("RIGHT", relativeTo, "LEFT", -1, 0)
+    local pixelPerfect = self.PixelPerfect
+
+    pixelPerfect.RegisterLayout(icon, function()
+        icon:ClearAllPoints()
+        pixelPerfect.Size(icon, self.LEADERSHIP_ICON_SIZE, self.LEADERSHIP_ICON_SIZE)
+        pixelPerfect.Point(icon, "RIGHT", relativeTo, "LEFT", -1, 0)
+    end)
+
     icon:SetTexture(self.LEADER_ICON_TEXTURE)
     icon:Hide()
 
@@ -824,12 +846,18 @@ function addon:CreateLeadershipIcon(parent, relativeTo)
 end
 
 function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSize, desaturated)
-    local normalPadding = roleIconSize + 4
-    local leadershipPadding = roleIconSize + self.LEADERSHIP_ICON_SIZE + 7
+    frame.rgmLeadershipLeftOffset = leftOffset
+    frame.rgmLeadershipRoleIconSize = roleIconSize
+    frame.rgmHasLeadershipIcon = iconTexture ~= nil
 
-    frame.nameText:ClearAllPoints()
-    frame.nameText:SetPoint("LEFT", leftOffset, 0)
-    frame.nameText:SetPoint("RIGHT", iconTexture and -leadershipPadding or -normalPadding, 0)
+    if not frame.rgmLeadershipLayoutRegistered then
+        frame.rgmLeadershipLayoutRegistered = true
+        self.PixelPerfect.RegisterLayout(frame, function()
+            LayoutLeadershipName(frame)
+        end)
+    else
+        LayoutLeadershipName(frame)
+    end
 
     if iconTexture then
         frame.leaderIcon:SetTexture(iconTexture)

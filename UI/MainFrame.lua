@@ -1,6 +1,6 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
-local LPP = LibStub("LibPixelPerfect-1.0")
 local LibPopupSlider = LibStub("LibPopupSlider-1.0")
+local PixelPerfect = addon.PixelPerfect
 
 local FRAME_WIDTH = 700
 local FRAME_HEIGHT = 600
@@ -23,87 +23,15 @@ local BOTTOM_BUTTON_FONT_SIZE = 12
 local BOTTOM_BUTTON_TEXT_PADDING = 6
 local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
 local BOTTOM_BUTTON_MIN_WIDTH = 30
-local BOTTOM_BAR_HEIGHT = 38
 
-local GRID_WIDTH = 314
 local UNASSIGNED_WIDTH = 180
-local LAYOUT_WIDTH = 160
 
-local BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1,
-}
-
-local BUTTON_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
-local BUTTON_BORDER_HOVER = { r = 0, g = 0, b = 0, a = 1 }
-
-local function SetButtonBorderColor(btn, color)
-    btn.borderTop:SetColorTexture(color.r, color.g, color.b, color.a)
-    btn.borderBottom:SetColorTexture(color.r, color.g, color.b, color.a)
-    btn.borderLeft:SetColorTexture(color.r, color.g, color.b, color.a)
-    btn.borderRight:SetColorTexture(color.r, color.g, color.b, color.a)
-end
-
--- Create a styled button matching ReadyCheckConsumables pattern
-local function CreateStyledButton(parent, width, height, label)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(width, height)
-
-    btn.bg = btn:CreateTexture(nil, "BACKGROUND")
-    btn.bg:SetAllPoints()
-    btn.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
-
-    btn.borderTop = btn:CreateTexture(nil, "BORDER")
-    btn.borderTop:SetPoint("TOPLEFT")
-    btn.borderTop:SetPoint("TOPRIGHT")
-    btn.borderTop:SetHeight(1)
-
-    btn.borderBottom = btn:CreateTexture(nil, "BORDER")
-    btn.borderBottom:SetPoint("BOTTOMLEFT")
-    btn.borderBottom:SetPoint("BOTTOMRIGHT")
-    btn.borderBottom:SetHeight(1)
-
-    btn.borderLeft = btn:CreateTexture(nil, "BORDER")
-    btn.borderLeft:SetPoint("TOPLEFT")
-    btn.borderLeft:SetPoint("BOTTOMLEFT")
-    btn.borderLeft:SetWidth(1)
-
-    btn.borderRight = btn:CreateTexture(nil, "BORDER")
-    btn.borderRight:SetPoint("TOPRIGHT")
-    btn.borderRight:SetPoint("BOTTOMRIGHT")
-    btn.borderRight:SetWidth(1)
-
-    SetButtonBorderColor(btn, BUTTON_BORDER_NORMAL)
-
-    btn.highlight = btn:CreateTexture(nil, "ARTWORK")
-    btn.highlight:SetAllPoints()
-    btn.highlight:SetColorTexture(0.3, 0.3, 0.3, 0.5)
-    btn.highlight:SetBlendMode("ADD")
-    btn.highlight:Hide()
-
-    btn.label = btn:CreateFontString(nil, "OVERLAY")
-    btn.label:SetFont(FONT, 12, "OUTLINE")
-    btn.label:SetPoint("CENTER")
-    btn.label:SetText(label)
-
-    btn:SetScript("OnEnter", function(self)
-        self.highlight:Show()
-        SetButtonBorderColor(self, BUTTON_BORDER_HOVER)
-    end)
-
-    btn:SetScript("OnLeave", function(self)
-        self.highlight:Hide()
-        SetButtonBorderColor(self, BUTTON_BORDER_NORMAL)
-    end)
-
-    return btn
-end
-
-addon.CreateStyledButton = CreateStyledButton
+local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
+local MAIN_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.9 }
+local TITLE_BACKGROUND = { r = 0, g = 0, b = 0, a = 0.2 }
 
 local function CreateBottomBarButton(parent, label)
-    local btn = CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
+    local btn = addon.CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
     btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
 
     local textWidth = btn.label:GetStringWidth() or 0
@@ -112,18 +40,18 @@ local function CreateBottomBarButton(parent, label)
     end
 
     local width = math.max(BOTTOM_BUTTON_MIN_WIDTH, math.ceil(textWidth + (BOTTOM_BUTTON_TEXT_PADDING * 2) + BOTTOM_BUTTON_TEXT_FIT_BUFFER))
-    btn:SetWidth(width)
-
-    btn.label:ClearAllPoints()
-    btn.label:SetPoint("LEFT", BOTTOM_BUTTON_TEXT_PADDING, 0)
-    btn.label:SetPoint("RIGHT", -BOTTOM_BUTTON_TEXT_PADDING, 0)
+    addon.SetStyledButtonSize(btn, width, BUTTON_HEIGHT)
     btn.label:SetJustifyH("CENTER")
     btn.label:SetWordWrap(false)
 
+    PixelPerfect.RegisterLayout(btn, function()
+        btn.label:ClearAllPoints()
+        PixelPerfect.Point(btn.label, "LEFT", btn, "LEFT", BOTTOM_BUTTON_TEXT_PADDING, 0)
+        PixelPerfect.Point(btn.label, "RIGHT", btn, "RIGHT", -BOTTOM_BUTTON_TEXT_PADDING, 0)
+    end)
+
     return btn
 end
-
-local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
 local function ClampScalePercent(value)
     if type(value) ~= "number" then
@@ -160,35 +88,11 @@ local function SetScaleButtonText(button, value)
     button.label:SetText("Scale: " .. value .. "%")
 end
 
-local function CreateCloseButton(parent, targetFrame)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(14, 14)
-
-    btn.icon = btn:CreateTexture(nil, "ARTWORK")
-    btn.icon:SetAllPoints()
-    btn.icon:SetTexture(CLOSE_TEXTURE)
-    btn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
-
-    btn:SetScript("OnEnter", function()
-        btn.icon:SetVertexColor(1, 1, 1, 1)
-    end)
-
-    btn:SetScript("OnLeave", function()
-        btn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
-    end)
-
-    btn:SetScript("OnClick", function()
-        targetFrame:Hide()
-    end)
-
-    return btn
-end
-
-addon.CreateCloseButton = CreateCloseButton
-
 local function CreateLeadershipHelpButton(parent)
     local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(TITLE_ICON_BUTTON_SIZE, TITLE_ICON_BUTTON_SIZE)
+    PixelPerfect.RegisterLayout(btn, function()
+        PixelPerfect.Size(btn, TITLE_ICON_BUTTON_SIZE, TITLE_ICON_BUTTON_SIZE)
+    end)
 
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
     btn.icon:SetAllPoints()
@@ -215,27 +119,26 @@ function addon:CreateMainFrame()
         return
     end
 
-    local frame = CreateFrame("Frame", "RGMFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
+    local frame = CreateFrame("Frame", "RGMFrame", UIParent)
     local initialScale = GetSavedScalePercent(self)
     frame:SetScale(initialScale / 100)
-    self:RestoreFramePosition(frame)
-    frame:SetBackdrop(BACKDROP)
-    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
+    frame.bg = PixelPerfect.CreateSurface(frame, MAIN_BACKGROUND, COLOR_BLACK, 1)
     frame:SetFrameStrata("HIGH")
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
     frame:Hide()
+
+    PixelPerfect.Size(frame, FRAME_WIDTH, FRAME_HEIGHT)
+    self:RestoreFramePosition(frame)
 
     frame:SetMovable(true)
     frame:EnableMouse(true)
 
     -- Title bar
     local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(TITLE_HEIGHT)
+    PixelPerfect.Point(titleBar, "TOPLEFT", frame, "TOPLEFT", 1, -1)
+    PixelPerfect.Point(titleBar, "TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+    PixelPerfect.Height(titleBar, TITLE_HEIGHT)
     titleBar:EnableMouse(true)
 
     titleBar:SetScript("OnMouseDown", function(_, button)
@@ -246,27 +149,23 @@ function addon:CreateMainFrame()
 
     titleBar:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
+        PixelPerfect.SnapCurrentPoint(frame)
         self:SaveFramePosition()
+        PixelPerfect.RequestRefresh()
     end)
 
-    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
-    titleBar.bg:SetAllPoints()
-    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
+    titleBar.bg = PixelPerfect.CreateBackground(titleBar, TITLE_BACKGROUND)
 
     titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
     titleBar.text:SetFont(FONT, 16, "OUTLINE")
-    titleBar.text:SetPoint("LEFT", 8, 0)
     titleBar.text:SetText("Raid Group Manager")
     titleBar.text:SetTextColor(1, 1, 1, 1)
 
     -- Close button
-    local close = CreateCloseButton(titleBar, frame)
-    close:SetPoint("RIGHT", -6, 1)
+    local close = addon.CreateCloseButton(titleBar, frame)
 
-    local scaleButton = CreateStyledButton(titleBar, SCALE_BUTTON_WIDTH, SCALE_BUTTON_HEIGHT, "")
+    local scaleButton = addon.CreateStyledButton(titleBar, SCALE_BUTTON_WIDTH, SCALE_BUTTON_HEIGHT, "")
     scaleButton.label:SetFont(FONT, 10, "OUTLINE")
-    scaleButton:SetPoint("RIGHT", close, "LEFT", -TITLE_BUTTON_GAP, 0)
     SetScaleButtonText(scaleButton, initialScale)
 
     frame.scalePopup = LibPopupSlider:Create(scaleButton, {
@@ -275,6 +174,7 @@ function addon:CreateMainFrame()
         step = FRAME_SCALE_STEP,
         label = "Scale",
         font = FONT,
+        showBorder = false,
         formatValue = function(value)
             return value .. "%"
         end,
@@ -282,13 +182,32 @@ function addon:CreateMainFrame()
             self.db.profile.frameScale = value / 100
             frame:SetScale(value / 100)
             SetScaleButtonText(scaleButton, value)
+            PixelPerfect.RequestRefresh()
         end,
     })
-    frame.scalePopup:SetValue(initialScale, true)
+    local scalePopup = frame.scalePopup
+    scalePopup.rgmWidth = scalePopup:GetWidth()
+    PixelPerfect.CreateBorder(scalePopup, 1, COLOR_BLACK)
+    PixelPerfect.RegisterLayout(scalePopup, function()
+        if not scalePopup.rgmHeight and scalePopup:GetHeight() > 0 then
+            scalePopup.rgmHeight = scalePopup:GetHeight()
+        end
+
+        PixelPerfect.Width(scalePopup, scalePopup.rgmWidth)
+
+        if scalePopup.rgmHeight then
+            PixelPerfect.Height(scalePopup, scalePopup.rgmHeight)
+        end
+
+        if scalePopup:IsShown() then
+            PixelPerfect.SnapCurrentPoint(scalePopup)
+        end
+    end)
+    scalePopup:HookScript("OnShow", PixelPerfect.RequestRefresh)
+    scalePopup:SetValue(initialScale, true)
     frame.scaleButton = scaleButton
 
     local leadershipHelp = CreateLeadershipHelpButton(titleBar)
-    leadershipHelp:SetPoint("RIGHT", scaleButton, "LEFT", -TITLE_BUTTON_GAP, 0)
     frame.leadershipHelpButton = leadershipHelp
 
     frame.titleBar = titleBar
@@ -300,26 +219,14 @@ function addon:CreateMainFrame()
     -- Helper text at top of body
     local helperText = frame:CreateFontString(nil, "ARTWORK")
     helperText:SetFont(FONT, 12, "OUTLINE")
-    helperText:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, contentTop)
     helperText:SetText("Drag slots to swap players")
     helperText:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
     local gridTop = contentTop - 16
 
-    -- Exact grid content height — pixel-perfect to match CreateGrid
-    local PS = LPP.PScale
-    local slotHeight = PS(addon.SLOT_HEIGHT)
-    local slotGap = PS(addon.SLOT_GAP)
-    local groupGap = PS(addon.GROUP_GAP)
-    local headerHeight = PS(addon.GROUP_HEADER_HEIGHT)
-    local groupSlotHeight = 5 * slotHeight + 4 * slotGap
-    local groupStride = headerHeight + groupSlotHeight + groupGap
-    local gridHeight = 4 * groupStride - groupGap
-
-    -- Grid area (left) — sized to exact grid content
+    -- GridSlot.lua owns the snapped grid dimensions.
     local gridArea = CreateFrame("Frame", nil, frame)
-    gridArea:SetPoint("TOPLEFT", 10, gridTop)
-    gridArea:SetSize(GRID_WIDTH, gridHeight)
+    PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", 10, gridTop)
     frame.gridArea = gridArea
 
     -- Create grid slots
@@ -328,83 +235,139 @@ function addon:CreateMainFrame()
     -- Panels span from helper text level to grid bottom
     -- Unassigned panel (center-right)
     local unassignedArea = CreateFrame("Frame", nil, frame)
-    unassignedArea:SetPoint("TOPLEFT", frame, "TOPLEFT", GRID_WIDTH + 20, contentTop)
-    unassignedArea:SetPoint("BOTTOM", gridArea, "BOTTOM", 0, 0)
-    unassignedArea:SetWidth(UNASSIGNED_WIDTH)
+    PixelPerfect.Point(unassignedArea, "TOPLEFT", gridArea, "TOPRIGHT", 10, contentTop - gridTop)
+    PixelPerfect.Point(unassignedArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
+    PixelPerfect.Width(unassignedArea, UNASSIGNED_WIDTH)
     frame.unassignedArea = unassignedArea
 
     self:CreateUnassignedPanel(unassignedArea)
 
-    -- Layout panel (far right) — bottom aligns with grid
+    -- Layout panel (far right), bottom-aligned with the grid.
     local layoutArea = CreateFrame("Frame", nil, frame)
-    layoutArea:SetPoint("TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
-    layoutArea:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
-    layoutArea:SetPoint("BOTTOM", gridArea, "BOTTOM", 0, 0)
+    PixelPerfect.Point(layoutArea, "TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
+    PixelPerfect.Point(layoutArea, "RIGHT", frame, "RIGHT", -10, 0)
+    PixelPerfect.Point(layoutArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
     frame.layoutArea = layoutArea
 
     self:CreateLayoutPanel(layoutArea)
 
     -- Bottom button bar
     local bottomBar = CreateFrame("Frame", nil, frame)
-    bottomBar:SetPoint("BOTTOMLEFT", 10, 8)
-    bottomBar:SetPoint("BOTTOMRIGHT", -10, 8)
-    bottomBar:SetHeight(BUTTON_HEIGHT)
+    PixelPerfect.Point(bottomBar, "BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
+    PixelPerfect.Point(bottomBar, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 8)
+    PixelPerfect.Height(bottomBar, BUTTON_HEIGHT)
     frame.bottomBar = bottomBar
 
     local btnLoadRoster = CreateBottomBarButton(bottomBar, "Load Roster")
-    btnLoadRoster:SetPoint("LEFT")
     btnLoadRoster:SetScript("OnClick", function()
         self:LoadCurrentRoster()
     end)
 
     local btnApply = CreateBottomBarButton(bottomBar, "Apply")
-    btnApply:SetPoint("LEFT", btnLoadRoster, "RIGHT", BUTTON_PADDING, 0)
     btnApply:SetScript("OnClick", function()
         self:StartApply()
     end)
     self.applyButton = btnApply
 
     local btnSave = CreateBottomBarButton(bottomBar, "Save")
-    btnSave:SetPoint("LEFT", btnApply, "RIGHT", BUTTON_PADDING, 0)
     btnSave:SetScript("OnClick", function()
         self:PromptSaveLayout()
     end)
 
     local btnSplitOddEven = CreateBottomBarButton(bottomBar, "Split Odd/Even")
-    btnSplitOddEven:SetPoint("LEFT", btnSave, "RIGHT", BUTTON_PADDING, 0)
     btnSplitOddEven:SetScript("OnClick", function()
         self:SplitOddEven()
     end)
 
     local btnSplitHalves = CreateBottomBarButton(bottomBar, "Split Halves")
-    btnSplitHalves:SetPoint("LEFT", btnSplitOddEven, "RIGHT", BUTTON_PADDING, 0)
     btnSplitHalves:SetScript("OnClick", function()
         self:SplitHalves()
     end)
 
     local btnInvite = CreateBottomBarButton(bottomBar, "Invite")
-    btnInvite:SetPoint("LEFT", btnSplitHalves, "RIGHT", BUTTON_PADDING, 0)
     btnInvite:SetScript("OnClick", function()
         self:ShowInviteToGroupPopup()
     end)
 
     local btnDisband = CreateBottomBarButton(bottomBar, "Disband")
-    btnDisband:SetPoint("LEFT", btnInvite, "RIGHT", BUTTON_PADDING, 0)
     btnDisband:SetScript("OnClick", function()
         self:PromptDisbandRaid()
     end)
 
     local btnImport = CreateBottomBarButton(bottomBar, "Import")
-    btnImport:SetPoint("RIGHT", bottomBar, "RIGHT", 0, 0)
     btnImport:SetScript("OnClick", function()
         self:ShowImportWindow()
     end)
 
     local btnExport = CreateBottomBarButton(bottomBar, "Export")
-    btnExport:SetPoint("RIGHT", btnImport, "LEFT", -BUTTON_PADDING, 0)
     btnExport:SetScript("OnClick", function()
         self:ShowExportWindow()
     end)
+
+    PixelPerfect.RegisterLayout(frame, function()
+        PixelPerfect.Size(frame, FRAME_WIDTH, FRAME_HEIGHT)
+        self:RestoreFramePosition(frame)
+
+        titleBar:ClearAllPoints()
+        PixelPerfect.Point(titleBar, "TOPLEFT", frame, "TOPLEFT", 1, -1)
+        PixelPerfect.Point(titleBar, "TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+        PixelPerfect.Height(titleBar, TITLE_HEIGHT)
+
+        titleBar.text:ClearAllPoints()
+        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", 8, 0)
+
+        close:ClearAllPoints()
+        PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -6, 1)
+
+        scaleButton:ClearAllPoints()
+        PixelPerfect.Point(scaleButton, "RIGHT", close, "LEFT", -TITLE_BUTTON_GAP, 0)
+
+        leadershipHelp:ClearAllPoints()
+        PixelPerfect.Point(leadershipHelp, "RIGHT", scaleButton, "LEFT", -TITLE_BUTTON_GAP, 0)
+
+        helperText:ClearAllPoints()
+        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", 10, contentTop)
+
+        gridArea:ClearAllPoints()
+        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", 10, gridTop)
+
+        unassignedArea:ClearAllPoints()
+        PixelPerfect.Point(unassignedArea, "TOPLEFT", gridArea, "TOPRIGHT", 10, contentTop - gridTop)
+        PixelPerfect.Point(unassignedArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
+        PixelPerfect.Width(unassignedArea, UNASSIGNED_WIDTH)
+
+        layoutArea:ClearAllPoints()
+        PixelPerfect.Point(layoutArea, "TOPLEFT", unassignedArea, "TOPRIGHT", 10, 0)
+        PixelPerfect.Point(layoutArea, "RIGHT", frame, "RIGHT", -10, 0)
+        PixelPerfect.Point(layoutArea, "BOTTOM", gridArea, "BOTTOM", 0, 0)
+
+        bottomBar:ClearAllPoints()
+        PixelPerfect.Point(bottomBar, "BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
+        PixelPerfect.Point(bottomBar, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 8)
+        PixelPerfect.Height(bottomBar, BUTTON_HEIGHT)
+
+        btnLoadRoster:ClearAllPoints()
+        PixelPerfect.Point(btnLoadRoster, "LEFT", bottomBar, "LEFT", 0, 0)
+        btnApply:ClearAllPoints()
+        PixelPerfect.Point(btnApply, "LEFT", btnLoadRoster, "RIGHT", BUTTON_PADDING, 0)
+        btnSave:ClearAllPoints()
+        PixelPerfect.Point(btnSave, "LEFT", btnApply, "RIGHT", BUTTON_PADDING, 0)
+        btnSplitOddEven:ClearAllPoints()
+        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnSave, "RIGHT", BUTTON_PADDING, 0)
+        btnSplitHalves:ClearAllPoints()
+        PixelPerfect.Point(btnSplitHalves, "LEFT", btnSplitOddEven, "RIGHT", BUTTON_PADDING, 0)
+        btnInvite:ClearAllPoints()
+        PixelPerfect.Point(btnInvite, "LEFT", btnSplitHalves, "RIGHT", BUTTON_PADDING, 0)
+        btnDisband:ClearAllPoints()
+        PixelPerfect.Point(btnDisband, "LEFT", btnInvite, "RIGHT", BUTTON_PADDING, 0)
+
+        btnImport:ClearAllPoints()
+        PixelPerfect.Point(btnImport, "RIGHT", bottomBar, "RIGHT", 0, 0)
+        btnExport:ClearAllPoints()
+        PixelPerfect.Point(btnExport, "RIGHT", btnImport, "LEFT", -BUTTON_PADDING, 0)
+    end)
+
+    frame:HookScript("OnShow", PixelPerfect.RequestRefresh)
 end
 
 function addon:LoadCurrentRoster()
@@ -458,7 +421,7 @@ function addon:ShowToast(message)
     if not frame.toast then
         local toast = frame:CreateFontString(nil, "OVERLAY")
         toast:SetFont(FONT, 14, "OUTLINE")
-        toast:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+        PixelPerfect.Point(toast, "TOP", frame, "BOTTOM", 0, -4)
         toast:SetTextColor(1, 0.2, 0.2, 1)
         frame.toast = toast
     end
@@ -490,9 +453,11 @@ end
 
 function addon:RestoreFramePosition(frame)
     local pos = self.db.profile.framePosition
+    frame:ClearAllPoints()
+
     if pos then
-        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+        PixelPerfect.Point(frame, pos.point, UIParent, pos.relPoint, pos.x, pos.y)
     else
-        frame:SetPoint("CENTER")
+        PixelPerfect.Point(frame, "CENTER", UIParent, "CENTER", 0, 0)
     end
 end

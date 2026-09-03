@@ -1,42 +1,32 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
+local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
 local ROW_HEIGHT = 24
 local MAX_LAYOUT_ROWS = 20
 local PANEL_BG_COLOR = addon.PANEL_BG_COLOR
+local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
+local ROW_BACKGROUND = { r = 0.15, g = 0.15, b = 0.15, a = 0.9 }
 
 local dragSourceIndex = nil
 
 local function CreateLayoutRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -((index - 1) * ROW_HEIGHT))
-    row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    row.rowIndex = index
     row:EnableMouse(true)
     row:RegisterForDrag("LeftButton")
 
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-    row.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    row.bg:SetVertexColor(0.15, 0.15, 0.15, 0.9)
-
-    row.borderTex = row:CreateTexture(nil, "BORDER")
-    row.borderTex:SetPoint("TOPLEFT", -1, 1)
-    row.borderTex:SetPoint("BOTTOMRIGHT", 1, -1)
-    row.borderTex:SetColorTexture(0, 0, 0, 1)
+    row.bg = PixelPerfect.CreateBackground(row, ROW_BACKGROUND)
+    PixelPerfect.CreateBorder(row, 1, COLOR_BLACK)
 
     row.nameText = row:CreateFontString(nil, "ARTWORK")
     row.nameText:SetFont(FONT, 12, "OUTLINE")
-    row.nameText:SetPoint("LEFT", 4, 0)
-    row.nameText:SetPoint("RIGHT", -22, 0)
     row.nameText:SetJustifyH("LEFT")
     row.nameText:SetWordWrap(false)
     row.nameText:SetTextColor(1, 1, 1, 1)
 
     -- Delete button (same close texture as frame close button)
     local deleteBtn = CreateFrame("Button", nil, row)
-    deleteBtn:SetSize(14, 14)
-    deleteBtn:SetPoint("RIGHT", -4, 0)
 
     deleteBtn.icon = deleteBtn:CreateTexture(nil, "ARTWORK")
     deleteBtn.icon:SetAllPoints()
@@ -62,6 +52,7 @@ local function CreateLayoutRow(parent, index)
     row.selectedHighlight = row:CreateTexture(nil, "ARTWORK")
     row.selectedHighlight:SetAllPoints()
     row.selectedHighlight:SetColorTexture(0.3, 0.3, 0.3, 0.3)
+    PixelPerfect.DisablePixelSnap(row.selectedHighlight)
     row.selectedHighlight:SetBlendMode("ADD")
     row.selectedHighlight:Hide()
 
@@ -69,6 +60,7 @@ local function CreateLayoutRow(parent, index)
     row.hoverHighlight = row:CreateTexture(nil, "ARTWORK")
     row.hoverHighlight:SetAllPoints()
     row.hoverHighlight:SetColorTexture(0.2, 0.2, 0.2, 0.3)
+    PixelPerfect.DisablePixelSnap(row.hoverHighlight)
     row.hoverHighlight:SetBlendMode("ADD")
     row.hoverHighlight:Hide()
 
@@ -143,19 +135,15 @@ end
 function addon:CreateLayoutPanel(parent)
     local headerText = parent:CreateFontString(nil, "ARTWORK")
     headerText:SetFont(FONT, 12, "OUTLINE")
-    headerText:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -2)
     headerText:SetText("Layouts")
     headerText:SetTextColor(1, 1, 1, 1)
 
     -- Auto-save checkbox
     local autoSaveCheck = CreateFrame("CheckButton", "RGMAutoSaveCheck", parent, "UICheckButtonTemplate")
-    autoSaveCheck:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 2)
-    autoSaveCheck:SetSize(20, 20)
     autoSaveCheck:SetChecked(false)
 
     local autoSaveLabel = parent:CreateFontString(nil, "ARTWORK")
     autoSaveLabel:SetFont(FONT, 10, "OUTLINE")
-    autoSaveLabel:SetPoint("RIGHT", autoSaveCheck, "LEFT", -2, 0)
     autoSaveLabel:SetText("Auto-save")
     autoSaveLabel:SetTextColor(0.7, 0.7, 0.7, 1)
 
@@ -164,24 +152,14 @@ function addon:CreateLayoutPanel(parent)
     end)
 
     -- Dark background container for scroll area
-    local scrollBg = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    scrollBg:SetPoint("TOPLEFT", 0, -22)
-    scrollBg:SetPoint("BOTTOMRIGHT", 0, 0)
-    scrollBg:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    scrollBg:SetBackdropColor(PANEL_BG_COLOR.r, PANEL_BG_COLOR.g, PANEL_BG_COLOR.b, PANEL_BG_COLOR.a)
-    scrollBg:SetBackdropBorderColor(0, 0, 0, 1)
+    local scrollBg = CreateFrame("Frame", nil, parent)
+    PixelPerfect.CreateSurface(scrollBg, PANEL_BG_COLOR, COLOR_BLACK, 1)
 
     -- Scroll frame for layout list
     local scrollFrame = CreateFrame("ScrollFrame", "RGMLayoutScroll", scrollBg, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 2, -2)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -22, 2)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
-    content:SetSize(scrollFrame:GetWidth(), 1)
+    PixelPerfect.Size(content, 1, 1, 1, 1)
     scrollFrame:SetScrollChild(content)
 
     self.layoutContent = content
@@ -190,6 +168,46 @@ function addon:CreateLayoutPanel(parent)
     for i = 1, MAX_LAYOUT_ROWS do
         self.layoutRows[i] = CreateLayoutRow(content, i)
     end
+
+    PixelPerfect.RegisterLayout(parent, function()
+        local rowHeight = PixelPerfect.Scale(content, ROW_HEIGHT)
+
+        headerText:ClearAllPoints()
+        PixelPerfect.Point(headerText, "TOPLEFT", parent, "TOPLEFT", 0, -2)
+
+        autoSaveCheck:ClearAllPoints()
+        PixelPerfect.Point(autoSaveCheck, "TOPRIGHT", parent, "TOPRIGHT", 0, 2)
+        PixelPerfect.Size(autoSaveCheck, 20, 20)
+
+        autoSaveLabel:ClearAllPoints()
+        PixelPerfect.Point(autoSaveLabel, "RIGHT", autoSaveCheck, "LEFT", -2, 0)
+
+        scrollBg:ClearAllPoints()
+        PixelPerfect.Point(scrollBg, "TOPLEFT", parent, "TOPLEFT", 0, -22)
+        PixelPerfect.Point(scrollBg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+
+        scrollFrame:ClearAllPoints()
+        PixelPerfect.Point(scrollFrame, "TOPLEFT", scrollBg, "TOPLEFT", 2, -2)
+        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -22, 2)
+        content:SetWidth(math.max(PixelPerfect.Scale(content, 1, 1), scrollFrame:GetWidth()))
+        content:SetHeight(math.max(PixelPerfect.Scale(content, 1, 1), (content.rgmRowCount or 0) * rowHeight))
+
+        for index = 1, MAX_LAYOUT_ROWS do
+            local row = self.layoutRows[index]
+            row:ClearAllPoints()
+            row:SetHeight(rowHeight)
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -((index - 1) * rowHeight))
+            row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+            row.nameText:ClearAllPoints()
+            PixelPerfect.Point(row.nameText, "LEFT", row, "LEFT", 4, 0)
+            PixelPerfect.Point(row.nameText, "RIGHT", row, "RIGHT", -22, 0)
+
+            row.deleteBtn:ClearAllPoints()
+            PixelPerfect.Size(row.deleteBtn, 14, 14)
+            PixelPerfect.Point(row.deleteBtn, "RIGHT", row, "RIGHT", -4, 0)
+        end
+    end)
 
     self:RefreshLayoutList()
 end
@@ -229,8 +247,10 @@ function addon:RefreshLayoutList()
         end
     end
 
-    local totalHeight = math.max(1, #layouts * ROW_HEIGHT)
-    self.layoutContent:SetHeight(totalHeight)
+    local rowHeight = PixelPerfect.Scale(self.layoutContent, ROW_HEIGHT)
+    local minimumHeight = PixelPerfect.Scale(self.layoutContent, 1, 1)
+    self.layoutContent.rgmRowCount = #layouts
+    self.layoutContent:SetHeight(math.max(minimumHeight, #layouts * rowHeight))
 end
 
 function addon:SelectAndLoadLayout(layoutIndex)

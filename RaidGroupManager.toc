@@ -18,6 +18,8 @@ MinimapButton.lua
 GroupAssignment.lua
 Invite.lua
 Disband.lua
+UI/PixelPerfect.lua
+UI/Widgets.lua
 UI/MainFrame.lua
 UI/GridSlot.lua
 UI/UnassignedPanel.lua

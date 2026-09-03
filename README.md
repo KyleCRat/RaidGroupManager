@@ -83,7 +83,7 @@ Four browsing modes via tab bar:
 - Toast notifications for layout apply results and other feedback
 - Clearer button borders and tab hover states for easier interaction
 - Custom role icons distinguishing melee DPS from ranged DPS
-- Pixel-perfect grid rendering via LibPixelPerfect
+- Scale-aware pixel snapping for consistent grid spacing and interface borders
 
 ## Slash Commands
 
@@ -97,9 +97,10 @@ Four browsing modes via tab bar:
 
 ## Dependencies
 
-All libraries are bundled in the `Libs/` folder:
+All libraries are bundled in the `Libs/` folder, with LibPopupSlider maintained as a Git submodule:
 - Ace3 (AceAddon, AceDB, AceConsole, AceEvent, AceSerializer)
 - LibDataBroker-1.1
 - LibDBIcon-1.0
-- LibPixelPerfect-1.0
 - LibPopupSlider-1.0
+
+Development clones should initialize embedded submodules with `git submodule update --init --recursive`.

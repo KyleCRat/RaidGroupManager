@@ -1,5 +1,6 @@
 .editorconfig text eol=lf
 .gitattributes text eol=lf
+.gitmodules text eol=lf
 *.lua text eol=lf
 *.toc text eol=lf
 *.xml text eol=lf

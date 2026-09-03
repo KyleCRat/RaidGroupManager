@@ -1,0 +1,4 @@
+[submodule "Libs/LibPopupSlider-1.0"]
+	path = Libs/LibPopupSlider-1.0
+	url = https://github.com/KyleCRat/LibPopupSlider.git
+	branch = main

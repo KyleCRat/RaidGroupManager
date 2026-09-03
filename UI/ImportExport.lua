@@ -1,12 +1,8 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
+local PixelPerfect = addon.PixelPerfect
 local FONT = addon.FONT
-
-local BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1,
-}
+local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
 
 local FORMAT_PAIRED = 1
 local FORMAT_HORIZONTAL = 2
@@ -209,22 +205,8 @@ end
 -- Modal window creation
 
 local function CreateModalFrame(title, width, height)
-    local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    frame:SetSize(width, height)
-    frame:SetPoint("CENTER")
-    frame:SetBackdrop(BACKDROP)
-    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetToplevel(true)
+    local frame, titleBar = addon.CreateWindowFrame(title, width, height)
     frame:SetMovable(true)
-    frame:EnableMouse(true)
-
-    -- Title bar
-    local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(addon.TITLE_HEIGHT)
     titleBar:EnableMouse(true)
 
     titleBar:SetScript("OnMouseDown", function(_, button)
@@ -235,43 +217,24 @@ local function CreateModalFrame(title, width, height)
 
     titleBar:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
+        PixelPerfect.SnapCurrentPoint(frame)
     end)
-
-    titleBar.bg = titleBar:CreateTexture(nil, "BACKGROUND")
-    titleBar.bg:SetAllPoints()
-    titleBar.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-    titleBar.bg:SetVertexColor(0, 0, 0, 0.2)
-
-    titleBar.text = titleBar:CreateFontString(nil, "ARTWORK")
-    titleBar.text:SetFont(FONT, 16, "OUTLINE")
-    titleBar.text:SetPoint("LEFT", 8, 0)
-    titleBar.text:SetText(title)
-    titleBar.text:SetTextColor(1, 1, 1, 1)
-
-    -- Close button
-    local close = addon.CreateCloseButton(titleBar, frame)
-    close:SetPoint("RIGHT", -6, 1)
 
     return frame
 end
 
-local function CreateMultiLineEditBox(parent)
+local function CreateMultiLineEditBox(parent, topOffset, bottomOffset)
     -- Background behind the scroll area
-    local bg = parent:CreateTexture(nil, "BACKGROUND")
-    bg:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 10))
-    bg:SetPoint("BOTTOMRIGHT", -10, 50)
-    bg:SetColorTexture(0, 0, 0, 1)
+    local bg = CreateFrame("Frame", nil, parent)
+    PixelPerfect.CreateBackground(bg, COLOR_BLACK)
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", bg, "TOPLEFT", 4, -4)
-    scrollFrame:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT", -22, 4)
+    local scrollFrame = CreateFrame("ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)
     editBox:SetAutoFocus(false)
     editBox:SetFont(FONT, 12, "OUTLINE")
     editBox:SetTextColor(1, 1, 1, 1)
-    editBox:SetWidth(scrollFrame:GetWidth())
     editBox:SetScript("OnEscapePressed", function(self)
         self:ClearFocus()
     end)
@@ -286,6 +249,17 @@ local function CreateMultiLineEditBox(parent)
     scrollFrame:EnableMouse(true)
     scrollFrame:SetScript("OnMouseDown", function()
         editBox:SetFocus()
+    end)
+
+    PixelPerfect.RegisterLayout(bg, function()
+        bg:ClearAllPoints()
+        PixelPerfect.Point(bg, "TOPLEFT", parent, "TOPLEFT", 10, -(addon.TITLE_HEIGHT + topOffset))
+        PixelPerfect.Point(bg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", -10, bottomOffset)
+
+        scrollFrame:ClearAllPoints()
+        PixelPerfect.Point(scrollFrame, "TOPLEFT", bg, "TOPLEFT", 4, -4)
+        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", bg, "BOTTOMRIGHT", -22, 4)
+        editBox:SetWidth(math.max(PixelPerfect.Scale(editBox, 1, 1), scrollFrame:GetWidth()))
     end)
 
     return scrollFrame, editBox
@@ -314,16 +288,9 @@ function addon:ShowExportWindow()
         { id = FORMAT_ENCODED, label = "Encoded" },
     }
 
-    local prevBtn = nil
     for _, fmt in ipairs(formats) do
         local btn = addon.CreateStyledButton(frame, 80, 20, fmt.label)
         btn.label:SetFont(FONT, 10, "OUTLINE")
-
-        if prevBtn then
-            btn:SetPoint("LEFT", prevBtn, "RIGHT", 4, 0)
-        else
-            btn:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 6))
-        end
 
         btn.formatId = fmt.id
         formatButtons[fmt.id] = btn
@@ -333,18 +300,30 @@ function addon:ShowExportWindow()
             addon:UpdateExportFormatButtons()
             addon:UpdateExportText()
         end)
-
-        prevBtn = btn
     end
 
     self.exportFormatButtons = formatButtons
 
     -- Text area
-    local scrollFrame, editBox = CreateMultiLineEditBox(frame)
-    scrollFrame:ClearAllPoints()
-    scrollFrame:SetPoint("TOPLEFT", 10, -(addon.TITLE_HEIGHT + 32))
-    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 10)
+    local _, editBox = CreateMultiLineEditBox(frame, 32, 10)
     self.exportEditBox = editBox
+
+    PixelPerfect.RegisterLayout(frame, function()
+        local previousButton
+
+        for _, format in ipairs(formats) do
+            local button = formatButtons[format.id]
+            button:ClearAllPoints()
+
+            if previousButton then
+                PixelPerfect.Point(button, "LEFT", previousButton, "RIGHT", 4, 0)
+            else
+                PixelPerfect.Point(button, "TOPLEFT", frame, "TOPLEFT", 10, -(addon.TITLE_HEIGHT + 6))
+            end
+
+            previousButton = button
+        end
+    end)
 
     self:UpdateExportFormatButtons()
     frame:Show()
@@ -358,9 +337,9 @@ function addon:UpdateExportFormatButtons()
 
     for id, btn in pairs(self.exportFormatButtons) do
         if id == self.exportFormat then
-            btn.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
+            btn.bg:SetVertexColor(0.2, 0.2, 0.2, 0.9)
         else
-            btn.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+            btn.bg:SetVertexColor(0.1, 0.1, 0.1, 0.9)
         end
     end
 end
@@ -403,13 +382,17 @@ function addon:ShowImportWindow()
     frame:SetFrameLevel(frame:GetFrameLevel() + 20)
     self.importFrame = frame
 
-    local scrollFrame, editBox = CreateMultiLineEditBox(frame)
+    local _, editBox = CreateMultiLineEditBox(frame, 10, 50)
     self.importEditBox = editBox
 
     local importBtn = addon.CreateStyledButton(frame, 80, 24, "Import")
-    importBtn:SetPoint("BOTTOMRIGHT", -10, 10)
     importBtn:SetScript("OnClick", function()
         self:DoImport()
+    end)
+
+    PixelPerfect.RegisterLayout(frame, function()
+        importBtn:ClearAllPoints()
+        PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
     end)
 
     frame:Show()

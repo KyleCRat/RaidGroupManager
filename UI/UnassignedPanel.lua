@@ -827,14 +827,13 @@ end
 local WOWUTILS_ROSTER_URL = "https://wowutils.com/viserio-cooldowns/groups"
 local ROSTER_IMPORT_FRAME_LEVEL = 100
 local ROSTER_URL_FRAME_LEVEL = 110
-local ROSTER_IMPORT_INSTRUCTIONS = {
-    "Select your Group",
-    "Go to Roster",
-    "Click the 'Import / Export' Dropdown",
+local ROSTER_IMPORT_STEPS = {
+    "Select the Group you wish to import from",
+    "Click the 'v' dropdown in the top-right corner",
     "Select 'Export Roster JSON'",
-    "Select which Members you wish to export",
+    "Select the members you want to export",
     "Select 'Copy to Clipboard'",
-    "Paste Below:",
+    "Paste the roster JSON below",
 }
 
 local function CreateRosterImportInstructionLine(parent, text, yOffset)
@@ -940,7 +939,7 @@ function addon:ShowRosterImportWindow()
     local instructionTop = addon.TITLE_HEIGHT + UI_SPACING
     local instructionLineHeight = 17
     local instructionTextHeight = 12
-    local firstLine = CreateRosterImportInstructionLine(frame, "Go to", -instructionTop)
+    local firstLine = CreateRosterImportInstructionLine(frame, "1. Go to", -instructionTop)
 
     local urlText = frame:CreateFontString(nil, "ARTWORK")
     urlText:SetFont(FONT, 12, "OUTLINE")
@@ -953,8 +952,9 @@ function addon:ShowRosterImportWindow()
         self:ShowWowutilsRosterURLWindow()
     end)
 
-    for i, instruction in ipairs(ROSTER_IMPORT_INSTRUCTIONS) do
-        CreateRosterImportInstructionLine(frame, instruction, -(instructionTop + (i * instructionLineHeight)))
+    for i, instruction in ipairs(ROSTER_IMPORT_STEPS) do
+        local stepText = string.format("%d. %s", i + 1, instruction)
+        CreateRosterImportInstructionLine(frame, stepText, -(instructionTop + (i * instructionLineHeight)))
     end
 
     -- Edit box area
@@ -991,12 +991,12 @@ function addon:ShowRosterImportWindow()
     PixelPerfect.RegisterLayout(frame, function()
         local importFooterHeight = UI_SPACING + IMPORT_BUTTON_HEIGHT + UI_SPACING
         local editTopOffset = instructionTop
-            + (#ROSTER_IMPORT_INSTRUCTIONS * instructionLineHeight)
+            + (#ROSTER_IMPORT_STEPS * instructionLineHeight)
             + instructionTextHeight
             + UI_SPACING
 
         urlText:ClearAllPoints()
-        PixelPerfect.Point(urlText, "LEFT", firstLine, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(urlText, "LEFT", firstLine, "RIGHT", 2, 0)
 
         copyURLBtn:ClearAllPoints()
         PixelPerfect.Point(copyURLBtn, "LEFT", urlText, "RIGHT", UI_SPACING, 0)

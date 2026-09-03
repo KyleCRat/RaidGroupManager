@@ -1104,18 +1104,14 @@ function addon:ShowRosterImportWindow()
         self:DoRosterImport()
     end)
 
-    local groupByMemberCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    local groupByMemberCheck = addon.CreateModernCheckbox(frame, "Group by Member Name")
     groupByMemberCheck:SetChecked(self.db.char.importedRosterGroupByMember == true)
-
-    local groupByMemberLabel = frame:CreateFontString(nil, "ARTWORK")
-    groupByMemberLabel:SetFont(FONT, 11, "OUTLINE")
-    groupByMemberLabel:SetText("Group by Member Name")
-    groupByMemberLabel:SetTextColor(0.75, 0.75, 0.75, 1)
 
     self.rosterImportGroupByMemberCheck = groupByMemberCheck
 
     PixelPerfect.RegisterLayout(frame, function()
-        local importFooterHeight = UI_SPACING + IMPORT_BUTTON_HEIGHT + UI_SPACING
+        local footerControlHeight = math.max(IMPORT_BUTTON_HEIGHT, addon.MODERN_CHECKBOX_SIZE)
+        local importFooterHeight = UI_SPACING + footerControlHeight + UI_SPACING
         local editTopOffset = instructionTop
             + (#ROSTER_IMPORT_STEPS * instructionLineHeight)
             + instructionTextHeight
@@ -1140,11 +1136,14 @@ function addon:ShowRosterImportWindow()
         PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -UI_SPACING, UI_SPACING)
 
         groupByMemberCheck:ClearAllPoints()
-        PixelPerfect.Point(groupByMemberCheck, "RIGHT", groupByMemberLabel, "LEFT", -2, 0)
-        PixelPerfect.Size(groupByMemberCheck, 20, 20)
-
-        groupByMemberLabel:ClearAllPoints()
-        PixelPerfect.Point(groupByMemberLabel, "RIGHT", importBtn, "LEFT", -UI_SPACING, 0)
+        PixelPerfect.Point(
+            groupByMemberCheck,
+            "RIGHT",
+            importBtn,
+            "LEFT",
+            -(UI_SPACING + groupByMemberCheck.rgmControlWidth - addon.MODERN_CHECKBOX_SIZE),
+            0
+        )
     end)
 
     frame:Show()

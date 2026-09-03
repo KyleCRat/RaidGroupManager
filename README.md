@@ -20,8 +20,10 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Unmatched templates remain in place for manual assignment
 
 ### Layout Management
-- Save and load named layouts
-- Auto-save option to keep your active layout in sync with grid changes
+- Select a named layout as the current save target, or click it again to keep the board without a selected layout
+- Save changes back to the selected layout, create a copy with Save As, or start with a new blank layout
+- Clear the board without deleting the selected layout
+- Selected layouts persist across reloads, with an optional Auto-save mode for grid changes
 - Import/export layouts in multiple formats: paired columns, horizontal, vertical, or encoded strings
 - Preset layouts included for common mythic and heroic compositions
 

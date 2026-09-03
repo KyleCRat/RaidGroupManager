@@ -473,16 +473,15 @@ function addon:FinishImport(name)
         return
     end
 
-    local layout = {
-        name = name,
-        time = time(),
-        slots = self.pendingImportSlots,
-    }
+    local layout, reason = self:CreateLayoutRecord(name, self.pendingImportSlots)
+    if not layout then
+        self:ReportLayoutCreationError(name, reason)
 
-    table.insert(self.db.profile.layouts, layout)
-    self.selectedLayout = layout
+        return
+    end
+
+    self:SetSelectedLayout(layout)
     self:LoadLayoutToGrid(layout)
-    self:RefreshLayoutList()
     self:Print("Layout imported: " .. name)
 
     self.pendingImportSlots = nil

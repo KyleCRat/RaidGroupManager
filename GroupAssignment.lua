@@ -285,9 +285,6 @@ function addon:ResolveTemplates()
             end
         end
     end
-
-    self:RefreshAllSlots()
-    self:RefreshUnassigned()
 end
 
 function addon:HasTemplateSlots()
@@ -1026,12 +1023,19 @@ function addon:StartApply()
         return
     end
 
+    local boardChanged = false
+
     -- Resolve any template slots to real players before planning
     if self:HasTemplateSlots() then
         self:ResolveTemplates()
+        boardChanged = true
     end
 
     if self:EnsureRaidLeaderSlotOne(true) then
+        boardChanged = true
+    end
+
+    if boardChanged then
         self:RefreshAllSlots()
         self:RefreshUnassigned()
         self:TryAutoSave()

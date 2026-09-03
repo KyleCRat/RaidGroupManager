@@ -92,24 +92,20 @@ function addon:InstallPresetLayouts(force)
     -- Build lookup of existing layout names to skip duplicates
     local existing = {}
     for _, layout in ipairs(db.layouts) do
-        existing[layout.name] = true
+        existing[layout.name:lower()] = true
     end
 
     local added = 0
     for _, preset in ipairs(PRESETS) do
-        if not existing[preset.name] then
-            local layout = {
-                name = preset.name,
-                time = time(),
-                slots = {},
-            }
+        local normalizedName = preset.name:lower()
 
-            for i = 1, 40 do
-                layout.slots[i] = preset.slots[i] or ""
+        if not existing[normalizedName] then
+            local layout = self:CreateLayoutRecord(preset.name, preset.slots, 1)
+
+            if layout then
+                existing[normalizedName] = true
+                added = added + 1
             end
-
-            table.insert(db.layouts, 1, layout)
-            added = added + 1
         end
     end
 

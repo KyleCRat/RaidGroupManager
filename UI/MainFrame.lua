@@ -18,7 +18,9 @@ local UI_SPACING = addon.UI_SPACING
 local FONT = addon.FONT
 
 local BUTTON_HEIGHT = 24
-local HELPER_TEXT_HEIGHT = 12
+local GRID_HEADER_HEIGHT = 30
+local LAYOUT_NAME_FONT_SIZE = 14
+local HELPER_TEXT_HEIGHT = 10
 local BOTTOM_BUTTON_FONT_SIZE = 12
 local BOTTOM_BUTTON_TEXT_PADDING = 6
 local BOTTOM_BUTTON_TEXT_FIT_BUFFER = 6
@@ -29,8 +31,10 @@ local UNASSIGNED_WIDTH = 180
 local COLOR_BLACK = { r = 0, g = 0, b = 0, a = 1 }
 local MAIN_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.9 }
 local TITLE_BACKGROUND = { r = 0, g = 0, b = 0, a = 0.2 }
+local LAYOUT_NAME_ACTIVE = { r = 0.9, g = 0.9, b = 0.9, a = 1 }
+local LAYOUT_NAME_INACTIVE = { r = 0.35, g = 0.35, b = 0.35, a = 1 }
 
-local function CreateBottomBarButton(parent, label)
+local function CreateActionButton(parent, label)
     local btn = addon.CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
     btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
 
@@ -112,6 +116,33 @@ local function CreateLeadershipHelpButton(parent)
     end)
 
     return btn
+end
+
+function addon:RefreshLayoutHeader()
+    if not self.layoutNameText then
+        return
+    end
+
+    if self.selectedLayout then
+        self.layoutNameText:SetText(self.selectedLayout.name)
+        self.layoutNameText:SetTextColor(
+            LAYOUT_NAME_ACTIVE.r,
+            LAYOUT_NAME_ACTIVE.g,
+            LAYOUT_NAME_ACTIVE.b,
+            LAYOUT_NAME_ACTIVE.a
+        )
+    else
+        self.layoutNameText:SetText("No Layout Selected")
+        self.layoutNameText:SetTextColor(
+            LAYOUT_NAME_INACTIVE.r,
+            LAYOUT_NAME_INACTIVE.g,
+            LAYOUT_NAME_INACTIVE.b,
+            LAYOUT_NAME_INACTIVE.a
+        )
+    end
+
+    addon.SetStyledButtonEnabled(self.layoutSaveButton, self.selectedLayout ~= nil)
+    addon.SetStyledButtonEnabled(self.layoutClearButton, not self:IsGridEmpty())
 end
 
 function addon:CreateMainFrame()
@@ -216,13 +247,39 @@ function addon:CreateMainFrame()
     -- Content area starts below title bar
     local contentTop = -(TITLE_HEIGHT + UI_SPACING)
 
-    -- Helper text at top of body
-    local helperText = frame:CreateFontString(nil, "ARTWORK")
+    local gridHeader = CreateFrame("Frame", nil, frame)
+
+    local layoutNameText = gridHeader:CreateFontString(nil, "ARTWORK")
+    layoutNameText:SetFont(FONT, LAYOUT_NAME_FONT_SIZE, "OUTLINE")
+    layoutNameText:SetJustifyH("LEFT")
+    layoutNameText:SetWordWrap(false)
+    self.layoutNameText = layoutNameText
+
+    local helperText = gridHeader:CreateFontString(nil, "ARTWORK")
     helperText:SetFont(FONT, HELPER_TEXT_HEIGHT, "OUTLINE")
+    helperText:SetJustifyH("LEFT")
+    helperText:SetWordWrap(false)
     helperText:SetText("Drag slots to swap players")
     helperText:SetTextColor(0.5, 0.5, 0.5, 0.7)
 
-    local gridTop = contentTop - HELPER_TEXT_HEIGHT - UI_SPACING
+    local btnSave = CreateActionButton(gridHeader, "Save")
+    btnSave:SetScript("OnClick", function()
+        self:SaveSelectedLayout()
+    end)
+    self.layoutSaveButton = btnSave
+
+    local btnSaveAs = CreateActionButton(gridHeader, "Save As")
+    btnSaveAs:SetScript("OnClick", function()
+        self:PromptSaveLayoutAs()
+    end)
+
+    local btnClear = CreateActionButton(gridHeader, "Clear")
+    btnClear:SetScript("OnClick", function()
+        self:PromptClearGrid()
+    end)
+    self.layoutClearButton = btnClear
+
+    local gridTop = contentTop - GRID_HEADER_HEIGHT - UI_SPACING
 
     -- GridSlot.lua owns the snapped grid dimensions.
     local gridArea = CreateFrame("Frame", nil, frame)
@@ -247,8 +304,25 @@ function addon:CreateMainFrame()
     local function LayoutMainContent()
         PixelPerfect.Width(frame, FRAME_WIDTH)
 
+        gridHeader:ClearAllPoints()
+        PixelPerfect.Point(gridHeader, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, contentTop)
+        gridHeader:SetSize(gridArea:GetWidth(), PixelPerfect.Scale(gridHeader, GRID_HEADER_HEIGHT))
+
+        btnClear:ClearAllPoints()
+        PixelPerfect.Point(btnClear, "TOPRIGHT", gridHeader, "TOPRIGHT", 0, 0)
+
+        btnSaveAs:ClearAllPoints()
+        PixelPerfect.Point(btnSaveAs, "RIGHT", btnClear, "LEFT", -UI_SPACING, 0)
+
+        btnSave:ClearAllPoints()
+        PixelPerfect.Point(btnSave, "RIGHT", btnSaveAs, "LEFT", -UI_SPACING, 0)
+
+        layoutNameText:ClearAllPoints()
+        PixelPerfect.Point(layoutNameText, "TOPLEFT", gridHeader, "TOPLEFT", 0, 0)
+        PixelPerfect.Point(layoutNameText, "TOPRIGHT", btnSave, "TOPLEFT", -UI_SPACING, 0)
+
         helperText:ClearAllPoints()
-        PixelPerfect.Point(helperText, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, contentTop)
+        PixelPerfect.Point(helperText, "TOPLEFT", layoutNameText, "BOTTOMLEFT", 0, -1)
 
         gridArea:ClearAllPoints()
         PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, gridTop)
@@ -303,48 +377,43 @@ function addon:CreateMainFrame()
     self:CreateUnassignedPanel(unassignedArea)
     self:CreateLayoutPanel(layoutArea)
 
-    local btnLoadRoster = CreateBottomBarButton(bottomBar, "Load Roster")
+    local btnLoadRoster = CreateActionButton(bottomBar, "Load Roster")
     btnLoadRoster:SetScript("OnClick", function()
         self:LoadCurrentRoster()
     end)
 
-    local btnApply = CreateBottomBarButton(bottomBar, "Apply")
+    local btnApply = CreateActionButton(bottomBar, "Apply")
     btnApply:SetScript("OnClick", function()
         self:StartApply()
     end)
     self.applyButton = btnApply
 
-    local btnSave = CreateBottomBarButton(bottomBar, "Save")
-    btnSave:SetScript("OnClick", function()
-        self:PromptSaveLayout()
-    end)
-
-    local btnSplitOddEven = CreateBottomBarButton(bottomBar, "Split Odd/Even")
+    local btnSplitOddEven = CreateActionButton(bottomBar, "Split Odd/Even")
     btnSplitOddEven:SetScript("OnClick", function()
         self:SplitOddEven()
     end)
 
-    local btnSplitHalves = CreateBottomBarButton(bottomBar, "Split Halves")
+    local btnSplitHalves = CreateActionButton(bottomBar, "Split Halves")
     btnSplitHalves:SetScript("OnClick", function()
         self:SplitHalves()
     end)
 
-    local btnInvite = CreateBottomBarButton(bottomBar, "Invite")
+    local btnInvite = CreateActionButton(bottomBar, "Invite")
     btnInvite:SetScript("OnClick", function()
         self:ShowInviteToGroupPopup()
     end)
 
-    local btnDisband = CreateBottomBarButton(bottomBar, "Disband")
+    local btnDisband = CreateActionButton(bottomBar, "Disband")
     btnDisband:SetScript("OnClick", function()
         self:PromptDisbandRaid()
     end)
 
-    local btnImport = CreateBottomBarButton(bottomBar, "Import")
+    local btnImport = CreateActionButton(bottomBar, "Import")
     btnImport:SetScript("OnClick", function()
         self:ShowImportWindow()
     end)
 
-    local btnExport = CreateBottomBarButton(bottomBar, "Export")
+    local btnExport = CreateActionButton(bottomBar, "Export")
     btnExport:SetScript("OnClick", function()
         self:ShowExportWindow()
     end)
@@ -373,10 +442,8 @@ function addon:CreateMainFrame()
         PixelPerfect.Point(btnLoadRoster, "LEFT", bottomBar, "LEFT", 0, 0)
         btnApply:ClearAllPoints()
         PixelPerfect.Point(btnApply, "LEFT", btnLoadRoster, "RIGHT", UI_SPACING, 0)
-        btnSave:ClearAllPoints()
-        PixelPerfect.Point(btnSave, "LEFT", btnApply, "RIGHT", UI_SPACING, 0)
         btnSplitOddEven:ClearAllPoints()
-        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnSave, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnApply, "RIGHT", UI_SPACING, 0)
         btnSplitHalves:ClearAllPoints()
         PixelPerfect.Point(btnSplitHalves, "LEFT", btnSplitOddEven, "RIGHT", UI_SPACING, 0)
         btnInvite:ClearAllPoints()
@@ -391,6 +458,7 @@ function addon:CreateMainFrame()
     end)
 
     frame:HookScript("OnShow", PixelPerfect.RequestRefresh)
+    self:RefreshLayoutHeader()
 end
 
 function addon:LoadCurrentRoster()
@@ -400,17 +468,15 @@ function addon:LoadCurrentRoster()
         return
     end
 
+    if not IsInRaid() then
+        self:Print("Not in a raid group.")
+
+        return
+    end
+
     -- Clear all slots
     for i = 1, 40 do
         self:SetSlotText(i, "")
-    end
-
-    if not IsInRaid() then
-        self:Print("Not in a raid group.")
-        self:RefreshAllSlots()
-        self:RefreshUnassigned()
-
-        return
     end
 
     local groupCounts = {}

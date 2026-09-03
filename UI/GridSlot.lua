@@ -564,7 +564,7 @@ function addon:CreateGrid(parent)
         local slotHeight = PixelPerfect.Scale(parent, SLOT_HEIGHT)
         local slotGap = PixelPerfect.Scale(parent, SLOT_GAP)
         local columnGap = PixelPerfect.Scale(parent, UI_SPACING)
-        local groupGap = PixelPerfect.Scale(parent, UI_SPACING)
+        local groupGap = PixelPerfect.Scale(parent, SLOT_GAP)
         local headerHeight = PixelPerfect.Scale(parent, GROUP_HEADER_HEIGHT)
         local groupSlotHeight = (5 * slotHeight) + (4 * slotGap)
         local groupStride = headerHeight + groupSlotHeight + groupGap

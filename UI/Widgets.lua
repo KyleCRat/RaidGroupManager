@@ -10,6 +10,10 @@ local BUTTON_BACKGROUND = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local BUTTON_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
 local BUTTON_BORDER_HOVER = COLOR_BLACK
 local BUTTON_HIGHLIGHT = { r = 0.3, g = 0.3, b = 0.3, a = 0.5 }
+local BUTTON_BACKGROUND_DISABLED = { r = 0.07, g = 0.07, b = 0.07, a = 0.75 }
+local BUTTON_BORDER_DISABLED = { r = 0.25, g = 0.25, b = 0.25, a = 1 }
+local BUTTON_TEXT_NORMAL = { r = 1, g = 1, b = 1, a = 1 }
+local BUTTON_TEXT_DISABLED = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
 local INPUT_BACKGROUND = { r = 0.14, g = 0.14, b = 0.14, a = 0.95 }
 local INPUT_BORDER_NORMAL = { r = 0.45, g = 0.45, b = 0.45, a = 1 }
 local INPUT_BORDER_FOCUS = { r = 0.7, g = 0.7, b = 0.7, a = 1 }
@@ -20,6 +24,22 @@ local WINDOW_BACKGROUND = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 }
 local INPUT_TEXT_INSET = 6
 local MULTILINE_TEXT_INSET = 2
 local SCROLL_BAR_OFFSET_X = 6
+local SCROLL_BAR_TOP_INSET = 3
+
+local MODERN_CHECKBOX_SIZE = 26
+local MODERN_CHECKBOX_LABEL_GAP = 2
+local MODERN_CHECKBOX_CHECKMARK_SCALE = 1
+local MODERN_CHECKBOX_CHECKMARK_OFFSET_X = 1
+local MODERN_CHECKBOX_CHECKMARK_OFFSET_Y = 1
+
+local MODERN_CHECKBOX_ATLASES = {
+    normal = "common-button-tertiary-square-normal",
+    hover = "common-button-tertiary-square-hover",
+    pressed = "common-button-tertiary-square-pressed",
+    disabled = "common-button-tertiary-square-disabled",
+}
+
+addon.MODERN_CHECKBOX_SIZE = MODERN_CHECKBOX_SIZE
 
 local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
@@ -28,13 +48,77 @@ local function UpdateEditBoxPlaceholder(editBox, placeholder)
     placeholder:SetShown(not text or text == "")
 end
 
+local function SetColor(region, color)
+    region:SetVertexColor(color.r, color.g, color.b, color.a)
+end
+
+local function UpdateStyledButtonState(button)
+    if button:IsEnabled() then
+        SetColor(button.bg, BUTTON_BACKGROUND)
+        PixelPerfect.SetBorderColor(button, BUTTON_BORDER_NORMAL)
+        button.label:SetTextColor(
+            BUTTON_TEXT_NORMAL.r,
+            BUTTON_TEXT_NORMAL.g,
+            BUTTON_TEXT_NORMAL.b,
+            BUTTON_TEXT_NORMAL.a
+        )
+
+        return
+    end
+
+    button.highlight:Hide()
+    SetColor(button.bg, BUTTON_BACKGROUND_DISABLED)
+    PixelPerfect.SetBorderColor(button, BUTTON_BORDER_DISABLED)
+    button.label:SetTextColor(
+        BUTTON_TEXT_DISABLED.r,
+        BUTTON_TEXT_DISABLED.g,
+        BUTTON_TEXT_DISABLED.b,
+        BUTTON_TEXT_DISABLED.a
+    )
+end
+
+local function CreateCheckboxAtlasTexture(checkbox, layer, atlas)
+    local texture = checkbox:CreateTexture(nil, layer)
+    texture:SetAllPoints(checkbox)
+    texture:SetAtlas(atlas, false)
+
+    return texture
+end
+
+local function CreateCheckboxCheckmark(checkbox, disabled)
+    local texture = checkbox:CreateTexture(nil, "ARTWORK")
+    texture:SetPoint(
+        "CENTER",
+        checkbox,
+        "CENTER",
+        MODERN_CHECKBOX_CHECKMARK_OFFSET_X,
+        MODERN_CHECKBOX_CHECKMARK_OFFSET_Y
+    )
+    texture:SetAtlas("common-icon-checkmark-yellow", true)
+    texture:SetScale(MODERN_CHECKBOX_CHECKMARK_SCALE)
+
+    if disabled then
+        texture:SetDesaturated(true)
+        texture:SetVertexColor(0.5, 0.5, 0.5, 1)
+    end
+
+    return texture
+end
+
 function addon.CreateScrollFrame(parent, name)
     local scrollFrame = CreateFrame("ScrollFrame", name, parent, "ScrollFrameTemplate")
     local scrollBar = scrollFrame.ScrollBar
 
     PixelPerfect.RegisterLayout(scrollFrame, function()
         scrollBar:ClearAllPoints()
-        PixelPerfect.Point(scrollBar, "TOPLEFT", scrollFrame, "TOPRIGHT", SCROLL_BAR_OFFSET_X, 0)
+        PixelPerfect.Point(
+            scrollBar,
+            "TOPLEFT",
+            scrollFrame,
+            "TOPRIGHT",
+            SCROLL_BAR_OFFSET_X,
+            -SCROLL_BAR_TOP_INSET
+        )
         PixelPerfect.Point(scrollBar, "BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", SCROLL_BAR_OFFSET_X, 0)
     end)
 
@@ -65,18 +149,134 @@ function addon.CreateStyledButton(parent, width, height, label)
     button.label:SetFont(FONT, 12, "OUTLINE")
     button.label:SetPoint("CENTER")
     button.label:SetText(label)
+    button.label:SetTextColor(
+        BUTTON_TEXT_NORMAL.r,
+        BUTTON_TEXT_NORMAL.g,
+        BUTTON_TEXT_NORMAL.b,
+        BUTTON_TEXT_NORMAL.a
+    )
 
     button:SetScript("OnEnter", function(self)
+        if not self:IsEnabled() then
+            return
+        end
+
         self.highlight:Show()
         PixelPerfect.SetBorderColor(self, BUTTON_BORDER_HOVER)
     end)
 
     button:SetScript("OnLeave", function(self)
         self.highlight:Hide()
-        PixelPerfect.SetBorderColor(self, BUTTON_BORDER_NORMAL)
+        UpdateStyledButtonState(self)
     end)
 
+    button:SetScript("OnEnable", UpdateStyledButtonState)
+    button:SetScript("OnDisable", UpdateStyledButtonState)
+    UpdateStyledButtonState(button)
+
     return button
+end
+
+function addon.SetStyledButtonEnabled(button, enabled)
+    button:SetEnabled(enabled == true)
+    UpdateStyledButtonState(button)
+end
+
+function addon.CreateModernCheckbox(parent, labelText, options)
+    options = options or {}
+
+    local checkbox = CreateFrame("CheckButton", nil, parent)
+    local labelSide = options.labelSide == "LEFT" and "LEFT" or "RIGHT"
+    local labelGap = options.labelGap or MODERN_CHECKBOX_LABEL_GAP
+
+    checkbox:SetNormalTexture(CreateCheckboxAtlasTexture(
+        checkbox,
+        "BACKGROUND",
+        MODERN_CHECKBOX_ATLASES.normal
+    ))
+    checkbox:SetPushedTexture(CreateCheckboxAtlasTexture(
+        checkbox,
+        "BACKGROUND",
+        MODERN_CHECKBOX_ATLASES.pressed
+    ))
+    checkbox:SetHighlightTexture(CreateCheckboxAtlasTexture(
+        checkbox,
+        "HIGHLIGHT",
+        MODERN_CHECKBOX_ATLASES.hover
+    ))
+    checkbox:SetDisabledTexture(CreateCheckboxAtlasTexture(
+        checkbox,
+        "BACKGROUND",
+        MODERN_CHECKBOX_ATLASES.disabled
+    ))
+    checkbox:SetCheckedTexture(CreateCheckboxCheckmark(checkbox, false))
+    checkbox:SetDisabledCheckedTexture(CreateCheckboxCheckmark(checkbox, true))
+    checkbox:SetMotionScriptsWhileDisabled(true)
+
+    checkbox.label = checkbox:CreateFontString(nil, "ARTWORK")
+    checkbox.label:SetFont(FONT, options.fontSize or 11, "OUTLINE")
+    checkbox.label:SetText(labelText or "")
+    checkbox.label:SetTextColor(0.75, 0.75, 0.75, 1)
+    checkbox.label:SetWordWrap(false)
+
+    local labelWidth = checkbox.label:GetStringWidth() or 0
+
+    if checkbox.label.GetUnboundedStringWidth then
+        labelWidth = checkbox.label:GetUnboundedStringWidth() or labelWidth
+    end
+
+    labelWidth = math.ceil(labelWidth)
+    checkbox.rgmControlWidth = MODERN_CHECKBOX_SIZE + labelGap + labelWidth
+
+    if labelSide == "LEFT" then
+        checkbox:SetHitRectInsets(-(labelGap + labelWidth), 0, 0, 0)
+    else
+        checkbox:SetHitRectInsets(0, -(labelGap + labelWidth), 0, 0)
+    end
+
+    PixelPerfect.RegisterLayout(checkbox, function()
+        PixelPerfect.Size(checkbox, MODERN_CHECKBOX_SIZE, MODERN_CHECKBOX_SIZE)
+
+        checkbox.label:ClearAllPoints()
+        if labelSide == "LEFT" then
+            PixelPerfect.Point(checkbox.label, "RIGHT", checkbox, "LEFT", -labelGap, 0)
+        else
+            PixelPerfect.Point(checkbox.label, "LEFT", checkbox, "RIGHT", labelGap, 0)
+        end
+    end)
+
+    checkbox:SetScript("OnClick", function(self)
+        local checked = self:GetChecked() == true
+        PlaySound(
+            checked
+                and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
+                or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF
+        )
+
+        if options.onChanged then
+            options.onChanged(checked)
+        end
+    end)
+
+    checkbox:SetScript("OnEnable", function(self)
+        self.label:SetTextColor(0.75, 0.75, 0.75, 1)
+    end)
+
+    checkbox:SetScript("OnDisable", function(self)
+        self.label:SetTextColor(0.4, 0.4, 0.4, 1)
+    end)
+
+    return checkbox
+end
+
+function addon.SetModernCheckboxEnabled(checkbox, enabled)
+    checkbox:SetEnabled(enabled == true)
+
+    if enabled then
+        checkbox.label:SetTextColor(0.75, 0.75, 0.75, 1)
+    else
+        checkbox.label:SetTextColor(0.4, 0.4, 0.4, 1)
+    end
 end
 
 function addon.SetEditBoxPlaceholder(editBox, placeholderText)

@@ -55,6 +55,7 @@ local defaults = {
     profile = {
         minimap = { hide = false },
         layouts = {},
+        nextLayoutId = 1,
         framePosition = nil,
         frameScale = 1,
         gridState = nil,
@@ -78,7 +79,6 @@ function addon:OnInitialize()
     end
 
     self.slots = {}
-    self.selectedLayout = nil
     self.autoSave = false
     self.debugMode = self.db.profile.debugMode
     self.specCache = self.db.profile.specCache
@@ -94,6 +94,7 @@ function addon:OnInitialize()
         wipe(self.specCache)
     end
 
+    self:InitializeLayoutState()
     self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
     self:SetupMinimapButton()
@@ -229,6 +230,11 @@ function addon:SlashCommand(input)
             return
         end
 
+        if not self.mainFrame then
+            self:CreateMainFrame()
+        end
+
+        self:SetSelectedLayout(layout)
         self:LoadLayoutToGrid(layout)
         self:StartApply()
 
@@ -998,16 +1004,19 @@ function addon:LoadLayoutToGrid(layout)
     self:RefreshAllSlots()
     self:RefreshUnassigned()
     self:PersistGridState()
+    self:RefreshLayoutHeader()
 end
 
 -- Save current grid state to the selected layout
 function addon:SaveToSelectedLayout()
     if not self.selectedLayout then
-        return
+        return false
     end
 
     self.selectedLayout.slots = self:GetGridState()
     self.selectedLayout.time = time()
+
+    return true
 end
 
 -- Auto-save if enabled and a layout is selected
@@ -1017,6 +1026,7 @@ function addon:TryAutoSave()
     end
 
     self:PersistGridState()
+    self:RefreshLayoutHeader()
 end
 
 -- Persist the current grid to saved variables so it survives reloads
@@ -1034,6 +1044,28 @@ function addon:RestoreGridState()
     for i = 1, 40 do
         self:SetSlotText(i, state[i] or "")
     end
+
+    self:RefreshLayoutHeader()
+end
+
+function addon:IsGridEmpty()
+    for i = 1, 40 do
+        if not self:IsSlotEmpty(i) then
+            return false
+        end
+    end
+
+    return true
+end
+
+function addon:ClearGrid()
+    for i = 1, 40 do
+        self:SetSlotText(i, "")
+    end
+
+    self:RefreshAllSlots()
+    self:RefreshUnassigned()
+    self:TryAutoSave()
 end
 
 -- Add a name to the first empty grid slot (skips template slots)

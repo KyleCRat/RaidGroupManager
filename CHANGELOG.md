@@ -10,7 +10,8 @@
 ### Changed
 - Made the selected layout an explicit, reload-persistent save target that can be deselected without changing the board
 - Replaced legacy checkboxes with compact Blizzard square tertiary controls and clear disabled states
-- Tightened vertical spacing between subgroup blocks to match the spacing between player rows
+- Tightened vertical spacing between subgroup blocks to a compact four-pixel gap
+- Matched the browsing tab and Layouts header heights so their scroll areas align
 - Reworked interface scaling so borders remain one physical pixel, rows retain consistent pixel-snapped spacing, and the frame height follows the resulting content at every supported scale
 - Standardized main frame padding, column spacing, and action gaps at 8 pixels while keeping tab and list headers attached to their content
 - Made text inputs easier to identify with consistent surfaces, focus borders, and placeholder labels

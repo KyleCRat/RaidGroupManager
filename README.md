@@ -10,7 +10,8 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 - Swap players between slots, drag from unassigned panels, or type names manually
 - Right-click any slot to clear it
 - Raid leader and raid assistant icons display directly on placed raid members
-- Offline roster-backed members keep their role and assistant context with muted row styling
+- Offline raid and party members show a disconnect icon while keeping their class colors
+- Imported roster members outside your current group keep their role and assistant context with muted row styling
 - Grid state persists across reloads — pick up where you left off
 
 ### Role/Class Templates
@@ -84,7 +85,7 @@ Four browsing modes via tab bar:
 - Frame position and scale remember where you left them
 - Auto-hides during boss encounters, reopens when you're alive after
 - Group assignment aborts if raid membership changes while applying a layout
-- Player and party members show as online in group slots outside raids without applying party reshapes
+- Group slots track party members' online status and recognize your own character outside raids without applying party reshapes
 - Toast notifications for layout apply results and other feedback
 - Clearer button borders and tab hover states for easier interaction
 - Custom role icons distinguishing melee DPS from ranged DPS

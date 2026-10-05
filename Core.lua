@@ -102,6 +102,7 @@ end
 
 function addon:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")
+    self:RegisterEvent("UNIT_CONNECTION", "OnRosterUpdate")
     self:RegisterEvent("ENCOUNTER_START", "OnEncounterStart")
     self:RegisterEvent("ENCOUNTER_END", "OnEncounterEnd")
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
@@ -833,6 +834,17 @@ local function LayoutLeadershipName(frame)
 
     frame.nameText:ClearAllPoints()
     addon.PixelPerfect.Point(frame.nameText, "LEFT", frame, "LEFT", frame.rgmLeadershipLeftOffset, 0)
+
+    local offlineIcon = frame.offlineIcon
+    if offlineIcon and offlineIcon:IsShown() then
+        local nextIcon = frame.rgmHasLeadershipIcon and frame.leaderIcon or frame.roleIcon
+        offlineIcon:ClearAllPoints()
+        addon.PixelPerfect.Point(offlineIcon, "RIGHT", nextIcon, "LEFT", -offlineIcon.rgmGap, 0)
+        addon.PixelPerfect.Point(frame.nameText, "RIGHT", offlineIcon, "LEFT", -offlineIcon.rgmGap, 0)
+
+        return
+    end
+
     addon.PixelPerfect.Point(
         frame.nameText,
         "RIGHT",

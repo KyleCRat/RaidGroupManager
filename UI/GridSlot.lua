@@ -11,6 +11,9 @@ local GROUP_HEADER_HEIGHT = addon.GROUP_HEADER_HEIGHT
 local UI_SPACING = addon.UI_SPACING
 local ROLE_ICON_SIZE = 16
 local LEADER_ICON_SIZE = addon.LEADERSHIP_ICON_SIZE
+local OFFLINE_ICON_SIZE = 16
+local OFFLINE_ICON_GAP = 2
+local OFFLINE_ICON_TEXTURE = "Interface\\CharacterFrame\\Disconnect-Icon"
 
 local COLOR_WHITE = { r = 1, g = 1, b = 1, a = 1 }
 local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
@@ -91,6 +94,19 @@ local function GetSourceTextColor(sourceFrame)
     return COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b, COLOR_WHITE.a
 end
 
+local function CreateOfflineIcon(parent)
+    local icon = parent:CreateTexture(nil, "ARTWORK")
+    icon.rgmGap = OFFLINE_ICON_GAP
+    icon:SetTexture(OFFLINE_ICON_TEXTURE)
+    icon:Hide()
+
+    PixelPerfect.RegisterLayout(icon, function()
+        PixelPerfect.Size(icon, OFFLINE_ICON_SIZE, OFFLINE_ICON_SIZE)
+    end)
+
+    return icon
+end
+
 local function CreateDragPreviewFrame()
     local frame = CreateFrame("Frame", nil, UIParent)
     frame:SetFrameStrata("TOOLTIP")
@@ -113,13 +129,10 @@ local function CreateDragPreviewFrame()
     frame.roleIcon:Hide()
 
     frame.leaderIcon = addon:CreateLeadershipIcon(frame, frame.roleIcon)
+    frame.offlineIcon = CreateOfflineIcon(frame)
 
     PixelPerfect.RegisterLayout(frame, function()
         PixelPerfect.Size(frame, frame.rgmWidth, frame.rgmHeight)
-
-        frame.nameText:ClearAllPoints()
-        PixelPerfect.Point(frame.nameText, "LEFT", frame, "LEFT", 4, 0)
-        PixelPerfect.Point(frame.nameText, "RIGHT", frame, "RIGHT", -(ROLE_ICON_SIZE + 4), 0)
 
         frame.roleIcon:ClearAllPoints()
         PixelPerfect.Size(frame.roleIcon, ROLE_ICON_SIZE, ROLE_ICON_SIZE)
@@ -201,7 +214,9 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
         end
     end
 
+    frame.offlineIcon:SetShown(sourceFrame.offlineIcon ~= nil and sourceFrame.offlineIcon:IsShown())
     local iconWidth = ROLE_ICON_SIZE + (leadershipTexture and LEADER_ICON_SIZE + 3 or 0)
+        + (frame.offlineIcon:IsShown() and OFFLINE_ICON_SIZE + OFFLINE_ICON_GAP or 0)
 
     frame:SetScale(sourceScale)
     frame.rgmWidth = math.max(80, width, math.ceil(textWidth + iconWidth + 16))
@@ -212,7 +227,11 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, DRAG_PREVIEW_MIN_BG_ALPHA))
     frame.nameText:SetText(text)
     frame.nameText:SetTextColor(textR, textG, textB, textA or TEXT_ALPHA_DEFAULT)
-    self:SetLeadershipIconState(frame, leadershipTexture, 4, ROLE_ICON_SIZE)
+    self:SetLeadershipIconState(
+        frame, leadershipTexture, 4, ROLE_ICON_SIZE,
+        sourceFrame.leaderIcon ~= nil and sourceFrame.leaderIcon:IsDesaturated()
+    )
+    frame.roleIcon:SetDesaturated(sourceFrame.roleIcon ~= nil and sourceFrame.roleIcon:IsDesaturated())
 
     if roleAtlas and frame.roleIcon.SetAtlas then
         frame.roleIcon:SetAtlas(roleAtlas)
@@ -284,6 +303,10 @@ local function GetSlotTooltipLines(slot)
         "Right-click to remove from the board.",
     }
 
+    if slot.offlineIcon:IsShown() then
+        table.insert(lines, 1, "Offline - still in your group.")
+    end
+
     for _, line in ipairs(addon:GetRaidAssistTooltipLines(slot.playerName)) do
         lines[#lines + 1] = line
     end
@@ -323,6 +346,7 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.roleIcon:Hide()
 
     slot.leaderIcon = addon:CreateLeadershipIcon(slot, slot.roleIcon)
+    slot.offlineIcon = CreateOfflineIcon(slot)
 
     -- Drag hover highlight
     slot.dragHighlight = slot:CreateTexture(nil, "OVERLAY")
@@ -446,6 +470,15 @@ function addon:RefreshSlot(slotIndex)
 
     local text = slot.playerName or ""
     local roleIcon = slot.roleIcon
+    local template = self:DecodeTemplate(text)
+    local member
+    if text ~= "" and not template then
+        local roster = self:GetGroupDisplayRoster()
+        member = roster[self:NormalizeName(text)]
+    end
+
+    local isOffline = member ~= nil and not member.online
+    slot.offlineIcon:SetShown(isOffline)
     addon.RefreshSimpleTooltip(slot)
 
     if text == "" then
@@ -462,7 +495,6 @@ function addon:RefreshSlot(slotIndex)
     slot.emptyText:Hide()
 
     -- Template slot — show class name (or role name for generic) + role icon
-    local template = self:DecodeTemplate(text)
     if template then
         local isGeneric = template.class == "ANY"
 
@@ -500,15 +532,13 @@ function addon:RefreshSlot(slotIndex)
 
     -- Player slot
     slot.nameText:SetText(text)
-    local normalizedText = self:NormalizeName(text)
-    local roster = self:GetGroupDisplayRoster()
-    local member = roster[normalizedText]
 
     if member then
-        local isOffline = member.online == false
-        self:SetLeadershipIconState(slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE, isOffline)
+        self:SetLeadershipIconState(
+            slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE, isOffline
+        )
 
-        -- In raid — class color
+        -- In group - class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
             slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)

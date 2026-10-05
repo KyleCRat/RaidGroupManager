@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Added a right-aligned disconnect icon and offline tooltip status for raid and party members placed in group slots
+
 ### Fixed
 - Fixed Apply ignoring players and templates placed in bench groups outside the instance's active group limit
 

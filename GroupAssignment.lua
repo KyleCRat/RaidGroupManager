@@ -7,6 +7,9 @@ local STATE_EXECUTING = 2
 local DEBOUNCE_INTERVAL = 0.2
 local SAFETY_TIMEOUT = 2.0
 
+-- Apply includes bench groups regardless of the instance's active group limit.
+local APPLY_GROUPS = { 1, 2, 3, 4, 5, 6, 7, 8 }
+
 local ExecuteNextMove
 
 addon.assignState = STATE_IDLE
@@ -52,7 +55,7 @@ local function BuildDesiredState()
     local desired = {}
     local seen = {}
 
-    addon:ForEachGroupSlot(addon:GetActiveRaidGroups(), function(slotIndex, group, pos)
+    addon:ForEachGroupSlot(APPLY_GROUPS, function(slotIndex, group, pos)
         if addon:IsSlotPlayer(slotIndex) then
             local text = addon:GetSlotText(slotIndex)
             local normalized = addon:NormalizeName(text)
@@ -169,7 +172,7 @@ function addon:ResolveTemplates()
     -- Separate template slots into class-specific and generic (ANY)
     local classTemplates = {}
     local genericTemplates = {}
-    self:ForEachGroupSlot(self:GetActiveRaidGroups(), function(slotIndex)
+    self:ForEachGroupSlot(APPLY_GROUPS, function(slotIndex)
         if self:IsSlotTemplate(slotIndex) then
             local template = self:GetSlotTemplate(slotIndex)
             local entry = { index = slotIndex, template = template }
@@ -289,7 +292,7 @@ end
 
 function addon:HasTemplateSlots()
     local found = false
-    self:ForEachGroupSlot(self:GetActiveRaidGroups(), function(slotIndex)
+    self:ForEachGroupSlot(APPLY_GROUPS, function(slotIndex)
         if not found and self:IsSlotTemplate(slotIndex) then
             found = true
         end

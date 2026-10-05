@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Fixed Apply ignoring players and templates placed in bench groups outside the instance's active group limit
+
 ## [12.1.0-15] - 2026-09-03
 
 ### Added

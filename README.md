@@ -6,6 +6,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 
 ### Grid-Based Layout Editor
 - 8-group grid (40 slots) with drag-and-drop support
+- Apply uses all 8 groups, including bench groups outside the instance's active raid size
 - Swap players between slots, drag from unassigned panels, or type names manually
 - Right-click any slot to clear it
 - Raid leader and raid assistant icons display directly on placed raid members
@@ -30,6 +31,7 @@ A World of Warcraft addon for organizing and applying raid group layouts. Design
 ### Smart Group Splitting
 - **Split Odd/Even**: Distribute players across odd and even active raid groups
 - **Split Halves**: Pack players into two contiguous active group blocks
+- Players in bench groups stay benched when splitting
 - Role-balanced: each side gets equal tanks, healers, melee, and ranged
 - Class-paired: duplicate classes land at matching positions on each side
 - Deterministic: same roster always produces the same split

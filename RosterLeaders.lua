@@ -6,6 +6,8 @@ local assistFrame = CreateFrame("Frame")
 local assistState = nil
 local assistRetryTimer = nil
 local assistTimeoutTimer = nil
+local wasRaidLeader = false
+local knownRaidMembers = {}
 
 local function BuildNameSet(names)
     local set = {}
@@ -81,8 +83,6 @@ local function GetPendingAssistNames()
 end
 
 local function StopAssistPromotion()
-    assistFrame:UnregisterAllEvents()
-
     if assistRetryTimer then
         assistRetryTimer:Cancel()
         assistRetryTimer = nil
@@ -94,6 +94,19 @@ local function StopAssistPromotion()
     end
 
     assistState = nil
+end
+
+local function CancelPendingAssistPromotion(name)
+    if not assistState or not assistState.pending[name] then
+        return
+    end
+
+    assistState.pending[name] = nil
+    assistState.requested[name] = nil
+    assistState.count = assistState.count - 1
+    if assistState.count == 0 then
+        StopAssistPromotion()
+    end
 end
 
 local function ScheduleAssistPromotionCheck(delay)
@@ -112,6 +125,46 @@ local function ScheduleAssistPromotionCheck(delay)
             end
         end
     end)
+end
+
+local function QueueAssistPromotions(names)
+    local pending, count = BuildNameSet(names)
+    if count == 0 then
+        return
+    end
+
+    if not assistState then
+        assistState = {
+            pending = {},
+            requested = {},
+            count = 0,
+        }
+    end
+
+    for name in pairs(pending) do
+        if not assistState.pending[name] then
+            assistState.pending[name] = true
+            assistState.requested[name] = nil
+            assistState.count = assistState.count + 1
+        end
+    end
+
+    if assistTimeoutTimer then
+        assistTimeoutTimer:Cancel()
+    end
+
+    assistTimeoutTimer = C_Timer.NewTimer(ASSIST_PROMOTION_TIMEOUT_DELAY, function()
+        local remaining = GetPendingAssistNames()
+        if #remaining > 0 then
+            addon:Debug("Roster leaders not promoted to assist: " .. addon:FormatNameList(remaining))
+        end
+
+        StopAssistPromotion()
+    end)
+
+    if not assistRetryTimer then
+        ScheduleAssistPromotionCheck(1)
+    end
 end
 
 function addon:GetRosterLeaderStore()
@@ -159,8 +212,8 @@ function addon:SetRosterLeader(name, isLeader)
 end
 
 function addon:ToggleRosterLeader(name)
-    if self.IsRosterLeaderChangeLocked and self:IsRosterLeaderChangeLocked() then
-        self:Print("Roster leader changes are locked while an invite is active.")
+    if self:IsRosterLeaderChangeLocked() then
+        self:Print("Saved assistant choices are locked while invites or promotions are pending.")
 
         return
     end
@@ -174,17 +227,12 @@ function addon:ToggleRosterLeader(name)
     self:SetRosterLeader(normalized, isLeader)
     self:Print((isLeader and "Marked " or "Unmarked ") .. normalized .. " as roster leader.")
 
-    if self.OnRosterLeaderStatusChanged then
-        self:OnRosterLeaderStatusChanged(normalized, isLeader)
-    end
-
-    if self.RefreshUnassigned then
-        self:RefreshUnassigned()
-    end
+    self:OnRosterLeaderStatusChanged(normalized, isLeader)
+    self:RefreshUnassigned()
 end
 
 function addon:IsRosterLeaderChangeLocked()
-    return (self.IsInviteFlowActive and self:IsInviteFlowActive()) or assistState ~= nil
+    return self:IsInviteFlowActive() or assistState ~= nil
 end
 
 function addon:GetRaidAssistTooltipLines(name)
@@ -216,7 +264,7 @@ function addon:GetRaidAssistTooltipLines(name)
 
     if not UnitIsGroupLeader("player") then
         lines[2] = "Only the raid leader can change assistants."
-    elseif IsEveryoneAssistant and IsEveryoneAssistant() then
+    elseif IsEveryoneAssistant() then
         lines[2] = "Individual assistants cannot be changed while everyone is assistant."
     end
 
@@ -263,18 +311,23 @@ function addon:ToggleRaidAssist(name)
         return
     end
 
-    if IsEveryoneAssistant and IsEveryoneAssistant() then
+    if IsEveryoneAssistant() then
         self:Print("Cannot change individual assists while everyone is assistant.")
 
         return
     end
 
+    local normalized = self:NormalizeName(raidName)
+    -- Remember this live choice before its roster update arrives.
+    knownRaidMembers[normalized] = true
+    CancelPendingAssistPromotion(normalized)
+
     if rank == 1 then
-        DemoteAssistant(raidName, true)
-        self:Print("Demoted Assist: " .. self:NormalizeName(raidName))
+        C_PartyInfo.DemoteAssistant(raidName, true)
+        self:Print("Demoted Assist: " .. normalized)
     else
-        PromoteToAssistant(raidName, true)
-        self:Print("Promoted Assist: " .. self:NormalizeName(raidName))
+        C_PartyInfo.PromoteToAssistant(raidName, true)
+        self:Print("Promoted Assist: " .. normalized)
     end
 end
 
@@ -287,6 +340,7 @@ function addon:PromotePendingRosterAssists()
         return
     end
 
+    local everyoneIsAssistant = IsEveryoneAssistant()
     local promoted = {}
 
     for i = 1, 40 do
@@ -294,12 +348,12 @@ function addon:PromotePendingRosterAssists()
         local normalized = rosterName and self:NormalizeName(rosterName)
 
         if normalized and assistState.pending[normalized] then
-            if rank == 0 and not assistState.requested[normalized] then
-                PromoteToAssistant(rosterName, true)
+            if rank == 0 and not everyoneIsAssistant and not assistState.requested[normalized] then
+                C_PartyInfo.PromoteToAssistant(rosterName, true)
                 assistState.requested[normalized] = true
             end
 
-            if rank == 1 or rank == 2 then
+            if rank == 1 or rank == 2 or everyoneIsAssistant then
                 if rank == 1 and assistState.requested[normalized] then
                     table.insert(promoted, normalized)
                 end
@@ -327,37 +381,8 @@ function addon:StartRosterLeaderAssistPromotion(queue, canPromoteAssists)
         return
     end
 
-    local pending, count = BuildNameSet(names)
-
-    if count == 0 then
-        return
-    end
-
-    assistState = {
-        pending = pending,
-        requested = {},
-        count = count,
-    }
-
-    assistFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-    assistFrame:RegisterEvent("PARTY_LEADER_CHANGED")
-    assistFrame:RegisterEvent("GROUP_LEFT")
-    assistTimeoutTimer = C_Timer.NewTimer(ASSIST_PROMOTION_TIMEOUT_DELAY, function()
-
-        local remaining = GetPendingAssistNames()
-
-        if #remaining > 0 then
-            addon:Debug("Roster leaders not promoted to assist: " .. addon:FormatNameList(remaining))
-        end
-
-        StopAssistPromotion()
-    end)
-
+    QueueAssistPromotions(names)
     self:PromotePendingRosterAssists()
-
-    if assistState then
-        ScheduleAssistPromotionCheck(1)
-    end
 end
 
 function addon:OnRosterLeaderStatusChanged(name, isLeader)
@@ -370,13 +395,13 @@ function addon:OnRosterLeaderStatusChanged(name, isLeader)
         return
     end
 
-    if IsEveryoneAssistant and IsEveryoneAssistant() then
+    if IsEveryoneAssistant() then
         return
     end
 
     if isLeader then
         if rank == 0 then
-            PromoteToAssistant(raidName, true)
+            C_PartyInfo.PromoteToAssistant(raidName, true)
             self:Print("Promoted Assist: " .. self:NormalizeName(raidName))
         end
 
@@ -384,17 +409,73 @@ function addon:OnRosterLeaderStatusChanged(name, isLeader)
     end
 
     if rank == 1 then
-        DemoteAssistant(raidName, true)
+        C_PartyInfo.DemoteAssistant(raidName, true)
         self:Print("Demoted Assist: " .. self:NormalizeName(raidName))
     end
+end
+
+local function UpdateRosterLeaderAssists()
+    if not IsInRaid() or not UnitIsGroupLeader("player") then
+        if wasRaidLeader then
+            StopAssistPromotion()
+        end
+
+        wasRaidLeader = false
+        wipe(knownRaidMembers)
+
+        return
+    end
+
+    local members = {}
+    local names = {}
+    -- Only new members or a new leadership tenure trigger promotion.
+    -- Rank-only updates must not undo deliberate live demotions.
+    for i = 1, 40 do
+        local name, rank = GetRaidRosterInfo(i)
+        local normalized = name and addon:NormalizeName(name)
+        if normalized and rank ~= nil then
+            members[normalized] = true
+            if not knownRaidMembers[normalized] and rank == 0 and addon:IsRosterLeader(normalized) then
+                names[#names + 1] = normalized
+            end
+        end
+    end
+
+    for name in pairs(knownRaidMembers) do
+        if not members[name] then
+            CancelPendingAssistPromotion(name)
+        end
+    end
+
+    wasRaidLeader = true
+    knownRaidMembers = members
+    QueueAssistPromotions(names)
+    addon:PromotePendingRosterAssists()
+end
+
+function addon:EnableRosterLeaderSync()
+    assistFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    assistFrame:RegisterEvent("PARTY_LEADER_CHANGED")
+    assistFrame:RegisterEvent("GROUP_LEFT")
+    assistFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    UpdateRosterLeaderAssists()
+end
+
+function addon:DisableRosterLeaderSync()
+    assistFrame:UnregisterAllEvents()
+    StopAssistPromotion()
+    wasRaidLeader = false
+    wipe(knownRaidMembers)
 end
 
 assistFrame:SetScript("OnEvent", function(_, event)
     if event == "GROUP_LEFT" then
         StopAssistPromotion()
+        wasRaidLeader = false
+        wipe(knownRaidMembers)
 
         return
     end
 
-    addon:PromotePendingRosterAssists()
+    UpdateRosterLeaderAssists()
 end)

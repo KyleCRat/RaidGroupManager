@@ -108,6 +108,11 @@ function addon:OnEnable()
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
     self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnSpecChanged")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
+    self:EnableRosterLeaderSync()
+end
+
+function addon:OnDisable()
+    self:DisableRosterLeaderSync()
 end
 
 function addon:WipeSpecCache()

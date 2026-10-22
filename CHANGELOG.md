@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Fixed saved assistants not being promoted when a raid forms, leadership is passed to you, or marked members join outside RGM's invite flow
+- Fixed assistant controls relying on WoW's deprecated API fallbacks
+
 ## [12.1.5-16] - 2026-10-06
 
 - Updated for WoW 12.1.5.

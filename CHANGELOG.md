@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [12.1.5-17] - 2026-10-21
 
 ### Fixed
 - Fixed saved assistants not being promoted when a raid forms, leadership is passed to you, or marked members join outside RGM's invite flow

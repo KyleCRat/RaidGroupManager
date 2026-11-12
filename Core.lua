@@ -66,6 +66,8 @@ local defaults = {
         frameScale = 1,
         gridState = nil,
         specCache = {},
+        specCacheTimes = {},
+        specCacheContext = {},
         debugMode = false,
     },
     char = {
@@ -90,16 +92,7 @@ function addon:OnInitialize()
     self.slots = {}
     self.autoSave = false
     self.debugMode = self.db.profile.debugMode
-    self.specCache = self.db.profile.specCache
-    self.wasInRaid = IsInRaid()
-    self.inspectQueue = {}
-    self.inspectQueueSet = {}
-    self.inspectBusy = false
-    self.inspectSafetyTimer = nil
-    self.inspectRetries = {}
-    self.offlineMembers = {}
-
-    if not self.wasInRaid then wipe(self.specCache) end
+    self.RoleDetection:Initialize()
 
     self:InitializeLayoutState()
     self:InstallPresetLayouts()
@@ -112,71 +105,21 @@ function addon:OnEnable()
     self:RegisterEvent("UNIT_CONNECTION", "OnRosterUpdate")
     self:RegisterEvent("ENCOUNTER_START", "OnEncounterStart")
     self:RegisterEvent("ENCOUNTER_END", "OnEncounterEnd")
-    self:RegisterEvent("INSPECT_READY", "OnInspectReady")
-    self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnSpecChanged")
-    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
+    self.RoleDetection:Enable()
     self:EnableRosterLeaderSync()
 end
 
 function addon:OnDisable()
+    self.RoleDetection:Disable()
     self:DisableRosterLeaderSync()
 end
 
-function addon:WipeSpecCache()
-    wipe(self.specCache)
-    wipe(self.inspectQueue)
-    wipe(self.inspectQueueSet)
-    self.inspectBusy = false
-
-    if self.inspectSafetyTimer then
-        self.inspectSafetyTimer:Cancel()
-        self.inspectSafetyTimer = nil
-    end
-
-    if self.retryUncachedTimer then
-        self.retryUncachedTimer:Cancel()
-        self.retryUncachedTimer = nil
-    end
-
-    self.inspectRetries = {}
-    self.offlineMembers = {}
-
-    if self.specChangeTimers then
-        for _, timer in pairs(self.specChangeTimers) do
-            timer:Cancel()
-        end
-        wipe(self.specChangeTimers)
-    end
-
-    self:Debug("Spec cache wiped")
-end
-
 function addon:OnRosterUpdate()
-    local inRaid = IsInRaid()
-
-    -- Detect raid join/leave transitions
-    if inRaid and not self.wasInRaid then
-        self:Debug("Joined raid group")
-        self:WipeSpecCache()
-    end
-
-    if not inRaid and self.wasInRaid then
-        self:Debug("Left raid group")
-        self:WipeSpecCache()
-    end
-
-    self.wasInRaid = inRaid
-
-    -- Maintain the inspect cache regardless of frame visibility
-    if inRaid then
-        self:ResetRetriesForReconnectedMembers()
-        self:QueueAllInspects()
-    end
-
     if not self.mainFrame or not self.mainFrame:IsShown() then return end
 
-    self:RefreshAllSlots()
-    self:RefreshUnassigned()
+    local roster = self:GetGroupDisplayRoster()
+    self:RefreshAllSlots(roster)
+    self:RefreshUnassigned(roster)
 end
 
 function addon:OnEncounterStart()
@@ -312,297 +255,6 @@ function addon:Debug(...)
 end
 
 --------------------------------------------------------------------------------
--- Inspect cache — queue NotifyInspect calls and cache spec IDs
---------------------------------------------------------------------------------
-
-local INSPECT_INTERVAL = 1.5
-local INSPECT_SAFETY_TIMEOUT = 3.0
-
-local function GetPublicInspectSpecialization(unit)
-    local specID = C_SpecializationInfo.GetInspectSpecialization(unit)
-    if issecretvalue(specID) or type(specID) ~= "number" or specID <= 0 then
-        return 0
-    end
-
-    return specID
-end
-
-function addon:QueueInspect(name)
-    if self.specCache[name] then return end
-
-    if self.inspectQueueSet[name] then return end
-
-    table.insert(self.inspectQueue, name)
-    self.inspectQueueSet[name] = true
-
-    if not self.inspectBusy then self:ProcessNextInspect() end
-end
-
-function addon:FindRaidUnit(name)
-    if not IsInRaid() then return nil end
-
-    local normalizedName = self:NormalizeName(name)
-    if not normalizedName then return nil end
-
-    for i = 1, 40 do
-        local rosterName = GetRaidRosterInfo(i)
-        if rosterName and self:NormalizeName(rosterName) == normalizedName then
-            return "raid" .. i
-        end
-    end
-
-    return nil
-end
-
-function addon:ProcessNextInspect()
-    if InCombatLockdown() then
-        self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
-
-        return
-    end
-
-    -- Skip stale entries until we find a valid target
-    while #self.inspectQueue > 0 do
-        local name = self.inspectQueue[1]
-        table.remove(self.inspectQueue, 1)
-        self.inspectQueueSet[name] = nil
-
-        -- Already-cached entries do not need another inspect.
-        if not self.specCache[name] then
-            local unit = self:FindRaidUnit(name)
-            if not unit or not UnitIsConnected(unit) then
-                self:MarkInspectFailed(name)
-            elseif unit then
-                self.inspectBusy = true
-                self:Debug("Inspecting " .. name .. " (" .. unit .. ")")
-                NotifyInspect(unit)
-
-                -- Safety timer in case INSPECT_READY never fires
-                if self.inspectSafetyTimer then
-                    self.inspectSafetyTimer:Cancel()
-                end
-
-                self.inspectSafetyTimer = C_Timer.NewTimer(
-                    INSPECT_SAFETY_TIMEOUT,
-                    function()
-                        self.inspectSafetyTimer = nil
-                        if self.inspectBusy then
-                            self:Debug("Inspect safety timeout for " .. name)
-                            self.inspectBusy = false
-                            self:MarkInspectFailed(name)
-                            self:ProcessNextInspect()
-                        end
-                    end
-                )
-
-                return
-            end
-        end
-    end
-
-    self.inspectBusy = false
-    self:ScheduleRetryUncached()
-end
-
-local RETRY_UNCACHED_DELAY = 5.0
-local MAX_INSPECT_RETRIES = 3
-
-function addon:MarkInspectFailed(name)
-    self.inspectRetries = self.inspectRetries or {}
-    local retries = (self.inspectRetries[name] or 0) + 1
-    self.inspectRetries[name] = retries
-
-    if retries <= MAX_INSPECT_RETRIES then
-        self:Debug(
-            name
-                .. " inspect failed (attempt "
-                .. retries
-                .. "/"
-                .. MAX_INSPECT_RETRIES
-                .. ")"
-        )
-    else
-        self:Debug(name .. " exceeded max retries, skipping")
-    end
-end
-
-function addon:ScheduleRetryUncached()
-    if self.retryUncachedTimer then return end
-
-    if not IsInRaid() then return end
-
-    self.retryUncachedTimer = C_Timer.NewTimer(RETRY_UNCACHED_DELAY, function()
-        self.retryUncachedTimer = nil
-
-        if not IsInRaid() then return end
-
-        local roster = self:GetRaidRoster()
-        local uncached = {}
-
-        for name, member in pairs(roster) do
-            if
-                not self.specCache[name]
-                and not UnitIsUnit("raid" .. member.raidIndex, "player")
-            then
-                local retries = (
-                    self.inspectRetries and self.inspectRetries[name]
-                ) or 0
-                if retries < MAX_INSPECT_RETRIES then
-                    uncached[#uncached + 1] = name
-                end
-            end
-        end
-
-        if #uncached == 0 then return end
-
-        self:Debug("Retrying uncached members")
-        for _, name in ipairs(uncached) do
-            self:QueueInspect(name)
-        end
-
-        if not self.inspectBusy then self:ProcessNextInspect() end
-    end)
-end
-
-function addon:OnInspectReady(_, inspecteeGUID)
-    if not self.inspectBusy then return end
-
-    if self.inspectSafetyTimer then
-        self.inspectSafetyTimer:Cancel()
-        self.inspectSafetyTimer = nil
-    end
-
-    self.inspectBusy = false
-
-    -- Find which raid member matches this GUID
-    for i = 1, 40 do
-        local unit = "raid" .. i
-        if UnitGUID(unit) == inspecteeGUID then
-            local specID = GetPublicInspectSpecialization(unit)
-            local rosterName = GetRaidRosterInfo(i)
-            local name = rosterName and self:NormalizeName(rosterName)
-
-            if specID and specID > 0 and name then
-                local oldSpec = self.specCache[name]
-                self.specCache[name] = specID
-                self:Debug(name .. " spec cached: " .. specID)
-
-                if
-                    oldSpec ~= specID
-                    and self.mainFrame
-                    and self.mainFrame:IsShown()
-                then
-                    for si = 1, 40 do
-                        if self:GetSlotText(si) == name then
-                            self:RefreshSlot(si)
-                        end
-                    end
-                end
-            elseif name then
-                self:Debug(name .. " inspect returned no spec")
-                self:MarkInspectFailed(name)
-            end
-
-            break
-        end
-    end
-
-    ClearInspectPlayer()
-
-    C_Timer.After(INSPECT_INTERVAL, function()
-        self:ProcessNextInspect()
-    end)
-end
-
-function addon:OnCombatEnd()
-    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-    self:ProcessNextInspect()
-end
-
-function addon:OnSpecChanged(_, unit)
-    if not unit or not IsInRaid() then return end
-
-    if UnitIsUnit(unit, "player") then return end
-
-    local charName, realm = UnitName(unit)
-    if not charName then return end
-
-    local fullName = (realm and realm ~= "") and (charName .. "-" .. realm)
-        or charName
-    local name = self:NormalizeName(fullName)
-
-    -- Debounce: PLAYER_SPECIALIZATION_CHANGED fires multiple times per spec change
-    self.specChangeTimers = self.specChangeTimers or {}
-    if self.specChangeTimers[name] then self.specChangeTimers[name]:Cancel() end
-
-    self.specChangeTimers[name] = C_Timer.NewTimer(0.5, function()
-        self.specChangeTimers[name] = nil
-        self:Debug(name .. " changed spec, re-queuing inspect")
-        self.specCache[name] = nil
-        self:QueueInspect(name)
-    end)
-end
-
-function addon:ResetRetriesForReconnectedMembers()
-    for i = 1, 40 do
-        local rosterName = GetRaidRosterInfo(i)
-        local name = rosterName and self:NormalizeName(rosterName)
-
-        if name then
-            local unit = "raid" .. i
-            local isOffline = not UnitIsConnected(unit)
-
-            if self.offlineMembers[name] and not isOffline then
-                self.inspectRetries[name] = nil
-            end
-
-            if isOffline then
-                self.offlineMembers[name] = true
-            else
-                self.offlineMembers[name] = nil
-            end
-        end
-    end
-end
-
-function addon:QueueAllInspects()
-    local roster = self:GetRaidRoster()
-    self:PruneSpecCache(roster)
-    for name, member in pairs(roster) do
-        if not UnitIsUnit("raid" .. member.raidIndex, "player") then
-            self:QueueInspect(name)
-        end
-    end
-end
-
-function addon:OnZoneChanged()
-    if IsInRaid() then
-        self.inspectRetries = {}
-        self:QueueAllInspects()
-        self:Debug("Zone changed: re-queuing inspects")
-
-        return
-    end
-
-    self:Debug("Zone changed: not in raid group")
-    self:WipeSpecCache()
-end
-
-function addon:PruneSpecCache(roster)
-    for name in pairs(self.specCache) do
-        if not roster[name] then self.specCache[name] = nil end
-    end
-
-    for i = #self.inspectQueue, 1, -1 do
-        local name = self.inspectQueue[i]
-        if not roster[name] then
-            table.remove(self.inspectQueue, i)
-            self.inspectQueueSet[name] = nil
-        end
-    end
-end
-
---------------------------------------------------------------------------------
 -- Name handling
 --------------------------------------------------------------------------------
 
@@ -643,6 +295,13 @@ end
 -- Raid roster
 --------------------------------------------------------------------------------
 
+local function GetPublicAssignedRole(unit)
+    local role = UnitGroupRolesAssigned(unit)
+    if issecretvalue(role) then return "NONE" end
+
+    return role
+end
+
 -- Build a lookup table of current raid members: normalizedName -> info
 function addon:GetRaidRoster()
     local roster = {}
@@ -654,16 +313,17 @@ function addon:GetRaidRoster()
             GetRaidRosterInfo(i)
         if name then
             local normalized = self:NormalizeName(name)
-            local role = UnitGroupRolesAssigned(name)
+            local unit = "raid" .. i
             roster[normalized] = {
                 name = name,
                 normalizedName = normalized,
                 rank = rank,
                 class = class,
-                role = role,
+                role = GetPublicAssignedRole(unit),
                 subgroup = subgroup,
                 online = online,
                 raidIndex = i,
+                unitToken = unit,
             }
         end
     end
@@ -686,7 +346,7 @@ local function AddLiveUnitToRoster(roster, unit)
         normalizedName = normalized,
         rank = 0,
         class = class,
-        role = UnitGroupRolesAssigned(unit),
+        role = GetPublicAssignedRole(unit),
         subgroup = 1,
         online = UnitIsUnit(unit, "player") or UnitIsConnected(unit),
         unitToken = unit,
@@ -1142,100 +802,6 @@ end
 --------------------------------------------------------------------------------
 -- Role detection for balanced splits
 --------------------------------------------------------------------------------
-
--- Get a unit's specialization ID. Inspect specialization data requires an
--- active inspect session, so it returns 0 for most raid members. For the
--- player character we can query specialization data directly.
-local function GetUnitSpecID(unit)
-    if UnitIsUnit(unit, "player") then
-        local specIndex = C_SpecializationInfo.GetSpecialization()
-        if specIndex then
-            return C_SpecializationInfo.GetSpecializationInfo(specIndex)
-        end
-
-        return 0
-    end
-
-    return GetPublicInspectSpecialization(unit)
-end
-
-local function GetHeuristicCombatRole(member, unit)
-    local classRole =
-        addon.ClassSpecRoles:GetCombatRoleForClass(member.class, member.role)
-    if classRole then return classRole end
-
-    if
-        member.role ~= "DAMAGER"
-        or not unit
-        or not member.online
-        or not UnitExists(unit)
-    then
-        return nil
-    end
-
-    -- Primary stats only distinguish the DPS roles of these hybrid classes.
-    -- Hunters use Agility for both melee and ranged specs.
-    if
-        member.class ~= "DRUID"
-        and member.class ~= "SHAMAN"
-        and member.class ~= "DEMONHUNTER"
-    then
-        return nil
-    end
-
-    local _, agility = UnitStat(unit, 2)
-    local _, intellect = UnitStat(unit, 4)
-    if
-        issecretvalue(agility)
-        or issecretvalue(intellect)
-        or type(agility) ~= "number"
-        or type(intellect) ~= "number"
-        or agility <= 0
-        or intellect <= 0
-    then
-        return nil
-    end
-
-    if agility > intellect then return "MELEE" end
-
-    if intellect > agility then return "RANGED" end
-
-    return nil
-end
-
--- Returns "TANK", "HEALER", "MELEE", or "RANGED".
--- Pass a name with no member for characters outside the live group.
-function addon:GetCombatRole(member, name)
-    if member and member.role == "TANK" then return "TANK" end
-
-    if member and member.role == "HEALER" then return "HEALER" end
-
-    local normalized =
-        self:NormalizeName(member and member.normalizedName or name)
-    local unit = member and member.unitToken
-    if not unit and member and member.raidIndex then
-        unit = "raid" .. member.raidIndex
-    end
-
-    local roles = self.ClassSpecRoles
-    local specID = self.specCache[normalized]
-    if not specID and unit and member.online then
-        specID = GetUnitSpecID(unit)
-    end
-
-    local specRole = roles:GetCombatRoleForSpecID(specID)
-    if specRole then return specRole end
-
-    local heuristicRole = member and GetHeuristicCombatRole(member, unit)
-    if heuristicRole then return heuristicRole end
-
-    local imported = self:GetImportedRosterEntry(normalized)
-    if imported and imported.role then return imported.role end
-
-    local class = member and member.class or (imported and imported.class)
-
-    return roles:GetDefaultCombatRole(class)
-end
 
 local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
 

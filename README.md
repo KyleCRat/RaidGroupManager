@@ -72,13 +72,15 @@ Four browsing modes via tab bar:
 - Raid leaders can disband the current raid from the button bar or a slash command after confirmation
 
 ### Spec Detection
-- Background inspect cache queues raid members for inspection as they join
-- Cached spec IDs persist across reloads and between instances within a raid group
-- Cache resets on raid join/leave to stay fresh; zone changes re-queue uncached members
-- Failed inspects automatically retry (up to 3 attempts per player, including offline members)
-- Retry counter resets when an offline player reconnects
-- Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED (debounced)
-- Role priority: assigned Tank/Healer roles and cached/current specs, then conclusive live class/stat checks, imported roster information, and finally class defaults
+- Role priority: assigned Tank/Healer roles, certain class/DPS rules, cached/current specs, live stat checks, imported roster information, and finally class defaults
+- Members whose role is already determined by their class and assigned role are not inspected
+- New members and observed spec changes use the normal inspect queue only when needed, with requests spaced at least 1.5 seconds apart
+- Cached specs remain usable across reloads and short relogs while uncertain roles refresh in the background, at most one request every 10 seconds
+- Returning after at least five minutes logged out refreshes uncertain cached specs through the normal queue; ordinary roster and zone changes do not repeatedly invalidate them
+- Only one inspect is active at a time, with up to three actual attempts per member; offline or unavailable members are deferred without consuming attempts
+- Inspections pause in combat and while the Blizzard inspect window is open; reconnecting does not invalidate a known spec
+- Spec changes discard the affected member's old spec, while UI and splitting continue using fallbacks until inspection succeeds
+- Cache resets on raid join/leave, and members who leave are removed from the cache
 - Unavailable, restricted, or inconclusive stats do not override imported roles; Hunters only default to Ranged when no better information is available
 - Splitting uses imported roles and classes for characters outside your current group, so layouts can be balanced before invites
 

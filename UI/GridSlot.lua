@@ -502,7 +502,7 @@ function addon:DropTemplateOnSlot(slotIndex, class, role)
     self:TryAutoSave()
 end
 
-function addon:RefreshSlot(slotIndex)
+function addon:RefreshSlot(slotIndex, roster)
     local slot = self.slots[slotIndex]
     if not slot then return end
 
@@ -511,7 +511,7 @@ function addon:RefreshSlot(slotIndex)
     local template = self:DecodeTemplate(text)
     local member
     if text ~= "" and not template then
-        local roster = self:GetGroupDisplayRoster()
+        roster = roster or self:GetGroupDisplayRoster()
         member = roster[self:NormalizeName(text)]
     end
 
@@ -698,9 +698,10 @@ function addon:RefreshSlot(slotIndex)
     end
 end
 
-function addon:RefreshAllSlots()
+function addon:RefreshAllSlots(roster)
+    roster = roster or self:GetGroupDisplayRoster()
     for i = 1, 40 do
-        self:RefreshSlot(i)
+        self:RefreshSlot(i, roster)
     end
 end
 

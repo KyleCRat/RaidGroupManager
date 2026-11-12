@@ -739,10 +739,12 @@ local function GetAssignedPlayerNames()
     return assigned
 end
 
-function addon:GetUnassignedRaidMembers()
+function addon:GetUnassignedRaidMembers(roster)
+    if not IsInRaid() then return {} end
+
     local assigned = GetAssignedPlayerNames()
     local unassigned = {}
-    local roster = self:GetRaidRoster()
+    roster = roster or self:GetRaidRoster()
 
     for normalized, member in pairs(roster) do
         if not assigned[normalized] then table.insert(unassigned, member) end
@@ -787,7 +789,28 @@ function addon:GetUnassignedGuildMembers()
     return unassigned
 end
 
-function addon:RefreshUnassigned()
+local function SetRowCombatRole(row, role)
+    local texture = role and ROLE_TEXTURES[role]
+    if texture then
+        row.roleIcon:SetTexture(texture)
+        row.roleIcon:Show()
+    else
+        row.roleIcon:Hide()
+    end
+end
+
+function addon:RefreshUnassignedRaidRoles(roster)
+    if not self.unassignedRows or self.unassignedMode ~= MODE_RAID then
+        return
+    end
+
+    for _, row in ipairs(self.unassignedRows) do
+        local member = roster[row.playerName]
+        if member then SetRowCombatRole(row, self:GetCombatRole(member)) end
+    end
+end
+
+function addon:RefreshUnassigned(roster)
     if not self.unassignedRows then return end
 
     if self.unassignedMode == MODE_ROLE then
@@ -806,7 +829,7 @@ function addon:RefreshUnassigned()
     if self.unassignedMode == MODE_GUILD then
         entries = self:GetUnassignedGuildMembers()
     else
-        entries = self:GetUnassignedRaidMembers()
+        entries = self:GetUnassignedRaidMembers(roster)
     end
 
     HideUnassignedHeaders()
@@ -872,13 +895,7 @@ function addon:RefreshUnassigned()
             local combatRole
             if entry.raidIndex then combatRole = addon:GetCombatRole(entry) end
 
-            local texture = combatRole and ROLE_TEXTURES[combatRole]
-            if texture then
-                row.roleIcon:SetTexture(texture)
-                row.roleIcon:Show()
-            else
-                row.roleIcon:Hide()
-            end
+            SetRowCombatRole(row, combatRole)
 
             row:Show()
             displayOrder[#displayOrder + 1] = row

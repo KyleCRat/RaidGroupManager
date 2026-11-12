@@ -103,6 +103,24 @@ local CLASS_ROLES = {
     { class = "WARRIOR", role = "MELEE" },
 }
 
+local CLASS_COMBAT_ROLES = {}
+local CLASS_DPS_ROLES = {}
+
+local function RecordClassRole(lookup, class, role)
+    if lookup[class] == nil then
+        lookup[class] = role
+    elseif lookup[class] ~= role then
+        lookup[class] = false
+    end
+end
+
+for _, entry in ipairs(CLASS_ROLES) do
+    RecordClassRole(CLASS_COMBAT_ROLES, entry.class, entry.role)
+    if entry.role == "MELEE" or entry.role == "RANGED" then
+        RecordClassRole(CLASS_DPS_ROLES, entry.class, entry.role)
+    end
+end
+
 local GENERIC_ROLES = {
     { class = "ANY", role = "TANK" },
     { class = "ANY", role = "HEALER" },
@@ -199,23 +217,11 @@ function ClassSpecRoles:GetDefaultCombatRole(classToken)
 end
 
 function ClassSpecRoles:GetCombatRoleForClass(classToken, assignedRole)
-    local possibleRole
-    for _, entry in ipairs(CLASS_ROLES) do
-        if
-            entry.class == classToken
-            and (
-                assignedRole ~= "DAMAGER"
-                or entry.role == "MELEE"
-                or entry.role == "RANGED"
-            )
-        then
-            if possibleRole and possibleRole ~= entry.role then return nil end
-
-            possibleRole = entry.role
-        end
+    if assignedRole == "DAMAGER" then
+        return CLASS_DPS_ROLES[classToken] or nil
     end
 
-    return possibleRole
+    return CLASS_COMBAT_ROLES[classToken] or nil
 end
 
 function ClassSpecRoles:GetImportedSpecID(classToken, specName)

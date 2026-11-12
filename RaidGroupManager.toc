@@ -13,6 +13,8 @@ Core.lua
 RaidRules.lua
 RosterLeaders.lua
 ClassSpecRoles.lua
+RoleDetection.lua
+Inspect.lua
 PresetLayouts.lua
 MinimapButton.lua
 GroupAssignment.lua

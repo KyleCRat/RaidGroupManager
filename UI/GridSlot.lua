@@ -671,7 +671,8 @@ function addon:RefreshSlot(slotIndex)
                 COLOR_GRAY_BG.a
             )
 
-            local texture = rosterEntry.role and ROLE_TEXTURES[rosterEntry.role]
+            local combatRole = self:GetCombatRole(nil, text)
+            local texture = ROLE_TEXTURES[combatRole]
             if texture then
                 roleIcon:SetTexture(texture)
                 roleIcon:SetDesaturated(true)

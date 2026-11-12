@@ -78,8 +78,9 @@ Four browsing modes via tab bar:
 - Failed inspects automatically retry (up to 3 attempts per player, including offline members)
 - Retry counter resets when an offline player reconnects
 - Live spec swaps detected automatically via PLAYER_SPECIALIZATION_CHANGED (debounced)
-- Layered fallback: inspect cache → tank/healer spec IDs → melee DPS spec IDs → class defaults → Agility vs Intellect stats
-- Pure-melee classes (DK, Warrior, Rogue, Monk, Paladin) can never be misclassified as ranged
+- Role priority: assigned Tank/Healer roles and cached/current specs, then conclusive live class/stat checks, imported roster information, and finally class defaults
+- Unavailable, restricted, or inconclusive stats do not override imported roles; Hunters only default to Ranged when no better information is available
+- Splitting uses imported roles and classes for characters outside your current group, so layouts can be balanced before invites
 
 ### Quality of Life
 - Minimap button to toggle the window

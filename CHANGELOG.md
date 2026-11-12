@@ -8,6 +8,7 @@
 ### Fixed
 - Fixed player role detection when WoW's deprecated API fallbacks are disabled
 - Prevented role display and group splitting errors when character stats are restricted
+- Improved role fallbacks to use imported roster information before assumptions, including role and class balancing before characters join your group
 
 ## [12.1.5-17] - 2026-10-21
 

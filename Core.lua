@@ -1159,36 +1159,82 @@ local function GetUnitSpecID(unit)
     return GetPublicInspectSpecialization(unit)
 end
 
--- Returns "TANK", "HEALER", "MELEE", or "RANGED"
-function addon:GetCombatRole(member)
-    if member.role == "TANK" then return "TANK" end
+local function GetHeuristicCombatRole(member, unit)
+    local classRole =
+        addon.ClassSpecRoles:GetCombatRoleForClass(member.class, member.role)
+    if classRole then return classRole end
 
-    if member.role == "HEALER" then return "HEALER" end
+    if
+        member.role ~= "DAMAGER"
+        or not unit
+        or not member.online
+        or not UnitExists(unit)
+    then
+        return nil
+    end
 
-    -- Check spec ID (cache first, then live API)
-    local unit = member.unitToken or ("raid" .. member.raidIndex)
-    local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
+    -- Primary stats only distinguish the DPS roles of these hybrid classes.
+    -- Hunters use Agility for both melee and ranged specs.
+    if
+        member.class ~= "DRUID"
+        and member.class ~= "SHAMAN"
+        and member.class ~= "DEMONHUNTER"
+    then
+        return nil
+    end
+
+    local _, agility = UnitStat(unit, 2)
+    local _, intellect = UnitStat(unit, 4)
+    if
+        issecretvalue(agility)
+        or issecretvalue(intellect)
+        or type(agility) ~= "number"
+        or type(intellect) ~= "number"
+        or agility <= 0
+        or intellect <= 0
+    then
+        return nil
+    end
+
+    if agility > intellect then return "MELEE" end
+
+    if intellect > agility then return "RANGED" end
+
+    return nil
+end
+
+-- Returns "TANK", "HEALER", "MELEE", or "RANGED".
+-- Pass a name with no member for characters outside the live group.
+function addon:GetCombatRole(member, name)
+    if member and member.role == "TANK" then return "TANK" end
+
+    if member and member.role == "HEALER" then return "HEALER" end
+
+    local normalized =
+        self:NormalizeName(member and member.normalizedName or name)
+    local unit = member and member.unitToken
+    if not unit and member and member.raidIndex then
+        unit = "raid" .. member.raidIndex
+    end
+
     local roles = self.ClassSpecRoles
-    local specRole = roles
-        and roles:GetCombatRoleForSpecID(specID, member.class)
+    local specID = self.specCache[normalized]
+    if not specID and unit and member.online then
+        specID = GetUnitSpecID(unit)
+    end
+
+    local specRole = roles:GetCombatRoleForSpecID(specID)
     if specRole then return specRole end
 
-    -- Spec unavailable — fall back to class
-    if roles and roles:IsDefaultMeleeClass(member.class) then return "MELEE" end
+    local heuristicRole = member and GetHeuristicCombatRole(member, unit)
+    if heuristicRole then return heuristicRole end
 
-    -- Hunter: all specs are Agility so stat comparison can't distinguish;
-    -- BM/MM (ranged) are far more common than Survival (melee)
-    if member.class == "HUNTER" then return "RANGED" end
+    local imported = self:GetImportedRosterEntry(normalized)
+    if imported and imported.role then return imported.role end
 
-    -- Hybrid melee/ranged classes (Druid, Shaman, DH, etc.):
-    -- melee DPS specs use Agility, ranged DPS specs use Intellect
-    local agi = UnitStat(unit, 2)
-    local int = UnitStat(unit, 4)
-    if issecretvalue(agi) or issecretvalue(int) then return "RANGED" end
+    local class = member and member.class or (imported and imported.class)
 
-    if (agi or 0) > (int or 0) then return "MELEE" end
-
-    return "RANGED"
+    return roles:GetDefaultCombatRole(class)
 end
 
 local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
@@ -1199,20 +1245,22 @@ local function ClassifyItem(item, roster)
     local template = addon:DecodeTemplate(item)
     if template then return template.role end
 
-    local member = roster[item]
-    if member then return addon:GetCombatRole(member) end
+    local normalized = addon:NormalizeName(item)
 
-    return "RANGED"
+    return addon:GetCombatRole(roster[normalized], normalized)
 end
 
 local function GetItemClass(item, roster)
     local template = addon:DecodeTemplate(item)
     if template then return template.class end
 
-    local member = roster[item]
-    if member then return member.class end
+    local normalized = addon:NormalizeName(item)
+    local member = roster[normalized]
+    if member and member.class then return member.class end
 
-    return "UNKNOWN"
+    local imported = addon:GetImportedRosterEntry(normalized)
+
+    return imported and imported.class or "UNKNOWN"
 end
 
 -- Split a list of same-role items (player names or encoded templates) into
@@ -1314,7 +1362,7 @@ function addon:SplitOddEven()
     end
 
     local items = CollectSlotContents(allGroups)
-    local roster = self:GetRaidRoster()
+    local roster = self:GetGroupDisplayRoster()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
@@ -1338,7 +1386,7 @@ function addon:SplitHalves()
     local allGroups = self:GetActiveRaidGroups()
 
     local items = CollectSlotContents(allGroups)
-    local roster = self:GetRaidRoster()
+    local roster = self:GetGroupDisplayRoster()
     ClearGroups(allGroups)
 
     local firstItems, secondItems = SplitByRole(items, roster)

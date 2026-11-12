@@ -194,8 +194,28 @@ function ClassSpecRoles:GetImportRole(role)
     return ROLE_FROM_IMPORT[role] or "RANGED"
 end
 
-function ClassSpecRoles:IsDefaultMeleeClass(classToken)
-    return DEFAULT_MELEE_CLASSES[classToken]
+function ClassSpecRoles:GetDefaultCombatRole(classToken)
+    return DEFAULT_MELEE_CLASSES[classToken] and "MELEE" or "RANGED"
+end
+
+function ClassSpecRoles:GetCombatRoleForClass(classToken, assignedRole)
+    local possibleRole
+    for _, entry in ipairs(CLASS_ROLES) do
+        if
+            entry.class == classToken
+            and (
+                assignedRole ~= "DAMAGER"
+                or entry.role == "MELEE"
+                or entry.role == "RANGED"
+            )
+        then
+            if possibleRole and possibleRole ~= entry.role then return nil end
+
+            possibleRole = entry.role
+        end
+    end
+
+    return possibleRole
 end
 
 function ClassSpecRoles:GetImportedSpecID(classToken, specName)
@@ -225,7 +245,7 @@ function ClassSpecRoles:GetImportedSpecID(classToken, specName)
     return SPEC_ID_BY_CLASS_SPEC[classToken][specName]
 end
 
-function ClassSpecRoles:GetCombatRoleForSpecID(specID, classToken)
+function ClassSpecRoles:GetCombatRoleForSpecID(specID)
     if not specID or specID <= 0 then return nil end
 
     if TANK_SPECS[specID] then return "TANK" end
@@ -236,15 +256,13 @@ function ClassSpecRoles:GetCombatRoleForSpecID(specID, classToken)
 
     if RANGED_DPS_SPECS[specID] then return "RANGED" end
 
-    if classToken and DEFAULT_MELEE_CLASSES[classToken] then return "MELEE" end
-
-    return "RANGED"
+    return nil
 end
 
 function ClassSpecRoles:GetImportedCharacterRole(member, classToken, char)
     if char.playerSpec then
         local specID = self:GetImportedSpecID(classToken, char.playerSpec)
-        local role = self:GetCombatRoleForSpecID(specID, classToken)
+        local role = self:GetCombatRoleForSpecID(specID)
         if role then return role end
     end
 

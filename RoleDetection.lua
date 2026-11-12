@@ -131,6 +131,9 @@ end
 function RoleDetection:GetInspectPriority(member)
     if not member or GetKnownRole(member) then return nil end
 
+    -- Follower NPCs can have raid slots but no player specialization to inspect.
+    if not UnitIsPlayer(member.unitToken) then return nil end
+
     if IsPlayerUnit(member.unitToken) then return nil end
 
     local name = member.normalizedName

@@ -615,7 +615,8 @@ function addon:RefreshSlot(slotIndex, roster)
         )
 
         -- In group - class color
-        local classColor = C_ClassColor.GetClassColor(member.class)
+        local classColor = member.class
+            and C_ClassColor.GetClassColor(member.class)
         if classColor then
             slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
             slot.bg:SetVertexColor(

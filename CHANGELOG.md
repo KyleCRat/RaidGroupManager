@@ -16,6 +16,7 @@
 - Fixed Apply leaving generic role templates unfilled despite available players when the slots are unevenly distributed between two groups
 - Apply now warns when player ordering must be skipped because no free group is available, instead of reporting that the layout already matches or was fully applied
 - Fixed overlapping inspect requests and bypassed retry limits; offline and unavailable members no longer consume failed attempts, and Raid row icons update when inspected roles change
+- Fixed group-slot errors for story-mode followers with no class information and prevented NPCs from entering the player spec inspection queue
 
 ## [12.1.5-17] - 2026-10-21
 

@@ -119,6 +119,8 @@ globals:
         any: true
     UnitIsGroupLeader:
         any: true
+    UnitIsPlayer:
+        any: true
     UnitIsUnit:
         any: true
     UnitLevel:

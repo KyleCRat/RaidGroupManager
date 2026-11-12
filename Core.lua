@@ -1145,11 +1145,13 @@ end
 
 -- Get a unit's specialization ID. Inspect specialization data requires an
 -- active inspect session, so it returns 0 for most raid members. For the
--- player character we can use GetSpecialization directly.
+-- player character we can query specialization data directly.
 local function GetUnitSpecID(unit)
     if UnitIsUnit(unit, "player") then
-        local specIndex = GetSpecialization()
-        if specIndex then return GetSpecializationInfo(specIndex) end
+        local specIndex = C_SpecializationInfo.GetSpecialization()
+        if specIndex then
+            return C_SpecializationInfo.GetSpecializationInfo(specIndex)
+        end
 
         return 0
     end
@@ -1180,9 +1182,11 @@ function addon:GetCombatRole(member)
 
     -- Hybrid melee/ranged classes (Druid, Shaman, DH, etc.):
     -- melee DPS specs use Agility, ranged DPS specs use Intellect
-    local agi = UnitStat(unit, 2) or 0
-    local int = UnitStat(unit, 4) or 0
-    if agi > int then return "MELEE" end
+    local agi = UnitStat(unit, 2)
+    local int = UnitStat(unit, 4)
+    if issecretvalue(agi) or issecretvalue(int) then return "RANGED" end
+
+    if (agi or 0) > (int or 0) then return "MELEE" end
 
     return "RANGED"
 end

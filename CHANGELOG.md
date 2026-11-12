@@ -5,6 +5,10 @@
 ### Added
 - Added middle-click automatic assistant choices to Guild rows, with the same crown indicators and live updates as the Roster tab
 
+### Fixed
+- Fixed player role detection when WoW's deprecated API fallbacks are disabled
+- Prevented role display and group splitting errors when character stats are restricted
+
 ## [12.1.5-17] - 2026-10-21
 
 ### Fixed

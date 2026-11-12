@@ -45,10 +45,6 @@ globals:
         any: true
     GetRaidRosterInfo:
         any: true
-    GetSpecialization:
-        any: true
-    GetSpecializationInfo:
-        any: true
     GetSpecializationInfoForClassID:
         any: true
     HasLFGRestrictions:

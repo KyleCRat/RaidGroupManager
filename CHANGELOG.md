@@ -10,6 +10,7 @@
 - Prevented role display and group splitting errors when character stats are restricted
 - Improved role fallbacks to use imported roster information before assumptions, including role and class balancing before characters join your group
 - Fixed Apply leaving generic role templates unfilled despite available players when the slots are unevenly distributed between two groups
+- Apply now warns when player ordering must be skipped because no free group is available, instead of reporting that the layout already matches or was fully applied
 
 ## [12.1.5-17] - 2026-10-21
 

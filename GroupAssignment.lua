@@ -17,6 +17,7 @@ addon.safetyTimer = nil
 addon.moveQueue = {}
 addon.moveIndex = 0
 addon.applyRosterSnapshot = nil
+addon.applyOrderingSkipped = false
 
 --------------------------------------------------------------------------------
 -- State builders
@@ -392,6 +393,7 @@ end
 -- Returns an ordered list of moves:
 --   { type = "swap", nameA = ..., nameB = ... }
 --   { type = "set",  name  = ..., targetGroup = ... }
+-- The second return is true when required ordering has no staging group.
 local function PlanMoves(raidState, desired)
     local sim, simGroups = BuildSimulation(raidState)
     local moves = {}
@@ -848,8 +850,6 @@ local function PlanMoves(raidState, desired)
         end
     end
 
-    if not stagingGroup then return moves end
-
     for g = 1, 8 do
         if usedGroups[g] then
             -- Build desired order for this group: position -> name
@@ -938,6 +938,10 @@ local function PlanMoves(raidState, desired)
                         end
                     end
 
+                    if stillNeeded and not stagingGroup then
+                        return moves, true
+                    end
+
                     if stillNeeded then
                         -- Full evacuation required — players retain internal
                         -- index ordering unless the group is completely emptied
@@ -980,7 +984,7 @@ local function PlanMoves(raidState, desired)
         end
     end
 
-    return moves
+    return moves, false
 end
 
 --------------------------------------------------------------------------------
@@ -1032,9 +1036,10 @@ ExecuteNextMove = function()
     local move = addon.moveQueue[addon.moveIndex]
 
     if not move then
-        addon:Print(
-            "Group assignment complete. (" .. (addon.moveIndex - 1) .. " moves)"
-        )
+        local message = addon.applyOrderingSkipped
+                and "Group changes complete; player ordering was skipped."
+            or "Group assignment complete."
+        addon:Print(message .. " (" .. (addon.moveIndex - 1) .. " moves)")
         addon:StopApply()
 
         return
@@ -1199,10 +1204,18 @@ function addon:StartApply()
     local rosterSnapshot = BuildRosterSnapshot()
     local raidState = BuildRaidState()
     local desired = BuildDesiredState()
-    local moves = PlanMoves(raidState, desired)
+    local moves, orderingSkipped = PlanMoves(raidState, desired)
+
+    if orderingSkipped then
+        self:Print(
+            "Cannot reorder players within groups: no free group is available for temporary moves."
+        )
+    end
 
     if #moves == 0 then
-        self:Print("Groups already match the layout.")
+        if not orderingSkipped then
+            self:Print("Groups already match the layout.")
+        end
 
         return
     end
@@ -1211,6 +1224,7 @@ function addon:StartApply()
     self.moveQueue = moves
     self.moveIndex = 0
     self.applyRosterSnapshot = rosterSnapshot
+    self.applyOrderingSkipped = orderingSkipped
     self.assignState = STATE_EXECUTING
 
     if self.applyButton then
@@ -1229,6 +1243,7 @@ function addon:StopApply()
     self.moveQueue = {}
     self.moveIndex = 0
     self.applyRosterSnapshot = nil
+    self.applyOrderingSkipped = false
 
     if self.debounceTimer then
         self.debounceTimer:Cancel()

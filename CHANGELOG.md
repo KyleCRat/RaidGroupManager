@@ -8,6 +8,7 @@
 ### Changed
 - Reduced inspections by resolving certain roles directly from class and assigned role, with slow cached-spec refreshes after reloads and faster checks for new members, spec changes, or longer logouts
 - Reduced repeated roster and role lookups when refreshing group slots and resolving layouts
+- Apply advances on confirmed moves with at least 50 ms between requests, replacing the fixed delay after each roster update
 
 ### Fixed
 - Fixed player role detection when WoW's deprecated API fallbacks are disabled
@@ -17,6 +18,7 @@
 - Apply now warns when player ordering must be skipped because no free group is available, instead of reporting that the layout already matches or was fully applied
 - Fixed overlapping inspect requests and bypassed retry limits; offline and unavailable members no longer consume failed attempts, and Raid row icons update when inspected roles change
 - Fixed group-slot errors for story-mode followers with no class information and prevented NPCs from entering the player spec inspection queue
+- Fixed Apply advancing on unrelated roster updates or overlapping timers, continuing after unconfirmed moves, and reporting success without checking the final layout; impossible move plans are rejected before any group changes
 
 ## [12.1.5-17] - 2026-10-21
 

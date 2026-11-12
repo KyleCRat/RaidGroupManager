@@ -110,6 +110,7 @@ function addon:OnEnable()
 end
 
 function addon:OnDisable()
+    self:StopApply()
     self.RoleDetection:Disable()
     self:DisableRosterLeaderSync()
 end

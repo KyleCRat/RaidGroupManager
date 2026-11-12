@@ -1,23 +1,14 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
-local STATE_IDLE = 0
-local STATE_EXECUTING = 2
-
-local DEBOUNCE_INTERVAL = 0.2
+local MIN_MOVE_INTERVAL = 0.05
 local SAFETY_TIMEOUT = 2.0
 
 -- Apply includes bench groups regardless of the instance's active group limit.
 local APPLY_GROUPS = { 1, 2, 3, 4, 5, 6, 7, 8 }
 
-local ExecuteNextMove
-
-addon.assignState = STATE_IDLE
-addon.debounceTimer = nil
-addon.safetyTimer = nil
-addon.moveQueue = {}
-addon.moveIndex = 0
-addon.applyRosterSnapshot = nil
-addon.applyOrderingSkipped = false
+local ProcessApplyState
+local activeRun
+local lastMoveAt
 
 --------------------------------------------------------------------------------
 -- State builders
@@ -32,12 +23,13 @@ local function BuildRaidState()
     end
 
     for i = 1, 40 do
-        local name, _, subgroup = GetRaidRosterInfo(i)
+        local name, rank, subgroup = GetRaidRosterInfo(i)
         if name then
             groupCounts[subgroup] = groupCounts[subgroup] + 1
             local normalized = addon:NormalizeName(name)
             state[normalized] = {
                 raidIndex = i,
+                rank = rank,
                 currentGroup = subgroup,
                 currentPosition = groupCounts[subgroup],
                 name = name,
@@ -72,28 +64,23 @@ local function BuildDesiredState()
     return desired
 end
 
-local function BuildRosterSnapshot()
+local function BuildRosterSnapshot(raidState)
     local snapshot = {
         count = 0,
         members = {},
     }
 
-    for i = 1, 40 do
-        local name = GetRaidRosterInfo(i)
-        if name then
-            local normalized = addon:NormalizeName(name)
-            snapshot.members[normalized] = true
-            snapshot.count = snapshot.count + 1
-        end
+    for name, member in pairs(raidState) do
+        snapshot.members[name] = true
+        snapshot.count = snapshot.count + 1
+        if member.rank == 2 then snapshot.leader = name end
     end
 
     return snapshot
 end
 
-local function GetRosterChangeReason(snapshot)
-    if not snapshot then return nil end
-
-    local current = BuildRosterSnapshot()
+local function GetRosterChangeReason(snapshot, raidState)
+    local current = BuildRosterSnapshot(raidState)
     local missingName = nil
     local addedName = nil
 
@@ -127,19 +114,11 @@ local function GetRosterChangeReason(snapshot)
 
     if current.count ~= snapshot.count then return "raid size changed" end
 
-    return nil
-end
-
-local function AbortIfRosterChanged()
-    local reason = GetRosterChangeReason(addon.applyRosterSnapshot)
-    if reason then
-        addon:Print("Aborting: " .. reason .. " during group assignment.")
-        addon:StopApply()
-
-        return true
+    if current.leader ~= snapshot.leader then
+        return "raid leadership changed"
     end
 
-    return false
+    return nil
 end
 
 --------------------------------------------------------------------------------
@@ -394,6 +373,7 @@ end
 --   { type = "swap", nameA = ..., nameB = ... }
 --   { type = "set",  name  = ..., targetGroup = ... }
 -- The second return is true when required ordering has no staging group.
+-- The third return explains a plan that cannot be completed safely.
 local function PlanMoves(raidState, desired)
     local sim, simGroups = BuildSimulation(raidState)
     local moves = {}
@@ -748,10 +728,12 @@ local function PlanMoves(raidState, desired)
                             })
                             SimMove(sim, simGroups, evictee, staging)
                         else
-                            addon:Print(
-                                "Warning: Cannot find staging group for "
+                            return nil,
+                                false,
+                                "no temporary space is available to move "
                                     .. evictee
-                            )
+                                    .. " out of group "
+                                    .. targetGroup
                         end
                     end
 
@@ -764,12 +746,12 @@ local function PlanMoves(raidState, desired)
                     })
                     SimMove(sim, simGroups, name, targetGroup)
                 else
-                    addon:Print(
-                        "Warning: Cannot move "
+                    return nil,
+                        false,
+                        "cannot make room for "
                             .. name
-                            .. " to group "
+                            .. " in group "
                             .. targetGroup
-                    )
                 end
             end
         end
@@ -988,182 +970,358 @@ local function PlanMoves(raidState, desired)
 end
 
 --------------------------------------------------------------------------------
--- Execution — walk through the pre-planned move queue one step at a time
+-- Validation and execution
 --------------------------------------------------------------------------------
 
--- Resolve a player name to their current raidIndex (re-scanned each step
--- because indices shift after every roster change)
-local function FindRaidIndex(name)
-    for i = 1, 40 do
-        local rosterName = GetRaidRosterInfo(i)
-        if rosterName then
-            local normalized = addon:NormalizeName(rosterName)
-            if normalized == name then return i end
+local function GetLayoutMismatch(raidState, desired, checkOrder)
+    local orderedNames = {}
+    for name, target in pairs(desired) do
+        local member = raidState[name]
+        if member then
+            if member.currentGroup ~= target.desiredGroup then
+                return name
+                    .. " is in group "
+                    .. member.currentGroup
+                    .. ", expected group "
+                    .. target.desiredGroup
+            end
+            local group = target.desiredGroup
+            orderedNames[group] = orderedNames[group] or {}
+            orderedNames[group][target.desiredPosition] = name
+        end
+    end
+
+    -- Empty slots and members not on the board do not impose absolute positions.
+    if checkOrder then
+        for group = 1, 8 do
+            local names = orderedNames[group]
+            if names then
+                local previousPosition = 0
+                local previousName
+                for position = 1, 5 do
+                    local name = names[position]
+                    if name then
+                        local actualPosition = raidState[name].currentPosition
+                        if actualPosition <= previousPosition then
+                            return "group "
+                                .. group
+                                .. " has "
+                                .. name
+                                .. " before "
+                                .. previousName
+                                .. ", but the layout expects the reverse"
+                        end
+                        previousPosition = actualPosition
+                        previousName = name
+                    end
+                end
+            end
         end
     end
 
     return nil
 end
 
-local function ScheduleNextMove()
-    C_Timer.After(0, function()
-        ExecuteNextMove()
-    end)
-end
-
-ExecuteNextMove = function()
-    if addon.assignState ~= STATE_EXECUTING then return end
-
-    if AbortIfRosterChanged() then return end
-
-    -- Cancel any pending safety timer
-    if addon.safetyTimer then
-        addon.safetyTimer:Cancel()
-        addon.safetyTimer = nil
-    end
-
-    -- Combat check
-    local inCombat, combatants = AnyoneInCombat()
-    if inCombat then
-        local names = table.concat(combatants, ", ")
-        addon:Print("Aborting: players in combat — " .. names)
-        addon:StopApply()
-
-        return
-    end
-
-    addon.moveIndex = addon.moveIndex + 1
-    local move = addon.moveQueue[addon.moveIndex]
-
-    if not move then
-        local message = addon.applyOrderingSkipped
-                and "Group changes complete; player ordering was skipped."
-            or "Group assignment complete."
-        addon:Print(message .. " (" .. (addon.moveIndex - 1) .. " moves)")
-        addon:StopApply()
-
-        return
-    end
-
-    local tag = "[" .. addon.moveIndex .. "/" .. #addon.moveQueue .. "]"
-    local phase = move.phase or "?"
-    local reason = move.reason or ""
-
-    if move.type == "set" then
-        local idx = FindRaidIndex(move.name)
-        if idx then
-            local _, _, currentGroup = GetRaidRosterInfo(idx)
-            addon:Debug(
-                tag
-                    .. " "
-                    .. phase
-                    .. ": "
-                    .. move.name
-                    .. " group "
-                    .. currentGroup
-                    .. " -> "
-                    .. move.targetGroup
-                    .. " ("
-                    .. reason
-                    .. ")"
-            )
-            SetRaidSubgroup(idx, move.targetGroup)
-            addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
-                addon.safetyTimer = nil
-                ExecuteNextMove()
-            end)
-        else
-            addon:Debug(tag .. " SKIP: " .. move.name .. " (left raid)")
-            ScheduleNextMove()
-        end
-
-        return
-    end
-
-    if move.type == "swap" then
-        local idxA = FindRaidIndex(move.nameA)
-        local idxB = FindRaidIndex(move.nameB)
-        if idxA and idxB then
-            -- Raid leader guard (should be handled in planning, but double-check)
-            if idxA == 1 or idxB == 1 then
-                addon:Debug(
-                    tag
-                        .. " SKIP: swap involving raid leader ("
-                        .. move.nameA
-                        .. " <-> "
-                        .. move.nameB
-                        .. ")"
-                )
-                ScheduleNextMove()
-            else
-                local _, _, groupA = GetRaidRosterInfo(idxA)
-                local _, _, groupB = GetRaidRosterInfo(idxB)
-                addon:Debug(
-                    tag
-                        .. " "
-                        .. phase
-                        .. ": "
-                        .. move.nameA
-                        .. " (g"
-                        .. groupA
-                        .. ") <-> "
-                        .. move.nameB
-                        .. " (g"
-                        .. groupB
-                        .. ") ("
-                        .. reason
-                        .. ")"
-                )
-                SwapRaidSubgroup(idxA, idxB)
-                addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
-                    addon.safetyTimer = nil
-                    ExecuteNextMove()
-                end)
+-- Check the entire group's capacity sequence before sending any requests.
+-- Only group membership is simulated here; live positions are checked at the end.
+local function PrepareMoveQueue(raidState, desired, moves)
+    local sim, simGroups = BuildSimulation(raidState)
+    local checked = {}
+    for _, move in ipairs(moves) do
+        if move.type == "set" then
+            local fromGroup = sim[move.name]
+            if not fromGroup or not simGroups[move.targetGroup] then
+                return nil, "a planned move has an unavailable member or group"
             end
+            if fromGroup ~= move.targetGroup then
+                if SimGroupCount(simGroups, move.targetGroup) >= 5 then
+                    return nil,
+                        "group "
+                            .. move.targetGroup
+                            .. " would be full when moving "
+                            .. move.name
+                end
+                move.fromGroup = fromGroup
+                checked[#checked + 1] = move
+                SimMove(sim, simGroups, move.name, move.targetGroup)
+            end
+        elseif move.type == "swap" then
+            local memberA, memberB =
+                raidState[move.nameA], raidState[move.nameB]
+            if not memberA or not memberB then
+                return nil, "a planned swap has an unavailable member"
+            end
+            if memberA.raidIndex == 1 or memberB.raidIndex == 1 then
+                return nil, "a planned swap involves the raid leader"
+            end
+            if sim[move.nameA] == sim[move.nameB] then
+                return nil,
+                    "a planned swap involves two members of the same group"
+            end
+            move.fromGroupA, move.fromGroupB = sim[move.nameA], sim[move.nameB]
+            checked[#checked + 1] = move
+            SimSwap(sim, simGroups, move.nameA, move.nameB)
         else
-            addon:Debug(
-                tag
-                    .. " SKIP: swap "
-                    .. move.nameA
-                    .. " <-> "
-                    .. move.nameB
-                    .. " (player left raid)"
-            )
-            ScheduleNextMove()
+            return nil, "the move plan contains an unknown operation"
         end
     end
-end
 
---------------------------------------------------------------------------------
--- Event wiring
---------------------------------------------------------------------------------
-
-local function OnAssignmentRosterUpdate()
-    if addon.assignState ~= STATE_EXECUTING then return end
-
-    if AbortIfRosterChanged() then return end
-
-    if addon.debounceTimer then
-        addon.debounceTimer:Cancel()
-        addon.debounceTimer = nil
+    for name, target in pairs(desired) do
+        if sim[name] and sim[name] ~= target.desiredGroup then
+            return nil,
+                "the move plan cannot place "
+                    .. name
+                    .. " in group "
+                    .. target.desiredGroup
+        end
     end
 
-    addon.debounceTimer = C_Timer.NewTimer(DEBOUNCE_INTERVAL, function()
-        addon.debounceTimer = nil
-        ExecuteNextMove()
-    end)
+    return checked
 end
 
 local function HasRaidPermission()
-    for i = 1, 40 do
-        local name, rank = GetRaidRosterInfo(i)
-        if name and UnitIsUnit(name, "player") then return rank > 0 end
+    return UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")
+end
+
+local function CancelPendingTimers(pending)
+    if not pending then return end
+
+    if pending.verifyTimer then
+        pending.verifyTimer:Cancel()
+        pending.verifyTimer = nil
+    end
+    if pending.timeoutTimer then
+        pending.timeoutTimer:Cancel()
+        pending.timeoutTimer = nil
+    end
+end
+
+local function AbortApply(run, reason)
+    if activeRun ~= run then return end
+
+    addon:Print(
+        "Apply stopped: "
+            .. reason
+            .. ". ("
+            .. run.completed
+            .. "/"
+            .. #run.moves
+            .. " moves confirmed.)"
+    )
+    addon:StopApply()
+end
+
+local function GetRunMismatch(run, raidState, pending)
+    if not IsInRaid() then return "you are no longer in a raid" end
+
+    if not HasRaidPermission() then return "raid permission was lost" end
+
+    local reason = GetRosterChangeReason(run.snapshot, raidState)
+    if reason then return reason end
+
+    local inCombat, combatants = AnyoneInCombat()
+    if inCombat then
+        return "players are in combat: " .. table.concat(combatants, ", ")
     end
 
-    return false
+    for name, expectedGroup in pairs(run.expectedGroups) do
+        local actualGroup = raidState[name].currentGroup
+        local targetGroup = pending and pending.targets[name]
+        if actualGroup ~= expectedGroup and actualGroup ~= targetGroup then
+            return name .. " unexpectedly moved to group " .. actualGroup
+        end
+    end
+
+    return nil
+end
+
+local function ExecuteNextMove(run, raidState, groupCounts)
+    if activeRun ~= run or run.pending then return end
+
+    local move = run.moves[run.index]
+    if not move then
+        local mismatch =
+            GetLayoutMismatch(raidState, run.desired, not run.orderingSkipped)
+        if mismatch then
+            AbortApply(run, mismatch)
+
+            return
+        end
+
+        local message = run.orderingSkipped
+                and "Group changes confirmed; player ordering was skipped."
+            or "Group assignment complete."
+        addon:Print(message .. " (" .. run.completed .. " moves confirmed.)")
+        addon:StopApply()
+
+        return
+    end
+
+    local remaining = lastMoveAt
+            and (lastMoveAt + MIN_MOVE_INTERVAL - GetTime())
+        or 0
+    if remaining > 0 then
+        if not run.pacingTimer then
+            run.pacingTimer = C_Timer.NewTimer(remaining, function()
+                run.pacingTimer = nil
+                -- Re-read the roster after waiting; this snapshot is now stale.
+                ProcessApplyState(run)
+            end)
+        end
+
+        return
+    end
+
+    local targets = {}
+    local description
+    if move.type == "set" then
+        if raidState[move.name].currentGroup ~= move.fromGroup then
+            AbortApply(run, "the source group changed for " .. move.name)
+
+            return
+        end
+        if groupCounts[move.targetGroup] >= 5 then
+            AbortApply(run, "group " .. move.targetGroup .. " is full")
+
+            return
+        end
+        targets[move.name] = move.targetGroup
+        description = move.name
+            .. " group "
+            .. move.fromGroup
+            .. " -> "
+            .. move.targetGroup
+    else
+        local memberA, memberB = raidState[move.nameA], raidState[move.nameB]
+        if memberA.raidIndex == 1 or memberB.raidIndex == 1 then
+            AbortApply(run, "the next swap involves the raid leader")
+
+            return
+        end
+        if
+            memberA.currentGroup ~= move.fromGroupA
+            or memberB.currentGroup ~= move.fromGroupB
+        then
+            AbortApply(run, "the source groups changed for the next swap")
+
+            return
+        end
+        targets[move.nameA], targets[move.nameB] =
+            move.fromGroupB, move.fromGroupA
+        description = move.nameA
+            .. " (g"
+            .. move.fromGroupA
+            .. ") <-> "
+            .. move.nameB
+            .. " (g"
+            .. move.fromGroupB
+            .. ")"
+    end
+
+    local pending = { targets = targets }
+    run.pending = pending
+    pending.timeoutTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
+        ProcessApplyState(run, pending, true)
+    end)
+    addon:Debug(
+        "["
+            .. run.index
+            .. "/"
+            .. #run.moves
+            .. "] "
+            .. move.phase
+            .. ": "
+            .. description
+            .. " ("
+            .. move.reason
+            .. ")"
+    )
+
+    -- Resolve indices from this live snapshot, never from the original plan.
+    lastMoveAt = GetTime()
+    if move.type == "set" then
+        SetRaidSubgroup(raidState[move.name].raidIndex, move.targetGroup)
+    else
+        SwapRaidSubgroup(
+            raidState[move.nameA].raidIndex,
+            raidState[move.nameB].raidIndex
+        )
+    end
+end
+
+ProcessApplyState = function(run, pending, timedOut)
+    if activeRun ~= run or run.pending ~= pending then return end
+
+    local raidState, groupCounts = BuildRaidState()
+    local reason = GetRunMismatch(run, raidState, pending)
+    if reason then
+        AbortApply(run, reason)
+
+        return
+    end
+
+    if pending then
+        local mismatches = {}
+        for name, targetGroup in pairs(pending.targets) do
+            local actualGroup = raidState[name].currentGroup
+            if actualGroup ~= targetGroup then
+                mismatches[#mismatches + 1] = name
+                    .. " is in group "
+                    .. actualGroup
+                    .. ", expected group "
+                    .. targetGroup
+            end
+        end
+
+        if #mismatches > 0 then
+            if timedOut then
+                AbortApply(
+                    run,
+                    "move "
+                        .. run.index
+                        .. " timed out: "
+                        .. table.concat(mismatches, "; ")
+                )
+            end
+
+            return
+        end
+
+        CancelPendingTimers(pending)
+        for name, targetGroup in pairs(pending.targets) do
+            run.expectedGroups[name] = targetGroup
+        end
+        addon:Debug("[" .. run.index .. "/" .. #run.moves .. "] confirmed")
+        run.pending = nil
+        run.completed = run.completed + 1
+        run.index = run.index + 1
+    end
+
+    -- No yield: confirmation and dispatch share this freshly checked snapshot.
+    ExecuteNextMove(run, raidState, groupCounts)
+end
+
+local function OnAssignmentRosterUpdate()
+    local run = activeRun
+    if not run or not run.pending then return end
+
+    local pending = run.pending
+    if pending.verifyTimer then return end
+
+    -- Coalesce an event burst to the next frame, without a fixed per-move delay.
+    pending.verifyTimer = C_Timer.NewTimer(0, function()
+        pending.verifyTimer = nil
+        ProcessApplyState(run, pending, false)
+    end)
 end
 
 function addon:StartApply()
+    if activeRun then
+        self:Print("A layout is already being applied.")
+
+        return
+    end
+
     if not IsInRaid() then
         self:Print("Not in a raid group.")
 
@@ -1201,10 +1359,17 @@ function addon:StartApply()
     end
 
     -- Plan all moves up front
-    local rosterSnapshot = BuildRosterSnapshot()
     local raidState = BuildRaidState()
     local desired = BuildDesiredState()
-    local moves, orderingSkipped = PlanMoves(raidState, desired)
+    local moves, orderingSkipped, planningError = PlanMoves(raidState, desired)
+    if not planningError then
+        moves, planningError = PrepareMoveQueue(raidState, desired, moves)
+    end
+    if planningError then
+        self:Print("Cannot apply layout: " .. planningError .. ".")
+
+        return
+    end
 
     if orderingSkipped then
         self:Print(
@@ -1213,7 +1378,11 @@ function addon:StartApply()
     end
 
     if #moves == 0 then
-        if not orderingSkipped then
+        local mismatch =
+            GetLayoutMismatch(raidState, desired, not orderingSkipped)
+        if mismatch then
+            self:Print("Cannot apply layout: " .. mismatch .. ".")
+        elseif not orderingSkipped then
             self:Print("Groups already match the layout.")
         end
 
@@ -1221,11 +1390,20 @@ function addon:StartApply()
     end
 
     self:Print("Applying layout: " .. #moves .. " moves planned.")
-    self.moveQueue = moves
-    self.moveIndex = 0
-    self.applyRosterSnapshot = rosterSnapshot
-    self.applyOrderingSkipped = orderingSkipped
-    self.assignState = STATE_EXECUTING
+    local expectedGroups = {}
+    for name, member in pairs(raidState) do
+        expectedGroups[name] = member.currentGroup
+    end
+    local run = {
+        moves = moves,
+        index = 1,
+        completed = 0,
+        snapshot = BuildRosterSnapshot(raidState),
+        desired = desired,
+        expectedGroups = expectedGroups,
+        orderingSkipped = orderingSkipped,
+    }
+    activeRun = run
 
     if self.applyButton then
         self.applyButton:Disable()
@@ -1235,24 +1413,19 @@ function addon:StartApply()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", OnAssignmentRosterUpdate)
 
     -- Execute the first move immediately
-    ExecuteNextMove()
+    ProcessApplyState(run)
 end
 
 function addon:StopApply()
-    self.assignState = STATE_IDLE
-    self.moveQueue = {}
-    self.moveIndex = 0
-    self.applyRosterSnapshot = nil
-    self.applyOrderingSkipped = false
+    local run = activeRun
+    if not run then return end
 
-    if self.debounceTimer then
-        self.debounceTimer:Cancel()
-        self.debounceTimer = nil
-    end
-
-    if self.safetyTimer then
-        self.safetyTimer:Cancel()
-        self.safetyTimer = nil
+    activeRun = nil
+    CancelPendingTimers(run.pending)
+    run.pending = nil
+    if run.pacingTimer then
+        run.pacingTimer:Cancel()
+        run.pacingTimer = nil
     end
 
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")

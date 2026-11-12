@@ -89,7 +89,8 @@ Four browsing modes via tab bar:
 - Keybinding support — bind "Toggle Window" in the Key Bindings UI
 - Frame position and scale remember where you left them
 - Auto-hides during boss encounters, reopens when you're alive after
-- Group assignment aborts if raid membership changes while applying a layout
+- Apply confirms each group move and checks the final player order; it reports when ordering must be skipped because no staging group is available
+- Apply stops on unconfirmed moves, combat, membership or leadership changes, lost permissions, or unexpected group changes; completed moves are not rolled back and failed requests are not automatically retried
 - Group slots track party members' online status and recognize your own character outside raids without applying party reshapes
 - Toast notifications for layout apply results and other feedback
 - Clearer button borders and tab hover states for easier interaction

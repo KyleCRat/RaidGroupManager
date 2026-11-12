@@ -239,7 +239,7 @@ function addon:ResolveTemplates()
             table.sort(groupOrder)
 
             if #groupOrder == 2 and #matching > 0 then
-                -- Two groups: class-paired split for balanced distribution
+                -- Two groups: class-paired split within template capacities
                 table.sort(matching, function(a, b)
                     return a.normalizedName < b.normalizedName
                 end)
@@ -253,6 +253,7 @@ function addon:ResolveTemplates()
 
                 local slotsA = groupSlots[groupOrder[1]]
                 local slotsB = groupSlots[groupOrder[2]]
+                self:RebalanceSplitForCapacity(sideA, sideB, #slotsA, #slotsB)
 
                 for i, ts in ipairs(slotsA) do
                     if i <= #sideA then self:SetSlotText(ts.index, sideA[i]) end

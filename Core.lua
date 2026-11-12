@@ -1087,7 +1087,7 @@ end
 -- Group splitting
 --------------------------------------------------------------------------------
 
-local function RebalanceSplitForCapacity(sideA, sideB, capacityA, capacityB)
+function addon:RebalanceSplitForCapacity(sideA, sideB, capacityA, capacityB)
     while #sideA > capacityA and #sideB < capacityB do
         table.insert(sideB, table.remove(sideA))
     end
@@ -1366,7 +1366,7 @@ function addon:SplitOddEven()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
-    RebalanceSplitForCapacity(
+    self:RebalanceSplitForCapacity(
         oddItems,
         evenItems,
         self:GetGroupSlotCapacity(oddGroups),
@@ -1398,7 +1398,7 @@ function addon:SplitHalves()
     if firstCount + secondCount > #allGroups then
         local maxSecondCount = math.floor(#allGroups / 2)
         local maxFirstCount = #allGroups - maxSecondCount
-        RebalanceSplitForCapacity(
+        self:RebalanceSplitForCapacity(
             firstItems,
             secondItems,
             maxFirstCount * 5,

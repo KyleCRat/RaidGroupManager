@@ -4,14 +4,14 @@ local SLOTS_PER_GROUP = 5
 local DEFAULT_ACTIVE_SUBGROUPS = 8
 
 local DIFFICULTY_ACTIVE_SUBGROUPS = {
-    [1]   = 1, -- Party Normal
-    [2]   = 1, -- Party Heroic
-    [8]   = 1, -- Party Mythic
-    [14]  = 6, -- Raid Normal (up to 30-player)
-    [15]  = 6, -- Raid Heroic (up to 30-player)
-    [16]  = 4, -- Raid Mythic (20-player)
-    [17]  = 6, -- LFR
-    [33]  = 6, -- Timewalking Raid
+    [1] = 1, -- Party Normal
+    [2] = 1, -- Party Heroic
+    [8] = 1, -- Party Mythic
+    [14] = 6, -- Raid Normal (up to 30-player)
+    [15] = 6, -- Raid Heroic (up to 30-player)
+    [16] = 4, -- Raid Mythic (20-player)
+    [17] = 6, -- LFR
+    [33] = 6, -- Timewalking Raid
     [151] = 6, -- Timewalking LFR
     [233] = 5, -- Raid Mythic Flexible (15-25-player)
 }

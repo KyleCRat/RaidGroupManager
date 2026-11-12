@@ -24,10 +24,20 @@ function PixelPerfect.DisablePixelSnap(texture)
 end
 
 function PixelPerfect.Scale(region, value, minPixels)
-    return PixelUtil.GetNearestPixelSize(value or 0, region:GetEffectiveScale(), minPixels)
+    return PixelUtil.GetNearestPixelSize(
+        value or 0,
+        region:GetEffectiveScale(),
+        minPixels
+    )
 end
 
-function PixelPerfect.Size(region, width, height, minWidthPixels, minHeightPixels)
+function PixelPerfect.Size(
+    region,
+    width,
+    height,
+    minWidthPixels,
+    minHeightPixels
+)
     PixelUtil.SetSize(region, width, height, minWidthPixels, minHeightPixels)
 end
 
@@ -39,7 +49,16 @@ function PixelPerfect.Height(region, height, minPixels)
     PixelUtil.SetHeight(region, height, minPixels)
 end
 
-function PixelPerfect.Point(region, point, relativeTo, relativePoint, offsetX, offsetY, minOffsetXPixels, minOffsetYPixels)
+function PixelPerfect.Point(
+    region,
+    point,
+    relativeTo,
+    relativePoint,
+    offsetX,
+    offsetY,
+    minOffsetXPixels,
+    minOffsetYPixels
+)
     PixelUtil.SetPoint(
         region,
         point,
@@ -53,10 +72,9 @@ function PixelPerfect.Point(region, point, relativeTo, relativePoint, offsetX, o
 end
 
 function PixelPerfect.SnapCurrentPoint(region)
-    local point, relativeTo, relativePoint, offsetX, offsetY = region:GetPoint(1)
-    if not point then
-        return
-    end
+    local point, relativeTo, relativePoint, offsetX, offsetY =
+        region:GetPoint(1)
+    if not point then return end
 
     region:ClearAllPoints()
     PixelPerfect.Point(
@@ -70,7 +88,8 @@ function PixelPerfect.SnapCurrentPoint(region)
 end
 
 function PixelPerfect.CreateBackground(frame, color, drawLayer, subLevel)
-    local texture = frame:CreateTexture(nil, drawLayer or "BACKGROUND", nil, subLevel)
+    local texture =
+        frame:CreateTexture(nil, drawLayer or "BACKGROUND", nil, subLevel)
     texture:SetAllPoints()
     texture:SetTexture(WHITE_TEXTURE)
     PixelPerfect.DisablePixelSnap(texture)
@@ -90,7 +109,8 @@ local function RefreshBorder(frame, border)
     border.container:SetFrameLevel(frame:GetFrameLevel() + 1)
     border.container:Show()
 
-    local pixelSize = PixelUtil.GetPixelToUIUnitFactor() / border.container:GetEffectiveScale()
+    local pixelSize = PixelUtil.GetPixelToUIUnitFactor()
+        / border.container:GetEffectiveScale()
     local edgeSize = math.max(1, math.floor(size + 0.5)) * pixelSize
     local top = border.top
     local bottom = border.bottom
@@ -176,7 +196,12 @@ function PixelPerfect.SetBorderSize(frame, size)
     RefreshBorder(frame, border)
 end
 
-function PixelPerfect.CreateSurface(frame, backgroundColor, borderColor, borderSize)
+function PixelPerfect.CreateSurface(
+    frame,
+    backgroundColor,
+    borderColor,
+    borderSize
+)
     local background = PixelPerfect.CreateBackground(frame, backgroundColor)
     if borderColor then
         PixelPerfect.CreateBorder(frame, borderSize or 1, borderColor)
@@ -214,23 +239,17 @@ local function RefreshRegisteredGeometry()
 end
 
 function PixelPerfect.RefreshAll()
-    if refreshing then
-        return
-    end
+    if refreshing then return end
 
     refreshing = true
     local success, message = pcall(RefreshRegisteredGeometry)
     refreshing = false
 
-    if not success then
-        error(message, 0)
-    end
+    if not success then error(message, 0) end
 end
 
 function PixelPerfect.RequestRefresh()
-    if refreshPending then
-        return
-    end
+    if refreshPending then return end
 
     refreshPending = true
     C_Timer.After(0, function()

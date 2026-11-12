@@ -43,7 +43,8 @@ local MODERN_CHECKBOX_ATLASES = {
 
 addon.MODERN_CHECKBOX_SIZE = MODERN_CHECKBOX_SIZE
 
-local CLOSE_TEXTURE = "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
+local CLOSE_TEXTURE =
+    "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
 
 local function UpdateEditBoxPlaceholder(editBox, placeholder)
     local text = editBox:GetText()
@@ -56,16 +57,12 @@ end
 
 local function NormalizeTooltipLines(content)
     if type(content) == "string" then
-        if content == "" then
-            return nil
-        end
+        if content == "" then return nil end
 
         return { content }
     end
 
-    if type(content) == "table" then
-        return content
-    end
+    if type(content) == "table" then return content end
 
     return nil
 end
@@ -119,20 +116,14 @@ function addon:ShowTooltip(owner, title, content, anchor)
 end
 
 function addon:HideTooltip(owner)
-    if GameTooltip:IsOwned(owner) then
-        GameTooltip:Hide()
-    end
+    if GameTooltip:IsOwned(owner) then GameTooltip:Hide() end
 
-    if GameNoHeaderTooltip:IsOwned(owner) then
-        GameNoHeaderTooltip:Hide()
-    end
+    if GameNoHeaderTooltip:IsOwned(owner) then GameNoHeaderTooltip:Hide() end
 end
 
 local function GetSimpleTooltipLines(frame)
     local content = frame.rgmSimpleTooltipContent
-    if type(content) == "function" then
-        content = content(frame)
-    end
+    if type(content) == "function" then content = content(frame) end
 
     return NormalizeTooltipLines(content)
 end
@@ -156,9 +147,7 @@ function addon.AttachSimpleTooltip(frame, content, anchor)
         frame:SetMotionScriptsWhileDisabled(true)
     end
 
-    if frame.rgmSimpleTooltipAttached then
-        return
-    end
+    if frame.rgmSimpleTooltipAttached then return end
 
     frame.rgmSimpleTooltipAttached = true
     frame:HookScript("OnEnter", ShowSimpleTooltip)
@@ -227,7 +216,8 @@ local function CreateCheckboxCheckmark(checkbox, disabled)
 end
 
 function addon.CreateScrollFrame(parent, name)
-    local scrollFrame = CreateFrame("ScrollFrame", name, parent, "ScrollFrameTemplate")
+    local scrollFrame =
+        CreateFrame("ScrollFrame", name, parent, "ScrollFrameTemplate")
     local scrollBar = scrollFrame.ScrollBar
 
     PixelPerfect.RegisterLayout(scrollFrame, function()
@@ -240,7 +230,14 @@ function addon.CreateScrollFrame(parent, name)
             SCROLL_BAR_OFFSET_X,
             -SCROLL_BAR_TOP_INSET
         )
-        PixelPerfect.Point(scrollBar, "BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", SCROLL_BAR_OFFSET_X, 0)
+        PixelPerfect.Point(
+            scrollBar,
+            "BOTTOMLEFT",
+            scrollFrame,
+            "BOTTOMRIGHT",
+            SCROLL_BAR_OFFSET_X,
+            0
+        )
     end)
 
     return scrollFrame
@@ -257,7 +254,8 @@ function addon.CreateStyledButton(parent, width, height, label)
     button.rgmWidth = width
     button.rgmHeight = height
     button.bg = PixelPerfect.CreateBackground(button, BUTTON_BACKGROUND)
-    button.highlight = PixelPerfect.CreateBackground(button, BUTTON_HIGHLIGHT, "ARTWORK")
+    button.highlight =
+        PixelPerfect.CreateBackground(button, BUTTON_HIGHLIGHT, "ARTWORK")
     button.highlight:SetBlendMode("ADD")
     button.highlight:Hide()
 
@@ -278,9 +276,7 @@ function addon.CreateStyledButton(parent, width, height, label)
     )
 
     button:SetScript("OnEnter", function(self)
-        if not self:IsEnabled() then
-            return
-        end
+        if not self:IsEnabled() then return end
 
         self.highlight:Show()
         PixelPerfect.SetBorderColor(self, BUTTON_BORDER_HOVER)
@@ -310,26 +306,34 @@ function addon.CreateModernCheckbox(parent, labelText, options)
     local labelSide = options.labelSide == "LEFT" and "LEFT" or "RIGHT"
     local labelGap = options.labelGap or MODERN_CHECKBOX_LABEL_GAP
 
-    checkbox:SetNormalTexture(CreateCheckboxAtlasTexture(
-        checkbox,
-        "BACKGROUND",
-        MODERN_CHECKBOX_ATLASES.normal
-    ))
-    checkbox:SetPushedTexture(CreateCheckboxAtlasTexture(
-        checkbox,
-        "BACKGROUND",
-        MODERN_CHECKBOX_ATLASES.pressed
-    ))
-    checkbox:SetHighlightTexture(CreateCheckboxAtlasTexture(
-        checkbox,
-        "HIGHLIGHT",
-        MODERN_CHECKBOX_ATLASES.hover
-    ))
-    checkbox:SetDisabledTexture(CreateCheckboxAtlasTexture(
-        checkbox,
-        "BACKGROUND",
-        MODERN_CHECKBOX_ATLASES.disabled
-    ))
+    checkbox:SetNormalTexture(
+        CreateCheckboxAtlasTexture(
+            checkbox,
+            "BACKGROUND",
+            MODERN_CHECKBOX_ATLASES.normal
+        )
+    )
+    checkbox:SetPushedTexture(
+        CreateCheckboxAtlasTexture(
+            checkbox,
+            "BACKGROUND",
+            MODERN_CHECKBOX_ATLASES.pressed
+        )
+    )
+    checkbox:SetHighlightTexture(
+        CreateCheckboxAtlasTexture(
+            checkbox,
+            "HIGHLIGHT",
+            MODERN_CHECKBOX_ATLASES.hover
+        )
+    )
+    checkbox:SetDisabledTexture(
+        CreateCheckboxAtlasTexture(
+            checkbox,
+            "BACKGROUND",
+            MODERN_CHECKBOX_ATLASES.disabled
+        )
+    )
     checkbox:SetCheckedTexture(CreateCheckboxCheckmark(checkbox, false))
     checkbox:SetDisabledCheckedTexture(CreateCheckboxCheckmark(checkbox, true))
     checkbox:SetMotionScriptsWhileDisabled(true)
@@ -360,23 +364,34 @@ function addon.CreateModernCheckbox(parent, labelText, options)
 
         checkbox.label:ClearAllPoints()
         if labelSide == "LEFT" then
-            PixelPerfect.Point(checkbox.label, "RIGHT", checkbox, "LEFT", -labelGap, 0)
+            PixelPerfect.Point(
+                checkbox.label,
+                "RIGHT",
+                checkbox,
+                "LEFT",
+                -labelGap,
+                0
+            )
         else
-            PixelPerfect.Point(checkbox.label, "LEFT", checkbox, "RIGHT", labelGap, 0)
+            PixelPerfect.Point(
+                checkbox.label,
+                "LEFT",
+                checkbox,
+                "RIGHT",
+                labelGap,
+                0
+            )
         end
     end)
 
     checkbox:SetScript("OnClick", function(self)
         local checked = self:GetChecked() == true
         PlaySound(
-            checked
-                and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
+            checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
                 or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF
         )
 
-        if options.onChanged then
-            options.onChanged(checked)
-        end
+        if options.onChanged then options.onChanged(checked) end
     end)
 
     checkbox:SetScript("OnEnable", function(self)
@@ -402,9 +417,7 @@ end
 
 function addon.SetEditBoxPlaceholder(editBox, placeholderText)
     local placeholder = editBox.rgmPlaceholder or editBox.Instructions
-    if not placeholder then
-        return
-    end
+    if not placeholder then return end
 
     placeholder:SetText(placeholderText)
     UpdateEditBoxPlaceholder(editBox, placeholder)
@@ -451,11 +464,39 @@ function addon.StyleEditBox(editBox, placeholderText, options)
     PixelPerfect.RegisterLayout(editBox, function()
         placeholder:ClearAllPoints()
         if multiline then
-            PixelPerfect.Point(placeholder, "TOPLEFT", editBox, "TOPLEFT", textInset, -textInset)
-            PixelPerfect.Point(placeholder, "RIGHT", editBox, "RIGHT", -textInset, 0)
+            PixelPerfect.Point(
+                placeholder,
+                "TOPLEFT",
+                editBox,
+                "TOPLEFT",
+                textInset,
+                -textInset
+            )
+            PixelPerfect.Point(
+                placeholder,
+                "RIGHT",
+                editBox,
+                "RIGHT",
+                -textInset,
+                0
+            )
         else
-            PixelPerfect.Point(placeholder, "LEFT", editBox, "LEFT", textInset, 0)
-            PixelPerfect.Point(placeholder, "RIGHT", editBox, "RIGHT", -textInset, 0)
+            PixelPerfect.Point(
+                placeholder,
+                "LEFT",
+                editBox,
+                "LEFT",
+                textInset,
+                0
+            )
+            PixelPerfect.Point(
+                placeholder,
+                "RIGHT",
+                editBox,
+                "RIGHT",
+                -textInset,
+                0
+            )
         end
     end)
 
@@ -508,7 +549,8 @@ function addon.CreateWindowFrame(title, width, height, backgroundAlpha)
         b = WINDOW_BACKGROUND.b,
         a = backgroundAlpha or WINDOW_BACKGROUND.a,
     }
-    frame.bg = PixelPerfect.CreateSurface(frame, backgroundColor, COLOR_BLACK, 1)
+    frame.bg =
+        PixelPerfect.CreateSurface(frame, backgroundColor, COLOR_BLACK, 1)
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
@@ -538,7 +580,14 @@ function addon.CreateWindowFrame(title, width, height, backgroundAlpha)
         titleBar:SetFrameLevel(frame:GetFrameLevel() + 1)
 
         titleBar.text:ClearAllPoints()
-        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            titleBar.text,
+            "LEFT",
+            titleBar,
+            "LEFT",
+            UI_SPACING,
+            0
+        )
 
         close:ClearAllPoints()
         PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -UI_SPACING, 1)

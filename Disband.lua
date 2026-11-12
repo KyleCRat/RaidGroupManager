@@ -20,7 +20,8 @@ local function CanDisbandRaid()
     end
 
     local _, instanceType = IsInInstance()
-    if instanceType == "pvp"
+    if
+        instanceType == "pvp"
         or instanceType == "arena"
         or HasLFGRestrictions()
         or C_PartyInfo.ChallengeModeRestrictionsActive()
@@ -34,9 +35,7 @@ local function CanDisbandRaid()
 end
 
 function addon:DisbandRaid()
-    if not CanDisbandRaid() then
-        return
-    end
+    if not CanDisbandRaid() then return end
 
     for index = 40, 1, -1 do
         local unit = "raid" .. index
@@ -61,9 +60,7 @@ StaticPopupDialogs["RGM_DISBAND_RAID"] = {
 }
 
 function addon:PromptDisbandRaid()
-    if not CanDisbandRaid() then
-        return
-    end
+    if not CanDisbandRaid() then return end
 
     StaticPopup_Show("RGM_DISBAND_RAID")
 end

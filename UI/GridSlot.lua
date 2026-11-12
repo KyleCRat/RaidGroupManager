@@ -20,8 +20,6 @@ local COLOR_EMPTY_BG = { r = 0.2, g = 0.2, b = 0.2, a = 0.4 }
 local COLOR_EMPTY_TEXT = { r = 0.4, g = 0.4, b = 0.4, a = 0.5 }
 local COLOR_GRAY = { r = 0.7, g = 0.7, b = 0.7 }
 local COLOR_GRAY_BG = { r = 0.5, g = 0.5, b = 0.5, a = 0.25 }
-local COLOR_BORDER_NORMAL = { r = 0, g = 0, b = 0 }
-local COLOR_BORDER_UNMATCHED = { r = 0.5, g = 0.25, b = 0.3 }
 local COLOR_DRAG_HIGHLIGHT = { r = 0.4, g = 0.6, b = 1, a = 0.3 }
 local COLOR_DRAG_PREVIEW_BG_FALLBACK = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 }
 local COLOR_DRAG_PREVIEW_BORDER = { r = 0, g = 0, b = 0, a = 1 }
@@ -65,7 +63,13 @@ local function UpdateDragPreviewPosition(frame)
     y = y / scale
 
     frame:ClearAllPoints()
-    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x - frame.dragCursorOffsetX, y + frame.dragCursorOffsetY)
+    frame:SetPoint(
+        "TOPLEFT",
+        UIParent,
+        "BOTTOMLEFT",
+        x - frame.dragCursorOffsetX,
+        y + frame.dragCursorOffsetY
+    )
 end
 
 local function DragPreview_OnUpdate(self)
@@ -117,7 +121,8 @@ local function CreateDragPreviewFrame()
 
     frame.rgmWidth = 80
     frame.rgmHeight = SLOT_HEIGHT
-    frame.bg = PixelPerfect.CreateBackground(frame, COLOR_DRAG_PREVIEW_BG_FALLBACK)
+    frame.bg =
+        PixelPerfect.CreateBackground(frame, COLOR_DRAG_PREVIEW_BG_FALLBACK)
     PixelPerfect.CreateBorder(frame, 1, COLOR_DRAG_PREVIEW_BORDER)
 
     frame.nameText = frame:CreateFontString(nil, "ARTWORK")
@@ -151,12 +156,14 @@ local function GetFrameCursorOffset(sourceFrame)
     if left and bottom and width and height then
         local sourceScale = sourceFrame:GetEffectiveScale()
 
-        return (cursorX - left) / sourceScale, ((bottom + height) - cursorY) / sourceScale
+        return (cursorX - left) / sourceScale,
+            ((bottom + height) - cursorY) / sourceScale
     end
 end
 
 function addon:CaptureDragCursorOffset(sourceFrame)
-    sourceFrame.dragCursorOffsetX, sourceFrame.dragCursorOffsetY = GetFrameCursorOffset(sourceFrame)
+    sourceFrame.dragCursorOffsetX, sourceFrame.dragCursorOffsetY =
+        GetFrameCursorOffset(sourceFrame)
 end
 
 local function SetDragPreviewCursorOffset(frame, sourceFrame)
@@ -167,15 +174,14 @@ local function SetDragPreviewCursorOffset(frame, sourceFrame)
         return
     end
 
-    frame.dragCursorOffsetX, frame.dragCursorOffsetY = GetFrameCursorOffset(sourceFrame)
+    frame.dragCursorOffsetX, frame.dragCursorOffsetY =
+        GetFrameCursorOffset(sourceFrame)
     frame.dragCursorOffsetX = frame.dragCursorOffsetX or 0
     frame.dragCursorOffsetY = frame.dragCursorOffsetY or 0
 end
 
 function addon:ShowDragPreviewFromFrame(sourceFrame)
-    if not sourceFrame then
-        return
-    end
+    if not sourceFrame then return end
 
     if not self.dragPreviewFrame then
         self.dragPreviewFrame = CreateDragPreviewFrame()
@@ -184,11 +190,13 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     local frame = self.dragPreviewFrame
     local width = sourceFrame:GetWidth() or SLOT_WIDTH
     local height = sourceFrame:GetHeight() or SLOT_HEIGHT
-    local sourceScale = sourceFrame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local sourceScale = sourceFrame:GetEffectiveScale()
+        / UIParent:GetEffectiveScale()
     local text = sourceFrame.nameText and sourceFrame.nameText:GetText() or ""
     local textWidth = 0
     local textR, textG, textB, textA = GetSourceTextColor(sourceFrame)
-    local bgR, bgG, bgB, bgA = GetSourceVertexColor(sourceFrame, "bg", COLOR_DRAG_PREVIEW_BG_FALLBACK)
+    local bgR, bgG, bgB, bgA =
+        GetSourceVertexColor(sourceFrame, "bg", COLOR_DRAG_PREVIEW_BG_FALLBACK)
     local leadershipTexture
     local roleTexture
     local roleAtlas
@@ -200,7 +208,8 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     if sourceFrame.nameText then
         textWidth = sourceFrame.nameText:GetStringWidth() or 0
         if sourceFrame.nameText.GetUnboundedStringWidth then
-            textWidth = sourceFrame.nameText:GetUnboundedStringWidth() or textWidth
+            textWidth = sourceFrame.nameText:GetUnboundedStringWidth()
+                or textWidth
         end
     end
 
@@ -214,9 +223,16 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
         end
     end
 
-    frame.offlineIcon:SetShown(sourceFrame.offlineIcon ~= nil and sourceFrame.offlineIcon:IsShown())
-    local iconWidth = ROLE_ICON_SIZE + (leadershipTexture and LEADER_ICON_SIZE + 3 or 0)
-        + (frame.offlineIcon:IsShown() and OFFLINE_ICON_SIZE + OFFLINE_ICON_GAP or 0)
+    frame.offlineIcon:SetShown(
+        sourceFrame.offlineIcon ~= nil and sourceFrame.offlineIcon:IsShown()
+    )
+    local iconWidth = ROLE_ICON_SIZE
+        + (leadershipTexture and LEADER_ICON_SIZE + 3 or 0)
+        + (
+            frame.offlineIcon:IsShown()
+                and OFFLINE_ICON_SIZE + OFFLINE_ICON_GAP
+            or 0
+        )
 
     frame:SetScale(sourceScale)
     frame.rgmWidth = math.max(80, width, math.ceil(textWidth + iconWidth + 16))
@@ -224,14 +240,29 @@ function addon:ShowDragPreviewFromFrame(sourceFrame)
     PixelPerfect.Size(frame, frame.rgmWidth, frame.rgmHeight)
     PixelPerfect.RequestRefresh()
     SetDragPreviewCursorOffset(frame, sourceFrame)
-    frame.bg:SetVertexColor(bgR, bgG, bgB, math.max(bgA or 0, DRAG_PREVIEW_MIN_BG_ALPHA))
+    frame.bg:SetVertexColor(
+        bgR,
+        bgG,
+        bgB,
+        math.max(bgA or 0, DRAG_PREVIEW_MIN_BG_ALPHA)
+    )
     frame.nameText:SetText(text)
-    frame.nameText:SetTextColor(textR, textG, textB, textA or TEXT_ALPHA_DEFAULT)
+    frame.nameText:SetTextColor(
+        textR,
+        textG,
+        textB,
+        textA or TEXT_ALPHA_DEFAULT
+    )
     self:SetLeadershipIconState(
-        frame, leadershipTexture, 4, ROLE_ICON_SIZE,
+        frame,
+        leadershipTexture,
+        4,
+        ROLE_ICON_SIZE,
         sourceFrame.leaderIcon ~= nil and sourceFrame.leaderIcon:IsDesaturated()
     )
-    frame.roleIcon:SetDesaturated(sourceFrame.roleIcon ~= nil and sourceFrame.roleIcon:IsDesaturated())
+    frame.roleIcon:SetDesaturated(
+        sourceFrame.roleIcon ~= nil and sourceFrame.roleIcon:IsDesaturated()
+    )
 
     if roleAtlas and frame.roleIcon.SetAtlas then
         frame.roleIcon:SetAtlas(roleAtlas)
@@ -266,9 +297,7 @@ end
 local function FindSlotUnderCursor()
     for i = 1, 40 do
         local slot = addon.slots[i]
-        if slot and slot:IsMouseOver() then
-            return slot
-        end
+        if slot and slot:IsMouseOver() then return slot end
     end
 
     return nil
@@ -286,9 +315,7 @@ local function SwapSlotContents(indexA, indexB)
 end
 
 local function GetSlotTooltipLines(slot)
-    if slot.playerName == "" then
-        return nil
-    end
+    if slot.playerName == "" then return nil end
 
     local template = addon:DecodeTemplate(slot.playerName)
     if template then
@@ -327,7 +354,12 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.bg:SetAllPoints()
     slot.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
     PixelPerfect.DisablePixelSnap(slot.bg)
-    slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
+    slot.bg:SetVertexColor(
+        COLOR_EMPTY_BG.r,
+        COLOR_EMPTY_BG.g,
+        COLOR_EMPTY_BG.b,
+        COLOR_EMPTY_BG.a
+    )
 
     -- Name text
     slot.nameText = slot:CreateFontString(nil, "ARTWORK")
@@ -339,7 +371,12 @@ local function CreateSlotFrame(parent, slotIndex)
     slot.emptyText = slot:CreateFontString(nil, "ARTWORK")
     slot.emptyText:SetFont(FONT, 12, "OUTLINE")
     slot.emptyText:SetText("Empty")
-    slot.emptyText:SetTextColor(COLOR_EMPTY_TEXT.r, COLOR_EMPTY_TEXT.g, COLOR_EMPTY_TEXT.b, COLOR_EMPTY_TEXT.a)
+    slot.emptyText:SetTextColor(
+        COLOR_EMPTY_TEXT.r,
+        COLOR_EMPTY_TEXT.g,
+        COLOR_EMPTY_TEXT.b,
+        COLOR_EMPTY_TEXT.a
+    )
 
     -- Role icon
     slot.roleIcon = slot:CreateTexture(nil, "ARTWORK")
@@ -351,7 +388,12 @@ local function CreateSlotFrame(parent, slotIndex)
     -- Drag hover highlight
     slot.dragHighlight = slot:CreateTexture(nil, "OVERLAY")
     slot.dragHighlight:SetAllPoints()
-    slot.dragHighlight:SetColorTexture(COLOR_DRAG_HIGHLIGHT.r, COLOR_DRAG_HIGHLIGHT.g, COLOR_DRAG_HIGHLIGHT.b, COLOR_DRAG_HIGHLIGHT.a)
+    slot.dragHighlight:SetColorTexture(
+        COLOR_DRAG_HIGHLIGHT.r,
+        COLOR_DRAG_HIGHLIGHT.g,
+        COLOR_DRAG_HIGHLIGHT.b,
+        COLOR_DRAG_HIGHLIGHT.a
+    )
     PixelPerfect.DisablePixelSnap(slot.dragHighlight)
     slot.dragHighlight:SetBlendMode("ADD")
     slot.dragHighlight:Hide()
@@ -362,7 +404,11 @@ local function CreateSlotFrame(parent, slotIndex)
             addon:CaptureDragCursorOffset(self)
         end
 
-        if button == "MiddleButton" and self.playerName ~= "" and not addon:DecodeTemplate(self.playerName) then
+        if
+            button == "MiddleButton"
+            and self.playerName ~= ""
+            and not addon:DecodeTemplate(self.playerName)
+        then
             addon:ToggleRaidAssist(self.playerName)
         end
 
@@ -376,9 +422,7 @@ local function CreateSlotFrame(parent, slotIndex)
 
     -- Drag start
     slot:SetScript("OnDragStart", function(self)
-        if self.playerName == "" then
-            return
-        end
+        if self.playerName == "" then return end
 
         addon.dragSource = self
         addon.dragSourceType = "slot"
@@ -390,9 +434,7 @@ local function CreateSlotFrame(parent, slotIndex)
     slot:SetScript("OnDragStop", function(self)
         self:SetAlpha(1)
 
-        if not addon.dragSource then
-            return
-        end
+        if not addon.dragSource then return end
 
         local target = FindSlotUnderCursor()
         if target and target ~= addon.dragSource then
@@ -437,9 +479,7 @@ function addon:ClearDragState()
     -- Hide all drag highlights
     for i = 1, 40 do
         local slot = self.slots[i]
-        if slot then
-            slot.dragHighlight:Hide()
-        end
+        if slot then slot.dragHighlight:Hide() end
     end
 
     self.dragSource = nil
@@ -464,9 +504,7 @@ end
 
 function addon:RefreshSlot(slotIndex)
     local slot = self.slots[slotIndex]
-    if not slot then
-        return
-    end
+    if not slot then return end
 
     local text = slot.playerName or ""
     local roleIcon = slot.roleIcon
@@ -484,7 +522,12 @@ function addon:RefreshSlot(slotIndex)
     if text == "" then
         slot.nameText:SetText("")
         slot.emptyText:Show()
-        slot.bg:SetVertexColor(COLOR_EMPTY_BG.r, COLOR_EMPTY_BG.g, COLOR_EMPTY_BG.b, COLOR_EMPTY_BG.a)
+        slot.bg:SetVertexColor(
+            COLOR_EMPTY_BG.r,
+            COLOR_EMPTY_BG.g,
+            COLOR_EMPTY_BG.b,
+            COLOR_EMPTY_BG.a
+        )
         roleIcon:SetDesaturated(false)
         roleIcon:Hide()
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
@@ -499,19 +542,48 @@ function addon:RefreshSlot(slotIndex)
         local isGeneric = template.class == "ANY"
 
         if isGeneric then
-            slot.nameText:SetText(ROLE_DISPLAY_NAMES[template.role] or template.role)
-            slot.nameText:SetTextColor(COLOR_TEMPLATE_GENERIC_TEXT.r, COLOR_TEMPLATE_GENERIC_TEXT.g, COLOR_TEMPLATE_GENERIC_TEXT.b)
-            slot.bg:SetVertexColor(COLOR_TEMPLATE_GENERIC_BG.r, COLOR_TEMPLATE_GENERIC_BG.g, COLOR_TEMPLATE_GENERIC_BG.b, COLOR_TEMPLATE_BG_ALPHA)
+            slot.nameText:SetText(
+                ROLE_DISPLAY_NAMES[template.role] or template.role
+            )
+            slot.nameText:SetTextColor(
+                COLOR_TEMPLATE_GENERIC_TEXT.r,
+                COLOR_TEMPLATE_GENERIC_TEXT.g,
+                COLOR_TEMPLATE_GENERIC_TEXT.b
+            )
+            slot.bg:SetVertexColor(
+                COLOR_TEMPLATE_GENERIC_BG.r,
+                COLOR_TEMPLATE_GENERIC_BG.g,
+                COLOR_TEMPLATE_GENERIC_BG.b,
+                COLOR_TEMPLATE_BG_ALPHA
+            )
         else
             slot.nameText:SetText(ClassSpecRoles:GetClassName(template.class))
 
             local classColor = C_ClassColor.GetClassColor(template.class)
             if classColor then
-                slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, COLOR_TEMPLATE_BG_ALPHA)
+                slot.nameText:SetTextColor(
+                    classColor.r,
+                    classColor.g,
+                    classColor.b
+                )
+                slot.bg:SetVertexColor(
+                    classColor.r,
+                    classColor.g,
+                    classColor.b,
+                    COLOR_TEMPLATE_BG_ALPHA
+                )
             else
-                slot.nameText:SetTextColor(COLOR_TEMPLATE_FALLBACK_TEXT.r, COLOR_TEMPLATE_FALLBACK_TEXT.g, COLOR_TEMPLATE_FALLBACK_TEXT.b)
-                slot.bg:SetVertexColor(COLOR_TEMPLATE_FALLBACK_BG.r, COLOR_TEMPLATE_FALLBACK_BG.g, COLOR_TEMPLATE_FALLBACK_BG.b, COLOR_TEMPLATE_BG_ALPHA)
+                slot.nameText:SetTextColor(
+                    COLOR_TEMPLATE_FALLBACK_TEXT.r,
+                    COLOR_TEMPLATE_FALLBACK_TEXT.g,
+                    COLOR_TEMPLATE_FALLBACK_TEXT.b
+                )
+                slot.bg:SetVertexColor(
+                    COLOR_TEMPLATE_FALLBACK_BG.r,
+                    COLOR_TEMPLATE_FALLBACK_BG.g,
+                    COLOR_TEMPLATE_FALLBACK_BG.b,
+                    COLOR_TEMPLATE_BG_ALPHA
+                )
             end
         end
 
@@ -535,17 +607,35 @@ function addon:RefreshSlot(slotIndex)
 
     if member then
         self:SetLeadershipIconState(
-            slot, self:GetLeadershipIconTextureForRank(member.rank), 4, ROLE_ICON_SIZE, isOffline
+            slot,
+            self:GetLeadershipIconTextureForRank(member.rank),
+            4,
+            ROLE_ICON_SIZE,
+            isOffline
         )
 
         -- In group - class color
         local classColor = C_ClassColor.GetClassColor(member.class)
         if classColor then
             slot.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-            slot.bg:SetVertexColor(classColor.r, classColor.g, classColor.b, PLAYER_CLASS_BG_ALPHA)
+            slot.bg:SetVertexColor(
+                classColor.r,
+                classColor.g,
+                classColor.b,
+                PLAYER_CLASS_BG_ALPHA
+            )
         else
-            slot.nameText:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
-            slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
+            slot.nameText:SetTextColor(
+                COLOR_WHITE.r,
+                COLOR_WHITE.g,
+                COLOR_WHITE.b
+            )
+            slot.bg:SetVertexColor(
+                COLOR_GRAY_BG.r,
+                COLOR_GRAY_BG.g,
+                COLOR_GRAY_BG.b,
+                COLOR_GRAY_BG.a
+            )
         end
 
         -- Role icon
@@ -562,11 +652,24 @@ function addon:RefreshSlot(slotIndex)
     else
         local rosterEntry = self:GetImportedRosterEntry(text)
         if rosterEntry then
-            local assistTexture = self:IsRosterLeader(text) and self.ASSIST_ICON_TEXTURE or nil
-            self:SetLeadershipIconState(slot, assistTexture, 4, ROLE_ICON_SIZE, true)
+            local assistTexture = self:IsRosterLeader(text)
+                    and self.ASSIST_ICON_TEXTURE
+                or nil
+            self:SetLeadershipIconState(
+                slot,
+                assistTexture,
+                4,
+                ROLE_ICON_SIZE,
+                true
+            )
 
             slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-            slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
+            slot.bg:SetVertexColor(
+                COLOR_GRAY_BG.r,
+                COLOR_GRAY_BG.g,
+                COLOR_GRAY_BG.b,
+                COLOR_GRAY_BG.a
+            )
 
             local texture = rosterEntry.role and ROLE_TEXTURES[rosterEntry.role]
             if texture then
@@ -583,7 +686,12 @@ function addon:RefreshSlot(slotIndex)
         -- Not in raid — gray text
         self:SetLeadershipIconState(slot, nil, 4, ROLE_ICON_SIZE)
         slot.nameText:SetTextColor(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b)
-        slot.bg:SetVertexColor(COLOR_GRAY_BG.r, COLOR_GRAY_BG.g, COLOR_GRAY_BG.b, COLOR_GRAY_BG.a)
+        slot.bg:SetVertexColor(
+            COLOR_GRAY_BG.r,
+            COLOR_GRAY_BG.g,
+            COLOR_GRAY_BG.b,
+            COLOR_GRAY_BG.a
+        )
         roleIcon:SetDesaturated(false)
         roleIcon:Hide()
     end
@@ -601,12 +709,16 @@ function addon:CreateGrid(parent)
     local headers = {}
 
     for groupIndex = 1, 8 do
-
         -- Group header — small, centered, faded
         local header = parent:CreateFontString(nil, "ARTWORK")
         header:SetFont(FONT, 12, "OUTLINE")
         header:SetText("Group " .. groupIndex)
-        header:SetTextColor(COLOR_GROUP_HEADER.r, COLOR_GROUP_HEADER.g, COLOR_GROUP_HEADER.b, COLOR_GROUP_HEADER.a)
+        header:SetTextColor(
+            COLOR_GROUP_HEADER.r,
+            COLOR_GROUP_HEADER.g,
+            COLOR_GROUP_HEADER.b,
+            COLOR_GROUP_HEADER.a
+        )
         headers[groupIndex] = header
 
         -- Slots
@@ -628,7 +740,10 @@ function addon:CreateGrid(parent)
         local groupSlotHeight = (5 * slotHeight) + (4 * slotGap)
         local groupStride = headerHeight + groupSlotHeight + groupGap
 
-        parent:SetSize((2 * slotWidth) + columnGap, (4 * groupStride) - groupGap)
+        parent:SetSize(
+            (2 * slotWidth) + columnGap,
+            (4 * groupStride) - groupGap
+        )
 
         for groupIndex = 1, 8 do
             local column = (groupIndex - 1) % 2
@@ -638,16 +753,30 @@ function addon:CreateGrid(parent)
             local header = headers[groupIndex]
 
             header:ClearAllPoints()
-            header:SetPoint("TOP", parent, "TOPLEFT", groupOffsetX + (slotWidth / 2), groupOffsetY)
+            header:SetPoint(
+                "TOP",
+                parent,
+                "TOPLEFT",
+                groupOffsetX + (slotWidth / 2),
+                groupOffsetY
+            )
 
             for position = 1, 5 do
                 local slotIndex = (groupIndex - 1) * 5 + position
                 local slot = self.slots[slotIndex]
-                local slotOffsetY = groupOffsetY - headerHeight - ((position - 1) * (slotHeight + slotGap))
+                local slotOffsetY = groupOffsetY
+                    - headerHeight
+                    - ((position - 1) * (slotHeight + slotGap))
 
                 slot:ClearAllPoints()
                 slot:SetSize(slotWidth, slotHeight)
-                slot:SetPoint("TOPLEFT", parent, "TOPLEFT", groupOffsetX, slotOffsetY)
+                slot:SetPoint(
+                    "TOPLEFT",
+                    parent,
+                    "TOPLEFT",
+                    groupOffsetX,
+                    slotOffsetY
+                )
 
                 slot.emptyText:ClearAllPoints()
                 slot.emptyText:SetPoint("CENTER", slot, "CENTER", 0, 0)

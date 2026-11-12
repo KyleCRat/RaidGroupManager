@@ -18,9 +18,7 @@ local EMPTY_PLACEHOLDER = "-"
 -- Slot value for export: use "-" placeholder for empty slots so column
 -- structure is preserved when re-importing
 local function ExportName(name)
-    if not name or name == "" then
-        return EMPTY_PLACEHOLDER
-    end
+    if not name or name == "" then return EMPTY_PLACEHOLDER end
 
     return name
 end
@@ -37,9 +35,7 @@ local function ExportPaired(slots)
             local name2 = ExportName(slots[(g2 - 1) * 5 + p])
             table.insert(lines, name1 .. SEPARATOR .. name2)
         end
-        if pair < 3 then
-            table.insert(lines, "")
-        end
+        if pair < 3 then table.insert(lines, "") end
     end
 
     return table.concat(lines, "\n")
@@ -64,9 +60,7 @@ local function ExportVertical(slots)
         for p = 1, 5 do
             table.insert(lines, ExportName(slots[(g - 1) * 5 + p]))
         end
-        if g < 8 then
-            table.insert(lines, "")
-        end
+        if g < 8 then table.insert(lines, "") end
     end
 
     return table.concat(lines, "\n")
@@ -102,27 +96,19 @@ end
 
 -- Convert imported cell value: treat "-" placeholder as empty
 local function ImportName(value)
-    if not value or value == "" or value == EMPTY_PLACEHOLDER then
-        return ""
-    end
+    if not value or value == "" or value == EMPTY_PLACEHOLDER then return "" end
 
     return value
 end
 
 local function TryImportEncoded(text)
-    if not text:find("^RGM1") then
-        return nil
-    end
+    if not text:find("^RGM1") then return nil end
 
     local data = text:sub(5)
     local success, slots = addon:Deserialize(data)
-    if not success then
-        return nil
-    end
+    if not success then return nil end
 
-    if type(slots) ~= "table" then
-        return nil
-    end
+    if type(slots) ~= "table" then return nil end
 
     local result = {}
     for i = 1, 40 do
@@ -134,9 +120,7 @@ end
 
 local function TryImportText(text)
     local lines = SplitLines(text)
-    if #lines == 0 then
-        return nil
-    end
+    if #lines == 0 then return nil end
 
     local firstLineParts = SplitColumns(lines[1])
 
@@ -159,9 +143,7 @@ local function TryImportText(text)
         local nameLines = {}
         for _, line in ipairs(lines) do
             local trimmed = strtrim(line)
-            if trimmed ~= "" then
-                table.insert(nameLines, trimmed)
-            end
+            if trimmed ~= "" then table.insert(nameLines, trimmed) end
         end
 
         if #nameLines >= 20 then
@@ -184,9 +166,7 @@ local function TryImportText(text)
     local allNames = {}
     for _, line in ipairs(lines) do
         local trimmed = strtrim(line)
-        if trimmed ~= "" then
-            table.insert(allNames, trimmed)
-        end
+        if trimmed ~= "" then table.insert(allNames, trimmed) end
     end
 
     if #allNames >= 1 then
@@ -213,9 +193,7 @@ local function CreateModalFrame(title, width, height)
     titleBar:EnableMouse(true)
 
     titleBar:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then
-            frame:StartMoving()
-        end
+        if button == "LeftButton" then frame:StartMoving() end
     end)
 
     titleBar:SetScript("OnMouseUp", function()
@@ -226,7 +204,12 @@ local function CreateModalFrame(title, width, height)
     return frame
 end
 
-local function CreateMultiLineEditBox(parent, topOffset, bottomOffset, placeholderText)
+local function CreateMultiLineEditBox(
+    parent,
+    topOffset,
+    bottomOffset,
+    placeholderText
+)
     -- Background behind the scroll area
     local bg = CreateFrame("Frame", nil, parent)
 
@@ -256,13 +239,36 @@ local function CreateMultiLineEditBox(parent, topOffset, bottomOffset, placehold
 
     PixelPerfect.RegisterLayout(bg, function()
         bg:ClearAllPoints()
-        PixelPerfect.Point(bg, "TOPLEFT", parent, "TOPLEFT", UI_SPACING, -(addon.TITLE_HEIGHT + topOffset))
-        PixelPerfect.Point(bg, "BOTTOMRIGHT", parent, "BOTTOMRIGHT", -UI_SPACING, bottomOffset)
+        PixelPerfect.Point(
+            bg,
+            "TOPLEFT",
+            parent,
+            "TOPLEFT",
+            UI_SPACING,
+            -(addon.TITLE_HEIGHT + topOffset)
+        )
+        PixelPerfect.Point(
+            bg,
+            "BOTTOMRIGHT",
+            parent,
+            "BOTTOMRIGHT",
+            -UI_SPACING,
+            bottomOffset
+        )
 
         scrollFrame:ClearAllPoints()
         PixelPerfect.Point(scrollFrame, "TOPLEFT", bg, "TOPLEFT", 4, -4)
-        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", bg, "BOTTOMRIGHT", -22, 4)
-        editBox:SetWidth(math.max(PixelPerfect.Scale(editBox, 1, 1), scrollFrame:GetWidth()))
+        PixelPerfect.Point(
+            scrollFrame,
+            "BOTTOMRIGHT",
+            bg,
+            "BOTTOMRIGHT",
+            -22,
+            4
+        )
+        editBox:SetWidth(
+            math.max(PixelPerfect.Scale(editBox, 1, 1), scrollFrame:GetWidth())
+        )
     end)
 
     return scrollFrame, editBox
@@ -292,7 +298,8 @@ function addon:ShowExportWindow()
     }
 
     for _, fmt in ipairs(formats) do
-        local btn = addon.CreateStyledButton(frame, 80, FORMAT_BUTTON_HEIGHT, fmt.label)
+        local btn =
+            addon.CreateStyledButton(frame, 80, FORMAT_BUTTON_HEIGHT, fmt.label)
         btn.label:SetFont(FONT, 10, "OUTLINE")
 
         btn.formatId = fmt.id
@@ -325,7 +332,14 @@ function addon:ShowExportWindow()
             button:ClearAllPoints()
 
             if previousButton then
-                PixelPerfect.Point(button, "LEFT", previousButton, "RIGHT", UI_SPACING, 0)
+                PixelPerfect.Point(
+                    button,
+                    "LEFT",
+                    previousButton,
+                    "RIGHT",
+                    UI_SPACING,
+                    0
+                )
             else
                 PixelPerfect.Point(
                     button,
@@ -347,9 +361,7 @@ function addon:ShowExportWindow()
 end
 
 function addon:UpdateExportFormatButtons()
-    if not self.exportFormatButtons then
-        return
-    end
+    if not self.exportFormatButtons then return end
 
     for id, btn in pairs(self.exportFormatButtons) do
         if id == self.exportFormat then
@@ -361,9 +373,7 @@ function addon:UpdateExportFormatButtons()
 end
 
 function addon:UpdateExportText()
-    if not self.exportEditBox then
-        return
-    end
+    if not self.exportEditBox then return end
 
     local slots = self:GetGridState()
     local text
@@ -408,14 +418,22 @@ function addon:ShowImportWindow()
     )
     self.importEditBox = editBox
 
-    local importBtn = addon.CreateStyledButton(frame, 80, IMPORT_BUTTON_HEIGHT, "Import")
+    local importBtn =
+        addon.CreateStyledButton(frame, 80, IMPORT_BUTTON_HEIGHT, "Import")
     importBtn:SetScript("OnClick", function()
         self:DoImport()
     end)
 
     PixelPerfect.RegisterLayout(frame, function()
         importBtn:ClearAllPoints()
-        PixelPerfect.Point(importBtn, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -UI_SPACING, UI_SPACING)
+        PixelPerfect.Point(
+            importBtn,
+            "BOTTOMRIGHT",
+            frame,
+            "BOTTOMRIGHT",
+            -UI_SPACING,
+            UI_SPACING
+        )
     end)
 
     frame:Show()
@@ -454,9 +472,7 @@ function addon:DoImport()
     end
 
     local slots = TryImportEncoded(text)
-    if not slots then
-        slots = TryImportText(text)
-    end
+    if not slots then slots = TryImportText(text) end
 
     if not slots then
         self:Print("Could not parse import data. Check the format.")
@@ -469,11 +485,10 @@ function addon:DoImport()
 end
 
 function addon:FinishImport(name)
-    if not self.pendingImportSlots then
-        return
-    end
+    if not self.pendingImportSlots then return end
 
-    local layout, reason = self:CreateLayoutRecord(name, self.pendingImportSlots)
+    local layout, reason =
+        self:CreateLayoutRecord(name, self.pendingImportSlots)
     if not layout then
         self:ReportLayoutCreationError(name, reason)
 
@@ -486,7 +501,5 @@ function addon:FinishImport(name)
 
     self.pendingImportSlots = nil
 
-    if self.importFrame then
-        self.importFrame:Hide()
-    end
+    if self.importFrame then self.importFrame:Hide() end
 end

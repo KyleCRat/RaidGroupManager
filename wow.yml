@@ -1,0 +1,127 @@
+# Reviewed WoW and embedded-library globals; member signatures are not modeled.
+base: lua51
+globals:
+    C_ClassColor:
+        any: true
+    C_FriendList:
+        any: true
+    C_GuildInfo:
+        any: true
+    C_PartyInfo:
+        any: true
+    C_SpecializationInfo:
+        any: true
+    C_Timer:
+        any: true
+    CANCEL:
+        any: true
+    ClearInspectPlayer:
+        any: true
+    CreateFrame:
+        any: true
+    date:
+        any: true
+    DEFAULT_CHAT_FRAME:
+        any: true
+    GameNoHeaderTooltip:
+        any: true
+    GameTooltip:
+        any: true
+    GetClassInfo:
+        any: true
+    GetCursorPosition:
+        any: true
+    GetGuildRosterInfo:
+        any: true
+    GetInstanceInfo:
+        any: true
+    GetNormalizedRealmName:
+        any: true
+    GetNumClasses:
+        any: true
+    GetNumGroupMembers:
+        any: true
+    GetNumGuildMembers:
+        any: true
+    GetRaidRosterInfo:
+        any: true
+    GetSpecialization:
+        any: true
+    GetSpecializationInfo:
+        any: true
+    GetSpecializationInfoForClassID:
+        any: true
+    HasLFGRestrictions:
+        any: true
+    InCombatLockdown:
+        any: true
+    IsControlKeyDown:
+        any: true
+    IsEveryoneAssistant:
+        any: true
+    IsInGroup:
+        any: true
+    IsInGuild:
+        any: true
+    IsInInstance:
+        any: true
+    IsInRaid:
+        any: true
+    issecretvalue:
+        any: true
+    LibStub:
+        any: true
+    MAX_PARTY_MEMBERS:
+        any: true
+    NotifyInspect:
+        any: true
+    PixelUtil:
+        any: true
+    PlaySound:
+        any: true
+    SetRaidSubgroup:
+        any: true
+    SOUNDKIT:
+        any: true
+    StaticPopup_Show:
+        any: true
+    StaticPopupDialogs:
+        any: true
+    StaticPopupTimeoutSec:
+        any: true
+    strtrim:
+        any: true
+    SwapRaidSubgroup:
+        any: true
+    time:
+        any: true
+    UIParent:
+        any: true
+    UnitAffectingCombat:
+        any: true
+    UnitClass:
+        any: true
+    UnitExists:
+        any: true
+    UnitFullName:
+        any: true
+    UnitGroupRolesAssigned:
+        any: true
+    UnitGUID:
+        any: true
+    UnitIsConnected:
+        any: true
+    UnitIsDeadOrGhost:
+        any: true
+    UnitIsGroupLeader:
+        any: true
+    UnitIsUnit:
+        any: true
+    UnitLevel:
+        any: true
+    UnitName:
+        any: true
+    UnitStat:
+        any: true
+    wipe:
+        any: true

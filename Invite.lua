@@ -1,28 +1,20 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
 local function AddUniqueName(names, seen, name)
-    if not name or name == "" then
-        return
-    end
+    if not name or name == "" then return end
 
     local normalized = addon:NormalizeName(name)
-    if not normalized or seen[normalized] then
-        return
-    end
+    if not normalized or seen[normalized] then return end
 
     seen[normalized] = true
     table.insert(names, normalized)
 end
 
 local function SetOnlineStatus(status, name, isOnline)
-    if not name or name == "" then
-        return
-    end
+    if not name or name == "" then return end
 
     local normalized = addon:NormalizeName(name)
-    if not normalized then
-        return
-    end
+    if not normalized then return end
 
     if isOnline then
         status[normalized] = true
@@ -52,16 +44,15 @@ local function BuildKnownOnlineStatus()
     end
 
     if C_FriendList then
-        if C_FriendList.ShowFriends then
-            C_FriendList.ShowFriends()
-        end
+        if C_FriendList.ShowFriends then C_FriendList.ShowFriends() end
 
-        local count = C_FriendList.GetNumFriends and C_FriendList.GetNumFriends() or 0
+        local count = C_FriendList.GetNumFriends
+                and C_FriendList.GetNumFriends()
+            or 0
         for i = 1, count do
-            local info = C_FriendList.GetFriendInfoByIndex and C_FriendList.GetFriendInfoByIndex(i)
-            if info then
-                SetOnlineStatus(status, info.name, info.connected)
-            end
+            local info = C_FriendList.GetFriendInfoByIndex
+                and C_FriendList.GetFriendInfoByIndex(i)
+            if info then SetOnlineStatus(status, info.name, info.connected) end
         end
     end
 
@@ -88,25 +79,19 @@ end
 
 local function GetCurrentGroupCount()
     local count = GetNumGroupMembers() or 0
-    if count > 0 then
-        return count
-    end
+    if count > 0 then return count end
 
     return 1
 end
 
 local function GetOpenPartyInviteSlots()
-    if IsInRaid() then
-        return 0
-    end
+    if IsInRaid() then return 0 end
 
     return math.max(0, PARTY_TOTAL_LIMIT - GetCurrentGroupCount())
 end
 
 local function NeedsRaidForInvites(inviteCount)
-    if IsInRaid() then
-        return false
-    end
+    if IsInRaid() then return false end
 
     return GetCurrentGroupCount() + inviteCount > PARTY_TOTAL_LIMIT
 end
@@ -116,9 +101,7 @@ local function HasPartyForRaidConversion()
 end
 
 local function CanConvertToRaid()
-    if IsInRaid() then
-        return false
-    end
+    if IsInRaid() then return false end
 
     if C_PartyInfo and C_PartyInfo.AllowedToDoPartyConversion then
         return C_PartyInfo.AllowedToDoPartyConversion(true)
@@ -134,9 +117,7 @@ local function RegisterInviteEvents()
 end
 
 local function ScheduleInviteContinue(delay)
-    if inviteTimer then
-        inviteTimer:Cancel()
-    end
+    if inviteTimer then inviteTimer:Cancel() end
 
     inviteTimer = C_Timer.NewTimer(delay or 0, function()
         inviteTimer = nil
@@ -209,9 +190,7 @@ local function BuildInviteQueue(names)
 end
 
 local function FormatNameListOrNone(names)
-    if not names or #names == 0 then
-        return "none"
-    end
+    if not names or #names == 0 then return "none" end
 
     return addon:FormatNameList(names)
 end
@@ -242,19 +221,24 @@ local function FilterMissingNames(names)
     local grouped = addon:BuildCurrentGroupSet()
 
     for _, name in ipairs(names or {}) do
-        if not grouped[name] then
-            table.insert(missing, name)
-        end
+        if not grouped[name] then table.insert(missing, name) end
     end
 
     return missing
 end
 
-local function PrintMissingInviteSummary(sourceLabel, invitedMissing, skippedOffline, notSentNames)
+local function PrintMissingInviteSummary(
+    sourceLabel,
+    invitedMissing,
+    skippedOffline,
+    notSentNames
+)
     local notInvited = CombineNameLists(skippedOffline, notSentNames)
 
     if #invitedMissing == 0 and #notInvited == 0 then
-        addon:Print("Invite check for " .. sourceLabel .. ": no missing characters.")
+        addon:Print(
+            "Invite check for " .. sourceLabel .. ": no missing characters."
+        )
 
         return
     end
@@ -266,9 +250,7 @@ end
 
 local function PrintInviteTimeoutReport()
     local report = inviteReportState
-    if not report then
-        return
-    end
+    if not report then return end
 
     inviteReportState = nil
     inviteReportTimer = nil
@@ -277,21 +259,20 @@ local function PrintInviteTimeoutReport()
     local skippedOffline = FilterMissingNames(report.skippedOffline)
     local notSentNames = FilterMissingNames(report.notSentNames)
 
-    PrintMissingInviteSummary(report.sourceLabel, invitedMissing, skippedOffline, notSentNames)
+    PrintMissingInviteSummary(
+        report.sourceLabel,
+        invitedMissing,
+        skippedOffline,
+        notSentNames
+    )
 
-    if inviteState == report.flowState then
-        StopInviteFlow()
-    end
+    if inviteState == report.flowState then StopInviteFlow() end
 end
 
 ScheduleInviteTimeoutReportFromState = function()
-    if not inviteState or #inviteState.invitedNames == 0 then
-        return
-    end
+    if not inviteState or #inviteState.invitedNames == 0 then return end
 
-    if inviteReportTimer then
-        inviteReportTimer:Cancel()
-    end
+    if inviteReportTimer then inviteReportTimer:Cancel() end
 
     inviteReportState = {
         sourceLabel = inviteState.sourceLabel,
@@ -301,17 +282,14 @@ ScheduleInviteTimeoutReportFromState = function()
         flowState = inviteState,
     }
 
-    inviteReportTimer = C_Timer.NewTimer(INVITE_TIMEOUT_REPORT_DELAY, PrintInviteTimeoutReport)
+    inviteReportTimer =
+        C_Timer.NewTimer(INVITE_TIMEOUT_REPORT_DELAY, PrintInviteTimeoutReport)
 end
 
 local function PopNextInvite(requireKnownOnline)
-    if not inviteState then
-        return nil
-    end
+    if not inviteState then return nil end
 
-    if not requireKnownOnline then
-        return table.remove(inviteState.queue, 1)
-    end
+    if not requireKnownOnline then return table.remove(inviteState.queue, 1) end
 
     for i, entry in ipairs(inviteState.queue) do
         if entry.knownOnline then
@@ -328,11 +306,13 @@ local function SendQueuedInvites(limit, requireKnownOnline)
     local grouped = addon:BuildCurrentGroupSet()
     local sent = 0
 
-    while inviteState and #inviteState.queue > 0 and (not limit or sent < limit) do
+    while
+        inviteState
+        and #inviteState.queue > 0
+        and (not limit or sent < limit)
+    do
         local entry = PopNextInvite(requireKnownOnline)
-        if not entry then
-            break
-        end
+        if not entry then break end
 
         local name = entry.name
         if not grouped[name] then
@@ -344,18 +324,14 @@ local function SendQueuedInvites(limit, requireKnownOnline)
         end
     end
 
-    if sent > 0 then
-        ScheduleInviteTimeoutReportFromState()
-    end
+    if sent > 0 then ScheduleInviteTimeoutReportFromState() end
 
     return sent
 end
 
 local function PrintInviteStarted(names)
     local count = names and #names or 0
-    if count == 0 then
-        return
-    end
+    if count == 0 then return end
 
     addon:Print(count .. " Invited: " .. addon:FormatNameList(names))
 end
@@ -408,9 +384,7 @@ local function TryConvertToRaid()
 end
 
 ContinueInviteFlow = function()
-    if not inviteState then
-        return
-    end
+    if not inviteState then return end
 
     if not C_PartyInfo or not C_PartyInfo.InviteUnit then
         addon:Print("Group invites are not available.")
@@ -514,7 +488,8 @@ function addon:InviteNamesToGroup(names, sourceLabel)
     end
 
     local needsRaid = NeedsRaidForInvites(#queue)
-    local canPromoteAssists = (IsInRaid() and UnitIsGroupLeader("player")) or needsRaid
+    local canPromoteAssists = (IsInRaid() and UnitIsGroupLeader("player"))
+        or needsRaid
     self:StartRosterLeaderAssistPromotion(queue, canPromoteAssists)
 
     inviteState = {
@@ -531,7 +506,9 @@ function addon:InviteNamesToGroup(names, sourceLabel)
         RegisterInviteEvents()
 
         if CanConvertToRaid() then
-            self:Print("Converting to raid before inviting " .. sourceLabel .. ".")
+            self:Print(
+                "Converting to raid before inviting " .. sourceLabel .. "."
+            )
             TryConvertToRaid()
 
             return
@@ -544,16 +521,34 @@ function addon:InviteNamesToGroup(names, sourceLabel)
             return
         end
 
-        local startedInvites = SendQueuedInvites(GetOpenPartyInviteSlots(), true)
+        local startedInvites =
+            SendQueuedInvites(GetOpenPartyInviteSlots(), true)
         if startedInvites == 0 then
-            self:Print("Cannot start raid invite flow: no queued " .. sourceLabel .. " are known online.")
-            PrintMissingInviteSummary(sourceLabel, {}, skippedOffline, GetQueuedInviteNames(inviteState.queue))
+            self:Print(
+                "Cannot start raid invite flow: no queued "
+                    .. sourceLabel
+                    .. " are known online."
+            )
+            PrintMissingInviteSummary(
+                sourceLabel,
+                {},
+                skippedOffline,
+                GetQueuedInviteNames(inviteState.queue)
+            )
             StopInviteFlow()
 
             return
         end
 
-        self:Print("Started " .. startedInvites .. " starter invite" .. (startedInvites == 1 and "" or "s") .. " for " .. sourceLabel .. ". Converting to raid when your party forms.")
+        self:Print(
+            "Started "
+                .. startedInvites
+                .. " starter invite"
+                .. (startedInvites == 1 and "" or "s")
+                .. " for "
+                .. sourceLabel
+                .. ". Converting to raid when your party forms."
+        )
 
         return
     end
@@ -569,13 +564,18 @@ StaticPopupDialogs["RGM_INVITE_TO_GROUP"] = {
     button3 = CANCEL,
     selectCallbackByIndex = true,
     OnButton1 = function()
-        addon:InviteNamesToGroup(addon:GetAssignedInviteNames(), "assigned group members")
+        addon:InviteNamesToGroup(
+            addon:GetAssignedInviteNames(),
+            "assigned group members"
+        )
     end,
     OnButton2 = function()
-        addon:InviteNamesToGroup(addon:GetRosterInviteNames(), "roster characters")
+        addon:InviteNamesToGroup(
+            addon:GetRosterInviteNames(),
+            "roster characters"
+        )
     end,
-    OnButton3 = function()
-    end,
+    OnButton3 = function() end,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,

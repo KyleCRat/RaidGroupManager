@@ -1,5 +1,9 @@
-local addon = LibStub("AceAddon-3.0"):NewAddon("RaidGroupManager",
-    "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
+local addon = LibStub("AceAddon-3.0"):NewAddon(
+    "RaidGroupManager",
+    "AceConsole-3.0",
+    "AceEvent-3.0",
+    "AceSerializer-3.0"
+)
 
 addon.printName = "RGM"
 
@@ -30,12 +34,14 @@ end
 
 _G["BINDING_NAME_CLICK RGMToggle:LeftButton"] = "Toggle Window"
 
-local toggleBtn = CreateFrame("Button", "RGMToggle", nil, "SecureActionButtonTemplate")
+local toggleBtn =
+    CreateFrame("Button", "RGMToggle", nil, "SecureActionButtonTemplate")
 toggleBtn:SetScript("OnClick", function()
     addon:ToggleMainFrame()
 end)
 
-addon.FONT = "Interface\\AddOns\\RaidGroupManager\\Media\\Fonts\\PTSansNarrow-Bold.ttf"
+addon.FONT =
+    "Interface\\AddOns\\RaidGroupManager\\Media\\Fonts\\PTSansNarrow-Bold.ttf"
 
 addon.UI_SPACING = 8
 addon.SLOT_WIDTH = 150
@@ -72,7 +78,10 @@ local defaults = {
 function addon:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("RaidGroupManagerDB", defaults, true)
     if self.db.profile.importedRoster then
-        if not self.db.char.importedRoster or not next(self.db.char.importedRoster) then
+        if
+            not self.db.char.importedRoster
+            or not next(self.db.char.importedRoster)
+        then
             self.db.char.importedRoster = self.db.profile.importedRoster
         end
         self.db.profile.importedRoster = nil
@@ -90,9 +99,7 @@ function addon:OnInitialize()
     self.inspectRetries = {}
     self.offlineMembers = {}
 
-    if not self.wasInRaid then
-        wipe(self.specCache)
-    end
+    if not self.wasInRaid then wipe(self.specCache) end
 
     self:InitializeLayoutState()
     self:InstallPresetLayouts()
@@ -166,28 +173,21 @@ function addon:OnRosterUpdate()
         self:QueueAllInspects()
     end
 
-    if not self.mainFrame or not self.mainFrame:IsShown() then
-
-        return
-    end
+    if not self.mainFrame or not self.mainFrame:IsShown() then return end
 
     self:RefreshAllSlots()
     self:RefreshUnassigned()
 end
 
 function addon:OnEncounterStart()
-    if not self.mainFrame or not self.mainFrame:IsShown() then
-        return
-    end
+    if not self.mainFrame or not self.mainFrame:IsShown() then return end
 
     self.hiddenByEncounter = true
     self.mainFrame:Hide()
 end
 
 function addon:OnEncounterEnd()
-    if not self.hiddenByEncounter then
-        return
-    end
+    if not self.hiddenByEncounter then return end
 
     if not UnitIsDeadOrGhost("player") then
         self:ReopenAfterEncounter()
@@ -236,9 +236,7 @@ function addon:SlashCommand(input)
             return
         end
 
-        if not self.mainFrame then
-            self:CreateMainFrame()
-        end
+        if not self.mainFrame then self:CreateMainFrame() end
 
         self:SetSelectedLayout(layout)
         self:LoadLayoutToGrid(layout)
@@ -263,7 +261,9 @@ function addon:SlashCommand(input)
     if cmd == "debug" then
         self.debugMode = not self.debugMode
         self.db.profile.debugMode = self.debugMode
-        self:Print("Debug mode " .. (self.debugMode and "enabled" or "disabled"))
+        self:Print(
+            "Debug mode " .. (self.debugMode and "enabled" or "disabled")
+        )
 
         return
     end
@@ -286,9 +286,7 @@ end
 function addon:FindLayoutByName(name)
     local nameLower = name:lower()
     for _, layout in ipairs(self.db.profile.layouts) do
-        if layout.name:lower() == nameLower then
-            return layout
-        end
+        if layout.name:lower() == nameLower then return layout end
     end
 
     return nil
@@ -310,9 +308,7 @@ function addon:ToggleMainFrame()
 end
 
 function addon:Debug(...)
-    if self.debugMode then
-        self:Print("[DEBUG]", ...)
-    end
+    if self.debugMode then self:Print("[DEBUG]", ...) end
 end
 
 --------------------------------------------------------------------------------
@@ -332,38 +328,25 @@ local function GetPublicInspectSpecialization(unit)
 end
 
 function addon:QueueInspect(name)
-    if self.specCache[name] then
+    if self.specCache[name] then return end
 
-        return
-    end
-
-    if self.inspectQueueSet[name] then
-
-        return
-    end
+    if self.inspectQueueSet[name] then return end
 
     table.insert(self.inspectQueue, name)
     self.inspectQueueSet[name] = true
 
-    if not self.inspectBusy then
-        self:ProcessNextInspect()
-    end
+    if not self.inspectBusy then self:ProcessNextInspect() end
 end
 
 function addon:FindRaidUnit(name)
-    if not IsInRaid() then
-        return nil
-    end
+    if not IsInRaid() then return nil end
 
     local normalizedName = self:NormalizeName(name)
-    if not normalizedName then
-        return nil
-    end
+    if not normalizedName then return nil end
 
     for i = 1, 40 do
         local rosterName = GetRaidRosterInfo(i)
         if rosterName and self:NormalizeName(rosterName) == normalizedName then
-
             return "raid" .. i
         end
     end
@@ -384,9 +367,8 @@ function addon:ProcessNextInspect()
         table.remove(self.inspectQueue, 1)
         self.inspectQueueSet[name] = nil
 
-        if self.specCache[name] then
-            -- Already cached (e.g. from a tooltip inspect), skip
-        else
+        -- Already-cached entries do not need another inspect.
+        if not self.specCache[name] then
             local unit = self:FindRaidUnit(name)
             if not unit or not UnitIsConnected(unit) then
                 self:MarkInspectFailed(name)
@@ -400,15 +382,18 @@ function addon:ProcessNextInspect()
                     self.inspectSafetyTimer:Cancel()
                 end
 
-                self.inspectSafetyTimer = C_Timer.NewTimer(INSPECT_SAFETY_TIMEOUT, function()
-                    self.inspectSafetyTimer = nil
-                    if self.inspectBusy then
-                        self:Debug("Inspect safety timeout for " .. name)
-                        self.inspectBusy = false
-                        self:MarkInspectFailed(name)
-                        self:ProcessNextInspect()
+                self.inspectSafetyTimer = C_Timer.NewTimer(
+                    INSPECT_SAFETY_TIMEOUT,
+                    function()
+                        self.inspectSafetyTimer = nil
+                        if self.inspectBusy then
+                            self:Debug("Inspect safety timeout for " .. name)
+                            self.inspectBusy = false
+                            self:MarkInspectFailed(name)
+                            self:ProcessNextInspect()
+                        end
                     end
-                end)
+                )
 
                 return
             end
@@ -428,63 +413,59 @@ function addon:MarkInspectFailed(name)
     self.inspectRetries[name] = retries
 
     if retries <= MAX_INSPECT_RETRIES then
-        self:Debug(name .. " inspect failed (attempt " .. retries .. "/" .. MAX_INSPECT_RETRIES .. ")")
+        self:Debug(
+            name
+                .. " inspect failed (attempt "
+                .. retries
+                .. "/"
+                .. MAX_INSPECT_RETRIES
+                .. ")"
+        )
     else
         self:Debug(name .. " exceeded max retries, skipping")
     end
 end
 
 function addon:ScheduleRetryUncached()
-    if self.retryUncachedTimer then
+    if self.retryUncachedTimer then return end
 
-        return
-    end
-
-    if not IsInRaid() then
-
-        return
-    end
+    if not IsInRaid() then return end
 
     self.retryUncachedTimer = C_Timer.NewTimer(RETRY_UNCACHED_DELAY, function()
         self.retryUncachedTimer = nil
 
-        if not IsInRaid() then
-
-            return
-        end
+        if not IsInRaid() then return end
 
         local roster = self:GetRaidRoster()
         local uncached = {}
 
         for name, member in pairs(roster) do
-            if not self.specCache[name] and not UnitIsUnit("raid" .. member.raidIndex, "player") then
-                local retries = (self.inspectRetries and self.inspectRetries[name]) or 0
+            if
+                not self.specCache[name]
+                and not UnitIsUnit("raid" .. member.raidIndex, "player")
+            then
+                local retries = (
+                    self.inspectRetries and self.inspectRetries[name]
+                ) or 0
                 if retries < MAX_INSPECT_RETRIES then
                     uncached[#uncached + 1] = name
                 end
             end
         end
 
-        if #uncached == 0 then
-            return
-        end
+        if #uncached == 0 then return end
 
         self:Debug("Retrying uncached members")
         for _, name in ipairs(uncached) do
             self:QueueInspect(name)
         end
 
-        if not self.inspectBusy then
-            self:ProcessNextInspect()
-        end
+        if not self.inspectBusy then self:ProcessNextInspect() end
     end)
 end
 
 function addon:OnInspectReady(_, inspecteeGUID)
-    if not self.inspectBusy then
-
-        return
-    end
+    if not self.inspectBusy then return end
 
     if self.inspectSafetyTimer then
         self.inspectSafetyTimer:Cancel()
@@ -506,7 +487,11 @@ function addon:OnInspectReady(_, inspecteeGUID)
                 self.specCache[name] = specID
                 self:Debug(name .. " spec cached: " .. specID)
 
-                if oldSpec ~= specID and self.mainFrame and self.mainFrame:IsShown() then
+                if
+                    oldSpec ~= specID
+                    and self.mainFrame
+                    and self.mainFrame:IsShown()
+                then
                     for si = 1, 40 do
                         if self:GetSlotText(si) == name then
                             self:RefreshSlot(si)
@@ -535,27 +520,20 @@ function addon:OnCombatEnd()
 end
 
 function addon:OnSpecChanged(_, unit)
-    if not unit or not IsInRaid() then
-        return
-    end
+    if not unit or not IsInRaid() then return end
 
-    if UnitIsUnit(unit, "player") then
-        return
-    end
+    if UnitIsUnit(unit, "player") then return end
 
     local charName, realm = UnitName(unit)
-    if not charName then
-        return
-    end
+    if not charName then return end
 
-    local fullName = (realm and realm ~= "") and (charName .. "-" .. realm) or charName
+    local fullName = (realm and realm ~= "") and (charName .. "-" .. realm)
+        or charName
     local name = self:NormalizeName(fullName)
 
     -- Debounce: PLAYER_SPECIALIZATION_CHANGED fires multiple times per spec change
     self.specChangeTimers = self.specChangeTimers or {}
-    if self.specChangeTimers[name] then
-        self.specChangeTimers[name]:Cancel()
-    end
+    if self.specChangeTimers[name] then self.specChangeTimers[name]:Cancel() end
 
     self.specChangeTimers[name] = C_Timer.NewTimer(0.5, function()
         self.specChangeTimers[name] = nil
@@ -612,9 +590,7 @@ end
 
 function addon:PruneSpecCache(roster)
     for name in pairs(self.specCache) do
-        if not roster[name] then
-            self.specCache[name] = nil
-        end
+        if not roster[name] then self.specCache[name] = nil end
     end
 
     for i = #self.inspectQueue, 1, -1 do
@@ -631,26 +607,20 @@ end
 --------------------------------------------------------------------------------
 
 function addon:GetPlayerRealm()
-    if not playerRealm then
-        playerRealm = GetNormalizedRealmName()
-    end
+    if not playerRealm then playerRealm = GetNormalizedRealmName() end
 
     return playerRealm
 end
 
 function addon:NormalizeRealm(realm)
-    if not realm or realm == "" then
-        return nil
-    end
+    if not realm or realm == "" then return nil end
 
     return realm:gsub("%s+", "")
 end
 
 function addon:BuildFullName(name, realm)
     local normalizedRealm = self:NormalizeRealm(realm)
-    if normalizedRealm then
-        return name .. "-" .. normalizedRealm
-    end
+    if normalizedRealm then return name .. "-" .. normalizedRealm end
 
     return name
 end
@@ -658,19 +628,13 @@ end
 -- Normalize a name: strip realm suffix if it matches the player's realm.
 -- Cross-realm names keep their realm suffix.
 function addon:NormalizeName(name)
-    if not name then
-        return nil
-    end
+    if not name then return nil end
 
     local dashPos = name:find("-")
-    if not dashPos then
-        return name
-    end
+    if not dashPos then return name end
 
     local realm = name:sub(dashPos + 1)
-    if realm == self:GetPlayerRealm() then
-        return name:sub(1, dashPos - 1)
-    end
+    if realm == self:GetPlayerRealm() then return name:sub(1, dashPos - 1) end
 
     return name
 end
@@ -683,12 +647,11 @@ end
 function addon:GetRaidRoster()
     local roster = {}
 
-    if not IsInRaid() then
-        return roster
-    end
+    if not IsInRaid() then return roster end
 
     for i = 1, 40 do
-        local name, rank, subgroup, _, _, class, _, online = GetRaidRosterInfo(i)
+        local name, rank, subgroup, _, _, class, _, online =
+            GetRaidRosterInfo(i)
         if name then
             local normalized = self:NormalizeName(name)
             local role = UnitGroupRolesAssigned(name)
@@ -709,14 +672,10 @@ function addon:GetRaidRoster()
 end
 
 local function AddLiveUnitToRoster(roster, unit)
-    if not UnitExists(unit) then
-        return
-    end
+    if not UnitExists(unit) then return end
 
     local name, realm = UnitFullName(unit)
-    if not name then
-        return
-    end
+    if not name then return end
 
     local fullName = addon:BuildFullName(name, realm)
     local normalized = addon:NormalizeName(fullName)
@@ -735,9 +694,7 @@ local function AddLiveUnitToRoster(roster, unit)
 end
 
 function addon:GetGroupDisplayRoster()
-    if IsInRaid() then
-        return self:GetRaidRoster()
-    end
+    if IsInRaid() then return self:GetRaidRoster() end
 
     local roster = {}
     AddLiveUnitToRoster(roster, "player")
@@ -755,9 +712,7 @@ function addon:GetRaidLeaderName()
     local roster = self:GetRaidRoster()
 
     for name, member in pairs(roster) do
-        if member.rank == 2 then
-            return name, member
-        end
+        if member.rank == 2 then return name, member end
     end
 
     return nil
@@ -765,9 +720,7 @@ end
 
 function addon:GetImportedRosterEntry(name)
     local normalized = self:NormalizeName(name)
-    if not normalized then
-        return nil
-    end
+    if not normalized then return nil end
 
     for _, entry in ipairs(self.db.char.importedRoster or {}) do
         if self:NormalizeName(entry.normalizedName) == normalized then
@@ -779,14 +732,10 @@ function addon:GetImportedRosterEntry(name)
 end
 
 function addon:AddUnitToSet(set, unit)
-    if not UnitExists(unit) then
-        return
-    end
+    if not UnitExists(unit) then return end
 
     local name, realm = UnitFullName(unit)
-    if not name then
-        return
-    end
+    if not name then return end
 
     local fullName = self:BuildFullName(name, realm)
     set[self:NormalizeName(fullName)] = true
@@ -800,9 +749,7 @@ function addon:BuildCurrentGroupSet()
     if IsInRaid() then
         for i = 1, 40 do
             local name = GetRaidRosterInfo(i)
-            if name then
-                grouped[self:NormalizeName(name)] = true
-            end
+            if name then grouped[self:NormalizeName(name)] = true end
         end
     elseif IsInGroup() then
         for i = 1, 4 do
@@ -814,38 +761,56 @@ function addon:BuildCurrentGroupSet()
 end
 
 function addon:FormatNameList(names)
-    if not names or #names == 0 then
-        return ""
-    end
+    if not names or #names == 0 then return "" end
 
     return table.concat(names, ", ")
 end
 
 function addon:GetLeadershipIconTextureForRank(rank)
-    if rank == 2 then
-        return self.LEADER_ICON_TEXTURE
-    end
+    if rank == 2 then return self.LEADER_ICON_TEXTURE end
 
-    if rank == 1 then
-        return self.ASSIST_ICON_TEXTURE
-    end
+    if rank == 1 then return self.ASSIST_ICON_TEXTURE end
 
     return nil
 end
 
 local function LayoutLeadershipName(frame)
     local normalPadding = frame.rgmLeadershipRoleIconSize + 4
-    local leadershipPadding = frame.rgmLeadershipRoleIconSize + addon.LEADERSHIP_ICON_SIZE + 7
+    local leadershipPadding = frame.rgmLeadershipRoleIconSize
+        + addon.LEADERSHIP_ICON_SIZE
+        + 7
 
     frame.nameText:ClearAllPoints()
-    addon.PixelPerfect.Point(frame.nameText, "LEFT", frame, "LEFT", frame.rgmLeadershipLeftOffset, 0)
+    addon.PixelPerfect.Point(
+        frame.nameText,
+        "LEFT",
+        frame,
+        "LEFT",
+        frame.rgmLeadershipLeftOffset,
+        0
+    )
 
     local offlineIcon = frame.offlineIcon
     if offlineIcon and offlineIcon:IsShown() then
-        local nextIcon = frame.rgmHasLeadershipIcon and frame.leaderIcon or frame.roleIcon
+        local nextIcon = frame.rgmHasLeadershipIcon and frame.leaderIcon
+            or frame.roleIcon
         offlineIcon:ClearAllPoints()
-        addon.PixelPerfect.Point(offlineIcon, "RIGHT", nextIcon, "LEFT", -offlineIcon.rgmGap, 0)
-        addon.PixelPerfect.Point(frame.nameText, "RIGHT", offlineIcon, "LEFT", -offlineIcon.rgmGap, 0)
+        addon.PixelPerfect.Point(
+            offlineIcon,
+            "RIGHT",
+            nextIcon,
+            "LEFT",
+            -offlineIcon.rgmGap,
+            0
+        )
+        addon.PixelPerfect.Point(
+            frame.nameText,
+            "RIGHT",
+            offlineIcon,
+            "LEFT",
+            -offlineIcon.rgmGap,
+            0
+        )
 
         return
     end
@@ -866,7 +831,11 @@ function addon:CreateLeadershipIcon(parent, relativeTo)
 
     pixelPerfect.RegisterLayout(icon, function()
         icon:ClearAllPoints()
-        pixelPerfect.Size(icon, self.LEADERSHIP_ICON_SIZE, self.LEADERSHIP_ICON_SIZE)
+        pixelPerfect.Size(
+            icon,
+            self.LEADERSHIP_ICON_SIZE,
+            self.LEADERSHIP_ICON_SIZE
+        )
         pixelPerfect.Point(icon, "RIGHT", relativeTo, "LEFT", -1, 0)
     end)
 
@@ -876,7 +845,13 @@ function addon:CreateLeadershipIcon(parent, relativeTo)
     return icon
 end
 
-function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSize, desaturated)
+function addon:SetLeadershipIconState(
+    frame,
+    iconTexture,
+    leftOffset,
+    roleIconSize,
+    desaturated
+)
     frame.rgmLeadershipLeftOffset = leftOffset
     frame.rgmLeadershipRoleIconSize = roleIconSize
     frame.rgmHasLeadershipIcon = iconTexture ~= nil
@@ -900,8 +875,20 @@ function addon:SetLeadershipIconState(frame, iconTexture, leftOffset, roleIconSi
     end
 end
 
-function addon:SetLeaderIconState(frame, isLeader, leftOffset, roleIconSize, desaturated)
-    self:SetLeadershipIconState(frame, isLeader and self.LEADER_ICON_TEXTURE or nil, leftOffset, roleIconSize, desaturated)
+function addon:SetLeaderIconState(
+    frame,
+    isLeader,
+    leftOffset,
+    roleIconSize,
+    desaturated
+)
+    self:SetLeadershipIconState(
+        frame,
+        isLeader and self.LEADER_ICON_TEXTURE or nil,
+        leftOffset,
+        roleIconSize,
+        desaturated
+    )
 end
 
 --------------------------------------------------------------------------------
@@ -917,16 +904,10 @@ function addon:EncodeTemplate(class, role)
 end
 
 function addon:DecodeTemplate(text)
-    if not text or text:sub(1, 1) ~= TEMPLATE_PREFIX then
-
-        return nil
-    end
+    if not text or text:sub(1, 1) ~= TEMPLATE_PREFIX then return nil end
 
     local role, class = text:sub(2):match("^(%u+)-(%u+)$")
-    if role and class then
-
-        return { role = role, class = class }
-    end
+    if role and class then return { role = role, class = class } end
 
     return nil
 end
@@ -937,18 +918,14 @@ end
 
 function addon:GetSlotText(slotIndex)
     local slot = self.slots[slotIndex]
-    if not slot then
-        return ""
-    end
+    if not slot then return "" end
 
     return slot.playerName or ""
 end
 
 function addon:SetSlotText(slotIndex, text)
     local slot = self.slots[slotIndex]
-    if not slot then
-        return
-    end
+    if not slot then return end
 
     slot.playerName = text or ""
 end
@@ -969,16 +946,16 @@ end
 
 function addon:EnsureRaidLeaderSlotOne(showMessage)
     local leaderName = self:GetRaidLeaderName()
-    if not leaderName then
-        return false
-    end
+    if not leaderName then return false end
 
     for slotIndex = 1, 40 do
-        if self:IsSlotPlayer(slotIndex) and self:NormalizeName(self:GetSlotText(slotIndex)) == leaderName then
+        if
+            self:IsSlotPlayer(slotIndex)
+            and self:NormalizeName(self:GetSlotText(slotIndex))
+                == leaderName
+        then
             local groupStart = math.floor((slotIndex - 1) / 5) * 5 + 1
-            if slotIndex == groupStart then
-                return false
-            end
+            if slotIndex == groupStart then return false end
 
             local leaderText = self:GetSlotText(slotIndex)
             for i = slotIndex, groupStart + 1, -1 do
@@ -988,7 +965,9 @@ function addon:EnsureRaidLeaderSlotOne(showMessage)
             self:SetSlotText(groupStart, leaderText)
 
             if showMessage and self.ShowToast then
-                self:ShowToast("Raid leader must be in the first slot of their group")
+                self:ShowToast(
+                    "Raid leader must be in the first slot of their group"
+                )
             end
 
             return true
@@ -1033,9 +1012,7 @@ end
 
 -- Save current grid state to the selected layout
 function addon:SaveToSelectedLayout()
-    if not self.selectedLayout then
-        return false
-    end
+    if not self.selectedLayout then return false end
 
     self.selectedLayout.slots = self:GetGridState()
     self.selectedLayout.time = time()
@@ -1061,9 +1038,7 @@ end
 -- Restore grid contents from saved variables
 function addon:RestoreGridState()
     local state = self.db.profile.gridState
-    if not state then
-        return
-    end
+    if not state then return end
 
     for i = 1, 40 do
         self:SetSlotText(i, state[i] or "")
@@ -1074,9 +1049,7 @@ end
 
 function addon:IsGridEmpty()
     for i = 1, 40 do
-        if not self:IsSlotEmpty(i) then
-            return false
-        end
+        if not self:IsSlotEmpty(i) then return false end
     end
 
     return true
@@ -1094,9 +1067,7 @@ end
 
 -- Add a name to the first empty grid slot (skips template slots)
 function addon:AddNameToGrid(name)
-    if not name or name == "" then
-        return
-    end
+    if not name or name == "" then return end
 
     for i = 1, 40 do
         if self:IsSlotEmpty(i) then
@@ -1133,9 +1104,7 @@ local function CollectSlotContents(groups)
         for p = 1, 5 do
             local slotIndex = (g - 1) * 5 + p
             local text = addon:GetSlotText(slotIndex)
-            if text ~= "" then
-                table.insert(items, text)
-            end
+            if text ~= "" then table.insert(items, text) end
         end
     end
 
@@ -1157,10 +1126,7 @@ local function PlaceItemsInGroups(items, groups)
     local idx = 1
     for _, g in ipairs(groups) do
         for p = 1, 5 do
-            if idx > #items then
-
-                return
-            end
+            if idx > #items then return end
 
             local slotIndex = (g - 1) * 5 + p
             addon:SetSlotText(slotIndex, items[idx])
@@ -1183,9 +1149,7 @@ end
 local function GetUnitSpecID(unit)
     if UnitIsUnit(unit, "player") then
         local specIndex = GetSpecialization()
-        if specIndex then
-            return GetSpecializationInfo(specIndex)
-        end
+        if specIndex then return GetSpecializationInfo(specIndex) end
 
         return 0
     end
@@ -1195,46 +1159,30 @@ end
 
 -- Returns "TANK", "HEALER", "MELEE", or "RANGED"
 function addon:GetCombatRole(member)
-    if member.role == "TANK" then
+    if member.role == "TANK" then return "TANK" end
 
-        return "TANK"
-    end
-
-    if member.role == "HEALER" then
-
-        return "HEALER"
-    end
+    if member.role == "HEALER" then return "HEALER" end
 
     -- Check spec ID (cache first, then live API)
     local unit = member.unitToken or ("raid" .. member.raidIndex)
     local specID = self.specCache[member.normalizedName] or GetUnitSpecID(unit)
     local roles = self.ClassSpecRoles
-    local specRole = roles and roles:GetCombatRoleForSpecID(specID, member.class)
-    if specRole then
-        return specRole
-    end
+    local specRole = roles
+        and roles:GetCombatRoleForSpecID(specID, member.class)
+    if specRole then return specRole end
 
     -- Spec unavailable — fall back to class
-    if roles and roles:IsDefaultMeleeClass(member.class) then
-
-        return "MELEE"
-    end
+    if roles and roles:IsDefaultMeleeClass(member.class) then return "MELEE" end
 
     -- Hunter: all specs are Agility so stat comparison can't distinguish;
     -- BM/MM (ranged) are far more common than Survival (melee)
-    if member.class == "HUNTER" then
-
-        return "RANGED"
-    end
+    if member.class == "HUNTER" then return "RANGED" end
 
     -- Hybrid melee/ranged classes (Druid, Shaman, DH, etc.):
     -- melee DPS specs use Agility, ranged DPS specs use Intellect
     local agi = UnitStat(unit, 2) or 0
     local int = UnitStat(unit, 4) or 0
-    if agi > int then
-
-        return "MELEE"
-    end
+    if agi > int then return "MELEE" end
 
     return "RANGED"
 end
@@ -1245,28 +1193,20 @@ local ROLE_ORDER = { "TANK", "MELEE", "RANGED", "HEALER" }
 -- two role-balanced sides. Each role bucket is alternated evenly.
 local function ClassifyItem(item, roster)
     local template = addon:DecodeTemplate(item)
-    if template then
-        return template.role
-    end
+    if template then return template.role end
 
     local member = roster[item]
-    if member then
-        return addon:GetCombatRole(member)
-    end
+    if member then return addon:GetCombatRole(member) end
 
     return "RANGED"
 end
 
 local function GetItemClass(item, roster)
     local template = addon:DecodeTemplate(item)
-    if template then
-        return template.class
-    end
+    if template then return template.class end
 
     local member = roster[item]
-    if member then
-        return member.class
-    end
+    if member then return member.class end
 
     return "UNKNOWN"
 end
@@ -1342,8 +1282,12 @@ local function SplitByRole(items, roster)
 
     for _, role in ipairs(ROLE_ORDER) do
         local a, b = addon:ClassPairSplit(buckets[role], roster, #sideA, #sideB)
-        for _, item in ipairs(a) do table.insert(sideA, item) end
-        for _, item in ipairs(b) do table.insert(sideB, item) end
+        for _, item in ipairs(a) do
+            table.insert(sideA, item)
+        end
+        for _, item in ipairs(b) do
+            table.insert(sideB, item)
+        end
     end
 
     return sideA, sideB
@@ -1370,7 +1314,12 @@ function addon:SplitOddEven()
     ClearGroups(allGroups)
 
     local oddItems, evenItems = SplitByRole(items, roster)
-    RebalanceSplitForCapacity(oddItems, evenItems, self:GetGroupSlotCapacity(oddGroups), self:GetGroupSlotCapacity(evenGroups))
+    RebalanceSplitForCapacity(
+        oddItems,
+        evenItems,
+        self:GetGroupSlotCapacity(oddGroups),
+        self:GetGroupSlotCapacity(evenGroups)
+    )
 
     PlaceItemsInGroups(oddItems, oddGroups)
     PlaceItemsInGroups(evenItems, evenGroups)
@@ -1397,7 +1346,12 @@ function addon:SplitHalves()
     if firstCount + secondCount > #allGroups then
         local maxSecondCount = math.floor(#allGroups / 2)
         local maxFirstCount = #allGroups - maxSecondCount
-        RebalanceSplitForCapacity(firstItems, secondItems, maxFirstCount * 5, maxSecondCount * 5)
+        RebalanceSplitForCapacity(
+            firstItems,
+            secondItems,
+            maxFirstCount * 5,
+            maxSecondCount * 5
+        )
         firstCount = math.min(GroupsNeeded(#firstItems), maxFirstCount)
         secondCount = math.min(GroupsNeeded(#secondItems), maxSecondCount)
     end

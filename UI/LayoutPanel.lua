@@ -28,14 +28,10 @@ local function CopyLayoutSlots(slots)
 end
 
 function addon:FindLayoutById(layoutId)
-    if not IsValidLayoutId(layoutId) then
-        return nil
-    end
+    if not IsValidLayoutId(layoutId) then return nil end
 
     for _, layout in ipairs(self.db.profile.layouts) do
-        if layout.id == layoutId then
-            return layout
-        end
+        if layout.id == layoutId then return layout end
     end
 
     return nil
@@ -47,9 +43,7 @@ function addon:InitializeLayoutState()
     local layoutsNeedingIds = {}
     local nextLayoutId = profile.nextLayoutId
 
-    if not IsValidLayoutId(nextLayoutId) then
-        nextLayoutId = 1
-    end
+    if not IsValidLayoutId(nextLayoutId) then nextLayoutId = 1 end
 
     for _, layout in ipairs(profile.layouts) do
         local layoutId = layout.id
@@ -75,18 +69,14 @@ function addon:InitializeLayoutState()
     profile.nextLayoutId = nextLayoutId
     self.selectedLayout = self:FindLayoutById(profile.selectedLayoutId)
 
-    if not self.selectedLayout then
-        profile.selectedLayoutId = nil
-    end
+    if not self.selectedLayout then profile.selectedLayoutId = nil end
 end
 
 function addon:AllocateLayoutId()
     local profile = self.db.profile
     local layoutId = profile.nextLayoutId
 
-    if not IsValidLayoutId(layoutId) then
-        layoutId = 1
-    end
+    if not IsValidLayoutId(layoutId) then layoutId = 1 end
 
     while self:FindLayoutById(layoutId) do
         layoutId = layoutId + 1
@@ -100,13 +90,9 @@ end
 function addon:CreateLayoutRecord(name, slots, insertIndex)
     local trimmedName = strtrim(name or "")
 
-    if trimmedName == "" then
-        return nil, "empty"
-    end
+    if trimmedName == "" then return nil, "empty" end
 
-    if self:FindLayoutByName(trimmedName) then
-        return nil, "duplicate"
-    end
+    if self:FindLayoutByName(trimmedName) then return nil, "duplicate" end
 
     local layout = {
         id = self:AllocateLayoutId(),
@@ -152,7 +138,8 @@ local function RefreshLayoutRowTooltip(row)
     end
 
     if addon.selectedLayout == layout then
-        lines[#lines + 1] = "Click again to deselect. The board stays unchanged."
+        lines[#lines + 1] =
+            "Click again to deselect. The board stays unchanged."
     else
         lines[#lines + 1] = "Click to load and select."
     end
@@ -179,27 +166,30 @@ local function CreateLayoutRow(parent)
     local deleteBtn = CreateFrame("Button", nil, row)
     deleteBtn.icon = deleteBtn:CreateTexture(nil, "ARTWORK")
     deleteBtn.icon:SetAllPoints()
-    deleteBtn.icon:SetTexture("Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close")
+    deleteBtn.icon:SetTexture(
+        "Interface\\AddOns\\RaidGroupManager\\Media\\Textures\\Close"
+    )
     deleteBtn.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
 
     deleteBtn:SetScript("OnEnter", function(self)
         self.icon:SetVertexColor(1, 1, 1, 1)
-        addon:ShowTooltip(self, nil, "Delete this saved layout.", "ANCHOR_RIGHT")
+        addon:ShowTooltip(
+            self,
+            nil,
+            "Delete this saved layout.",
+            "ANCHOR_RIGHT"
+        )
     end)
 
     deleteBtn:SetScript("OnLeave", function(self)
         self.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
         addon:HideTooltip(self)
 
-        if row:IsMouseOver() then
-            RefreshLayoutRowTooltip(row)
-        end
+        if row:IsMouseOver() then RefreshLayoutRowTooltip(row) end
     end)
 
     deleteBtn:SetScript("OnClick", function()
-        if row.layoutIndex then
-            addon:PromptDeleteLayout(row.layoutIndex)
-        end
+        if row.layoutIndex then addon:PromptDeleteLayout(row.layoutIndex) end
     end)
     row.deleteBtn = deleteBtn
 
@@ -240,9 +230,7 @@ local function CreateLayoutRow(parent)
     end)
 
     row:SetScript("OnDragStart", function(self)
-        if not self.layoutIndex then
-            return
-        end
+        if not self.layoutIndex then return end
 
         self.rgmWasDragged = true
         dragSourceIndex = self.layoutIndex
@@ -252,14 +240,16 @@ local function CreateLayoutRow(parent)
     row:SetScript("OnDragStop", function(self)
         self:SetAlpha(1)
 
-        if not dragSourceIndex then
-            return
-        end
+        if not dragSourceIndex then return end
 
         local targetIndex = nil
 
         for _, candidate in ipairs(addon.layoutRows) do
-            if candidate:IsShown() and candidate:IsMouseOver() and candidate.layoutIndex then
+            if
+                candidate:IsShown()
+                and candidate:IsMouseOver()
+                and candidate.layoutIndex
+            then
                 targetIndex = candidate.layoutIndex
 
                 break
@@ -323,7 +313,13 @@ end
 local function PositionLayoutRow(row, displayIndex, rowHeight)
     row:ClearAllPoints()
     row:SetHeight(rowHeight)
-    row:SetPoint("TOPLEFT", row:GetParent(), "TOPLEFT", 0, -((displayIndex - 1) * rowHeight))
+    row:SetPoint(
+        "TOPLEFT",
+        row:GetParent(),
+        "TOPLEFT",
+        0,
+        -((displayIndex - 1) * rowHeight)
+    )
     row:SetPoint("RIGHT", row:GetParent(), "RIGHT", 0, 0)
 
     row.nameText:ClearAllPoints()
@@ -395,21 +391,30 @@ function addon:CreateLayoutPanel(parent)
 
         scrollFrame:ClearAllPoints()
         PixelPerfect.Point(scrollFrame, "TOPLEFT", scrollBg, "TOPLEFT", 2, -2)
-        PixelPerfect.Point(scrollFrame, "BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -22, 2)
-        content:SetWidth(math.max(PixelPerfect.Scale(content, 1, 1), scrollFrame:GetWidth()))
-        content:SetHeight(math.max(
-            PixelPerfect.Scale(content, 1, 1),
-            (content.rgmRowCount or 1) * rowHeight
-        ))
+        PixelPerfect.Point(
+            scrollFrame,
+            "BOTTOMRIGHT",
+            scrollBg,
+            "BOTTOMRIGHT",
+            -22,
+            2
+        )
+        content:SetWidth(
+            math.max(PixelPerfect.Scale(content, 1, 1), scrollFrame:GetWidth())
+        )
+        content:SetHeight(
+            math.max(
+                PixelPerfect.Scale(content, 1, 1),
+                (content.rgmRowCount or 1) * rowHeight
+            )
+        )
 
         local layoutCount = #self.db.profile.layouts
 
         for displayIndex = 1, layoutCount do
             local row = self.layoutRows[displayIndex]
 
-            if row then
-                PositionLayoutRow(row, displayIndex, rowHeight)
-            end
+            if row then PositionLayoutRow(row, displayIndex, rowHeight) end
         end
 
         PositionLayoutRow(self.addLayoutRow, layoutCount + 1, rowHeight)
@@ -419,9 +424,7 @@ function addon:CreateLayoutPanel(parent)
 end
 
 function addon:RefreshLayoutList()
-    if not self.layoutRows then
-        return
-    end
+    if not self.layoutRows then return end
 
     local layouts = self.db.profile.layouts
     local layoutCount = #layouts
@@ -441,17 +444,13 @@ function addon:RefreshLayoutList()
         row.selectedHighlight:SetShown(self.selectedLayout == layout)
         row:Show()
 
-        if GameTooltip:IsOwned(row) then
-            RefreshLayoutRowTooltip(row)
-        end
+        if GameTooltip:IsOwned(row) then RefreshLayoutRowTooltip(row) end
     end
 
     for displayIndex = layoutCount + 1, #self.layoutRows do
         local row = self.layoutRows[displayIndex]
 
-        if GameTooltip:IsOwned(row) then
-            addon:HideTooltip(row)
-        end
+        if GameTooltip:IsOwned(row) then addon:HideTooltip(row) end
 
         row:Hide()
         row.layoutIndex = nil
@@ -466,22 +465,27 @@ function addon:RefreshLayoutList()
     self.layoutContent:SetHeight(math.max(minimumHeight, rowCount * rowHeight))
 
     for displayIndex = 1, layoutCount do
-        PositionLayoutRow(self.layoutRows[displayIndex], displayIndex, rowHeight)
+        PositionLayoutRow(
+            self.layoutRows[displayIndex],
+            displayIndex,
+            rowHeight
+        )
     end
 
     PositionLayoutRow(self.addLayoutRow, rowCount, rowHeight)
     self.addLayoutRow:Show()
 
     self.layoutAutoSaveCheck:SetChecked(self.autoSave == true)
-    addon.SetModernCheckboxEnabled(self.layoutAutoSaveCheck, self.selectedLayout ~= nil)
+    addon.SetModernCheckboxEnabled(
+        self.layoutAutoSaveCheck,
+        self.selectedLayout ~= nil
+    )
     PixelPerfect.RequestRefresh()
 end
 
 function addon:SelectAndLoadLayout(layoutIndex)
     local layout = self.db.profile.layouts[layoutIndex]
-    if not layout then
-        return
-    end
+    if not layout then return end
 
     if self.selectedLayout == layout then
         self:SetSelectedLayout(nil)
@@ -495,9 +499,7 @@ end
 
 function addon:DeleteLayoutById(layoutId)
     local layout = self:FindLayoutById(layoutId)
-    if not layout then
-        return
-    end
+    if not layout then return end
 
     local layoutIndex = nil
 
@@ -509,9 +511,7 @@ function addon:DeleteLayoutById(layoutId)
         end
     end
 
-    if not layoutIndex then
-        return
-    end
+    if not layoutIndex then return end
 
     local wasSelected = self.selectedLayout == layout
     table.remove(self.db.profile.layouts, layoutIndex)
@@ -527,9 +527,7 @@ function addon:ReorderLayout(fromIndex, toIndex)
     local layouts = self.db.profile.layouts
     local layout = table.remove(layouts, fromIndex)
 
-    if not layout then
-        return
-    end
+    if not layout then return end
 
     table.insert(layouts, toIndex, layout)
     self:RefreshLayoutList()
@@ -565,9 +563,7 @@ StaticPopupDialogs["RGM_SAVE_LAYOUT_AS"] = {
     OnAccept = function(self)
         local name = strtrim(self.EditBox:GetText() or "")
 
-        if name ~= "" then
-            addon:SaveCurrentLayoutAs(name)
-        end
+        if name ~= "" then addon:SaveCurrentLayoutAs(name) end
     end,
     OnShow = function(self)
         self.EditBox:SetText("")
@@ -589,9 +585,7 @@ StaticPopupDialogs["RGM_NAME_BLANK_LAYOUT"] = {
     OnAccept = function(self)
         local name = strtrim(self.EditBox:GetText() or "")
 
-        if name ~= "" then
-            addon:CreateBlankLayout(name)
-        end
+        if name ~= "" then addon:CreateBlankLayout(name) end
     end,
     OnShow = function(self)
         self.EditBox:SetText("")
@@ -638,9 +632,7 @@ end
 
 function addon:PromptDeleteLayout(layoutIndex)
     local layout = self.db.profile.layouts[layoutIndex]
-    if not layout then
-        return
-    end
+    if not layout then return end
 
     StaticPopup_Show("RGM_DELETE_LAYOUT", layout.name, nil, layout.id)
 end
@@ -658,9 +650,7 @@ function addon:SaveCurrentLayoutAs(name)
 end
 
 function addon:SaveSelectedLayout()
-    if not self:SaveToSelectedLayout() then
-        return
-    end
+    if not self:SaveToSelectedLayout() then return end
 
     self:RefreshLayoutList()
     self:RefreshLayoutHeader()
@@ -689,9 +679,7 @@ function addon:CreateBlankLayout(name)
 end
 
 function addon:PromptClearGrid()
-    if self:IsGridEmpty() then
-        return
-    end
+    if self:IsGridEmpty() then return end
 
     local message = "Clear all group slots from the board?"
 

@@ -8,9 +8,7 @@ function addon:SetupMinimapButton()
         type = "launcher",
         icon = "Interface\\Icons\\Achievement_General_StayClassy",
         OnClick = function(_, button)
-            if button == "LeftButton" then
-                addon:ToggleMainFrame()
-            end
+            if button == "LeftButton" then addon:ToggleMainFrame() end
         end,
         OnTooltipShow = function(tooltip)
             addon:SetTooltipContent(

@@ -1,7 +1,6 @@
 local addon = LibStub("AceAddon-3.0"):GetAddon("RaidGroupManager")
 
 local STATE_IDLE = 0
-local STATE_PLANNING = 1
 local STATE_EXECUTING = 2
 
 local DEBOUNCE_INTERVAL = 0.2
@@ -91,9 +90,7 @@ local function BuildRosterSnapshot()
 end
 
 local function GetRosterChangeReason(snapshot)
-    if not snapshot then
-        return nil
-    end
+    if not snapshot then return nil end
 
     local current = BuildRosterSnapshot()
     local missingName = nil
@@ -116,20 +113,18 @@ local function GetRosterChangeReason(snapshot)
     end
 
     if missingName and addedName then
-        return "raid roster changed (" .. missingName .. " left, " .. addedName .. " joined)"
+        return "raid roster changed ("
+            .. missingName
+            .. " left, "
+            .. addedName
+            .. " joined)"
     end
 
-    if missingName then
-        return missingName .. " left the raid"
-    end
+    if missingName then return missingName .. " left the raid" end
 
-    if addedName then
-        return addedName .. " joined the raid"
-    end
+    if addedName then return addedName .. " joined the raid" end
 
-    if current.count ~= snapshot.count then
-        return "raid size changed"
-    end
+    if current.count ~= snapshot.count then return "raid size changed" end
 
     return nil
 end
@@ -164,9 +159,7 @@ function addon:ResolveTemplates()
     -- Build pool of available players (in raid but not in a named slot)
     local available = {}
     for name, member in pairs(roster) do
-        if not namedPlayers[name] then
-            table.insert(available, member)
-        end
+        if not namedPlayers[name] then table.insert(available, member) end
     end
 
     -- Separate template slots into class-specific and generic (ANY)
@@ -184,17 +177,17 @@ function addon:ResolveTemplates()
         end
     end)
 
-    if #classTemplates == 0 and #genericTemplates == 0 then
-
-        return
-    end
+    if #classTemplates == 0 and #genericTemplates == 0 then return end
 
     -- Pass 1: Match class+role templates (highest priority)
     for _, ts in ipairs(classTemplates) do
         local bestIdx = nil
         for i, member in ipairs(available) do
             local combatRole = self:GetCombatRole(member)
-            if member.class == ts.template.class and combatRole == ts.template.role then
+            if
+                member.class == ts.template.class
+                and combatRole == ts.template.role
+            then
                 bestIdx = i
 
                 break
@@ -216,9 +209,7 @@ function addon:ResolveTemplates()
     local roleTemplates = {}
     for _, ts in ipairs(genericTemplates) do
         local role = ts.template.role
-        if not roleTemplates[role] then
-            roleTemplates[role] = {}
-        end
+        if not roleTemplates[role] then roleTemplates[role] = {} end
         table.insert(roleTemplates[role], ts)
     end
 
@@ -264,15 +255,11 @@ function addon:ResolveTemplates()
                 local slotsB = groupSlots[groupOrder[2]]
 
                 for i, ts in ipairs(slotsA) do
-                    if i <= #sideA then
-                        self:SetSlotText(ts.index, sideA[i])
-                    end
+                    if i <= #sideA then self:SetSlotText(ts.index, sideA[i]) end
                 end
 
                 for i, ts in ipairs(slotsB) do
-                    if i <= #sideB then
-                        self:SetSlotText(ts.index, sideB[i])
-                    end
+                    if i <= #sideB then self:SetSlotText(ts.index, sideB[i]) end
                 end
             elseif #matching > 0 then
                 -- Single group or 3+: sequential assignment
@@ -293,9 +280,7 @@ end
 function addon:HasTemplateSlots()
     local found = false
     self:ForEachGroupSlot(APPLY_GROUPS, function(slotIndex)
-        if not found and self:IsSlotTemplate(slotIndex) then
-            found = true
-        end
+        if not found and self:IsSlotTemplate(slotIndex) then found = true end
     end)
 
     return found
@@ -451,7 +436,16 @@ local function PlanMoves(raidState, desired)
                         local stateA = raidState[nameA]
                         local stateB = raidState[nameB]
                         if stateA.raidIndex ~= 1 and stateB.raidIndex ~= 1 then
-                            table.insert(moves, { type = "swap", nameA = nameA, nameB = nameB, phase = "P1", reason = "mutual swap g" .. infoA.from .. "<->g" .. infoA.to })
+                            table.insert(moves, {
+                                type = "swap",
+                                nameA = nameA,
+                                nameB = nameB,
+                                phase = "P1",
+                                reason = "mutual swap g"
+                                    .. infoA.from
+                                    .. "<->g"
+                                    .. infoA.to,
+                            })
                             SimSwap(sim, simGroups, nameA, nameB)
                             resolved[nameA] = true
                             resolved[nameB] = true
@@ -467,18 +461,17 @@ local function PlanMoves(raidState, desired)
     -- Pass 2: Find longer cycles via chain-following
     -- For a cycle A->B->C->A of length 3, we need 2 swaps:
     --   swap(A, B) then swap(A, C)  — A walks along the chain
-    for startName, startInfo in pairs(wrongGroup) do
+    for startName in pairs(wrongGroup) do
         if not resolved[startName] then
-            -- Follow the chain: find someone in startInfo.to who wants out
+            -- Follow the chain: find someone in the target group who wants out
             local chain = { startName }
             local visited = { [startName] = true }
             local current = startName
 
             while true do
-                local currentTarget = wrongGroup[current] and wrongGroup[current].to
-                if not currentTarget then
-                    break
-                end
+                local currentTarget = wrongGroup[current]
+                    and wrongGroup[current].to
+                if not currentTarget then break end
 
                 -- Find an unresolved player in currentTarget who wants to leave
                 local nextPlayer = nil
@@ -490,15 +483,14 @@ local function PlanMoves(raidState, desired)
                     end
                 end
 
-                if not nextPlayer then
-                    break
-                end
+                if not nextPlayer then break end
 
                 table.insert(chain, nextPlayer)
                 visited[nextPlayer] = true
 
                 -- Does this player want to go back to the start? (cycle closed)
-                local nextTarget = wrongGroup[nextPlayer] and wrongGroup[nextPlayer].to
+                local nextTarget = wrongGroup[nextPlayer]
+                    and wrongGroup[nextPlayer].to
                 if nextTarget == wrongGroup[startName].from then
                     -- Cycle found! Resolve with len-1 swaps.
                     -- Swap anchor with chain members in REVERSE order:
@@ -507,7 +499,10 @@ local function PlanMoves(raidState, desired)
                     local anchor = chain[1]
                     local chainHasLeader = false
                     for _, name in ipairs(chain) do
-                        if raidState[name] and raidState[name].raidIndex == 1 then
+                        if
+                            raidState[name]
+                            and raidState[name].raidIndex == 1
+                        then
                             chainHasLeader = true
 
                             break
@@ -521,7 +516,10 @@ local function PlanMoves(raidState, desired)
                         -- then move leader to their target.
                         local leaderName, leaderFrom, leaderTo
                         for _, name in ipairs(chain) do
-                            if raidState[name] and raidState[name].raidIndex == 1 then
+                            if
+                                raidState[name]
+                                and raidState[name].raidIndex == 1
+                            then
                                 leaderName = name
                                 leaderFrom = wrongGroup[name].from
                                 leaderTo = wrongGroup[name].to
@@ -540,7 +538,13 @@ local function PlanMoves(raidState, desired)
                         end
 
                         if staging then
-                            table.insert(moves, { type = "set", name = leaderName, targetGroup = staging, phase = "P1", reason = "stage leader for cycle" })
+                            table.insert(moves, {
+                                type = "set",
+                                name = leaderName,
+                                targetGroup = staging,
+                                phase = "P1",
+                                reason = "stage leader for cycle",
+                            })
                             SimMove(sim, simGroups, leaderName, staging)
 
                             -- Build lookup: which players want each group (multiple players
@@ -562,19 +566,28 @@ local function PlanMoves(raidState, desired)
                             local freeGroup = leaderFrom
                             for _ = 1, #chain - 1 do
                                 local movers = wantsGroup[freeGroup]
-                                if not movers or #movers == 0 then
-
-                                    break
-                                end
+                                if not movers or #movers == 0 then break end
 
                                 local mover = table.remove(movers, 1)
                                 local moverFrom = sim[mover]
-                                table.insert(moves, { type = "set", name = mover, targetGroup = freeGroup, phase = "P1", reason = "cycle cascade to g" .. freeGroup })
+                                table.insert(moves, {
+                                    type = "set",
+                                    name = mover,
+                                    targetGroup = freeGroup,
+                                    phase = "P1",
+                                    reason = "cycle cascade to g" .. freeGroup,
+                                })
                                 SimMove(sim, simGroups, mover, freeGroup)
                                 freeGroup = moverFrom
                             end
 
-                            table.insert(moves, { type = "set", name = leaderName, targetGroup = leaderTo, phase = "P1", reason = "move raid leader to target" })
+                            table.insert(moves, {
+                                type = "set",
+                                name = leaderName,
+                                targetGroup = leaderTo,
+                                phase = "P1",
+                                reason = "move raid leader to target",
+                            })
                             SimMove(sim, simGroups, leaderName, leaderTo)
 
                             for _, name in ipairs(chain) do
@@ -584,7 +597,13 @@ local function PlanMoves(raidState, desired)
                     else
                         for j = #chain, 2, -1 do
                             local partner = chain[j]
-                            table.insert(moves, { type = "swap", nameA = anchor, nameB = partner, phase = "P1", reason = "cycle chain step " .. (j - 1) })
+                            table.insert(moves, {
+                                type = "swap",
+                                nameA = anchor,
+                                nameB = partner,
+                                phase = "P1",
+                                reason = "cycle chain step " .. (j - 1),
+                            })
                             SimSwap(sim, simGroups, anchor, partner)
                         end
 
@@ -608,9 +627,7 @@ local function PlanMoves(raidState, desired)
     -- which can avoid needing Phase 2 for those groups.
     local remaining = {}
     for name in pairs(wrongGroup) do
-        if not resolved[name] then
-            table.insert(remaining, name)
-        end
+        if not resolved[name] then table.insert(remaining, name) end
     end
 
     table.sort(remaining, function(a, b)
@@ -628,7 +645,13 @@ local function PlanMoves(raidState, desired)
             local targetGroup = desired[name].desiredGroup
 
             if SimGroupCount(simGroups, targetGroup) < 5 then
-                table.insert(moves, { type = "set", name = name, targetGroup = targetGroup, phase = "P1", reason = "move to target (room available)" })
+                table.insert(moves, {
+                    type = "set",
+                    name = name,
+                    targetGroup = targetGroup,
+                    phase = "P1",
+                    reason = "move to target (room available)",
+                })
                 SimMove(sim, simGroups, name, targetGroup)
             else
                 -- Find someone in target group who doesn't belong there
@@ -637,8 +660,13 @@ local function PlanMoves(raidState, desired)
                     local occupant = simGroups[targetGroup][pos]
                     if occupant then
                         local occupantDesired = desired[occupant]
-                        local occupantBelongs = occupantDesired and occupantDesired.desiredGroup == targetGroup
-                        if not occupantBelongs and raidState[occupant] and raidState[occupant].raidIndex ~= 1 then
+                        local occupantBelongs = occupantDesired
+                            and occupantDesired.desiredGroup == targetGroup
+                        if
+                            not occupantBelongs
+                            and raidState[occupant]
+                            and raidState[occupant].raidIndex ~= 1
+                        then
                             evictee = occupant
 
                             break
@@ -646,25 +674,57 @@ local function PlanMoves(raidState, desired)
                     end
                 end
 
-                if evictee and raidState[name] and raidState[name].raidIndex ~= 1 then
-                    table.insert(moves, { type = "swap", nameA = name, nameB = evictee, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup })
+                if
+                    evictee
+                    and raidState[name]
+                    and raidState[name].raidIndex ~= 1
+                then
+                    table.insert(moves, {
+                        type = "swap",
+                        nameA = name,
+                        nameB = evictee,
+                        phase = "P1",
+                        reason = "evict "
+                            .. evictee
+                            .. " from g"
+                            .. targetGroup,
+                    })
                     SimSwap(sim, simGroups, name, evictee)
-                elseif evictee and raidState[name] and raidState[name].raidIndex == 1 then
+                elseif
+                    evictee
+                    and raidState[name]
+                    and raidState[name].raidIndex == 1
+                then
                     -- Raid leader can't use SwapRaidSubgroup — move evictee out first, then leader in.
                     -- The leader's old group may be full (leader is still there), so send the
                     -- evictee to a staging group first, move the leader, then place the evictee.
                     local leaderOldGroup = sim[name]
-                    local evicteeTarget = desired[evictee] and desired[evictee].desiredGroup or leaderOldGroup
+                    local evicteeTarget = desired[evictee]
+                            and desired[evictee].desiredGroup
+                        or leaderOldGroup
 
                     if SimGroupCount(simGroups, evicteeTarget) < 5 then
                         -- Evictee's destination has room — move directly
-                        table.insert(moves, { type = "set", name = evictee, targetGroup = evicteeTarget, phase = "P1", reason = "evict " .. evictee .. " from g" .. targetGroup .. " for leader" })
+                        table.insert(moves, {
+                            type = "set",
+                            name = evictee,
+                            targetGroup = evicteeTarget,
+                            phase = "P1",
+                            reason = "evict "
+                                .. evictee
+                                .. " from g"
+                                .. targetGroup
+                                .. " for leader",
+                        })
                         SimMove(sim, simGroups, evictee, evicteeTarget)
                     else
                         -- Find a staging group with room
                         local staging = nil
                         for g = 8, 1, -1 do
-                            if SimGroupCount(simGroups, g) < 5 and g ~= targetGroup then
+                            if
+                                SimGroupCount(simGroups, g) < 5
+                                and g ~= targetGroup
+                            then
                                 staging = g
 
                                 break
@@ -672,17 +732,41 @@ local function PlanMoves(raidState, desired)
                         end
 
                         if staging then
-                            table.insert(moves, { type = "set", name = evictee, targetGroup = staging, phase = "P1", reason = "stage " .. evictee .. " from g" .. targetGroup .. " for leader" })
+                            table.insert(moves, {
+                                type = "set",
+                                name = evictee,
+                                targetGroup = staging,
+                                phase = "P1",
+                                reason = "stage "
+                                    .. evictee
+                                    .. " from g"
+                                    .. targetGroup
+                                    .. " for leader",
+                            })
                             SimMove(sim, simGroups, evictee, staging)
                         else
-                            addon:Print("Warning: Cannot find staging group for " .. evictee)
+                            addon:Print(
+                                "Warning: Cannot find staging group for "
+                                    .. evictee
+                            )
                         end
                     end
 
-                    table.insert(moves, { type = "set", name = name, targetGroup = targetGroup, phase = "P1", reason = "move raid leader to target" })
+                    table.insert(moves, {
+                        type = "set",
+                        name = name,
+                        targetGroup = targetGroup,
+                        phase = "P1",
+                        reason = "move raid leader to target",
+                    })
                     SimMove(sim, simGroups, name, targetGroup)
                 else
-                    addon:Print("Warning: Cannot move " .. name .. " to group " .. targetGroup)
+                    addon:Print(
+                        "Warning: Cannot move "
+                            .. name
+                            .. " to group "
+                            .. targetGroup
+                    )
                 end
             end
         end
@@ -725,7 +809,11 @@ local function PlanMoves(raidState, desired)
             -- Find another unused group to absorb the displaced members
             local overflow = nil
             for g = 8, 1, -1 do
-                if not usedGroups[g] and g ~= bestGroup and SimGroupCount(simGroups, g) + bestCount <= 5 then
+                if
+                    not usedGroups[g]
+                    and g ~= bestGroup
+                    and SimGroupCount(simGroups, g) + bestCount <= 5
+                then
                     overflow = g
 
                     break
@@ -741,7 +829,16 @@ local function PlanMoves(raidState, desired)
                 end
 
                 for _, name in ipairs(toMove) do
-                    table.insert(moves, { type = "set", name = name, targetGroup = overflow, phase = "P2", reason = "clear staging g" .. bestGroup .. " -> g" .. overflow })
+                    table.insert(moves, {
+                        type = "set",
+                        name = name,
+                        targetGroup = overflow,
+                        phase = "P2",
+                        reason = "clear staging g"
+                            .. bestGroup
+                            .. " -> g"
+                            .. overflow,
+                    })
                     SimMove(sim, simGroups, name, overflow)
                 end
 
@@ -750,10 +847,7 @@ local function PlanMoves(raidState, desired)
         end
     end
 
-    if not stagingGroup then
-
-        return moves
-    end
+    if not stagingGroup then return moves end
 
     for g = 1, 8 do
         if usedGroups[g] then
@@ -767,9 +861,7 @@ local function PlanMoves(raidState, desired)
                 end
             end
 
-            if memberCount == 0 then
-                -- skip empty group
-            else
+            if memberCount > 0 then
                 -- Build current order from simulation
                 local currentOrder = {}
                 for pos = 1, 5 do
@@ -779,7 +871,10 @@ local function PlanMoves(raidState, desired)
                 -- Check if reordering is needed
                 local needsReorder = false
                 for pos = 1, 5 do
-                    if desiredOrder[pos] and currentOrder[pos] ~= desiredOrder[pos] then
+                    if
+                        desiredOrder[pos]
+                        and currentOrder[pos] ~= desiredOrder[pos]
+                    then
                         needsReorder = true
 
                         break
@@ -792,7 +887,11 @@ local function PlanMoves(raidState, desired)
                     local leaderName = nil
                     for pos = 1, 5 do
                         local name = currentOrder[pos]
-                        if name and raidState[name] and raidState[name].raidIndex == 1 then
+                        if
+                            name
+                            and raidState[name]
+                            and raidState[name].raidIndex == 1
+                        then
                             leaderName = name
 
                             break
@@ -802,12 +901,13 @@ local function PlanMoves(raidState, desired)
                     -- Build desired order list, with the raid leader pinned
                     -- at position 1 and everyone else in desired order after.
                     local desiredList = {}
-                    if leaderName then
-                        table.insert(desiredList, leaderName)
-                    end
+                    if leaderName then table.insert(desiredList, leaderName) end
 
                     for pos = 1, 5 do
-                        if desiredOrder[pos] and desiredOrder[pos] ~= leaderName then
+                        if
+                            desiredOrder[pos]
+                            and desiredOrder[pos] ~= leaderName
+                        then
                             table.insert(desiredList, desiredOrder[pos])
                         end
                     end
@@ -821,7 +921,9 @@ local function PlanMoves(raidState, desired)
                     -- Re-check if reordering is still needed after pinning leader
                     local currentList = {}
                     for pos = 1, 5 do
-                        if currentOrder[pos] and desiredSet[currentOrder[pos]] then
+                        if
+                            currentOrder[pos] and desiredSet[currentOrder[pos]]
+                        then
                             table.insert(currentList, currentOrder[pos])
                         end
                     end
@@ -842,13 +944,33 @@ local function PlanMoves(raidState, desired)
 
                         -- Evacuate ALL desired members (skip extras not on grid)
                         for _, name in ipairs(currentList) do
-                            table.insert(moves, { type = "set", name = name, targetGroup = stagingGroup, phase = "P2", reason = "evacuate g" .. g .. " to staging g" .. stagingGroup })
+                            table.insert(moves, {
+                                type = "set",
+                                name = name,
+                                targetGroup = stagingGroup,
+                                phase = "P2",
+                                reason = "evacuate g"
+                                    .. g
+                                    .. " to staging g"
+                                    .. stagingGroup,
+                            })
                             SimMove(sim, simGroups, name, stagingGroup)
                         end
 
                         -- Refill in desired position order
                         for i, name in ipairs(desiredList) do
-                            table.insert(moves, { type = "set", name = name, targetGroup = g, phase = "P2", reason = "refill g" .. g .. " pos " .. i .. "/" .. #desiredList })
+                            table.insert(moves, {
+                                type = "set",
+                                name = name,
+                                targetGroup = g,
+                                phase = "P2",
+                                reason = "refill g"
+                                    .. g
+                                    .. " pos "
+                                    .. i
+                                    .. "/"
+                                    .. #desiredList,
+                            })
                             SimMove(sim, simGroups, name, g)
                         end
                     end
@@ -871,9 +993,7 @@ local function FindRaidIndex(name)
         local rosterName = GetRaidRosterInfo(i)
         if rosterName then
             local normalized = addon:NormalizeName(rosterName)
-            if normalized == name then
-                return i
-            end
+            if normalized == name then return i end
         end
     end
 
@@ -887,13 +1007,9 @@ local function ScheduleNextMove()
 end
 
 ExecuteNextMove = function()
-    if addon.assignState ~= STATE_EXECUTING then
-        return
-    end
+    if addon.assignState ~= STATE_EXECUTING then return end
 
-    if AbortIfRosterChanged() then
-        return
-    end
+    if AbortIfRosterChanged() then return end
 
     -- Cancel any pending safety timer
     if addon.safetyTimer then
@@ -915,13 +1031,13 @@ ExecuteNextMove = function()
     local move = addon.moveQueue[addon.moveIndex]
 
     if not move then
-        addon:Print("Group assignment complete. (" .. (addon.moveIndex - 1) .. " moves)")
+        addon:Print(
+            "Group assignment complete. (" .. (addon.moveIndex - 1) .. " moves)"
+        )
         addon:StopApply()
 
         return
     end
-
-    local remaining = #addon.moveQueue - addon.moveIndex
 
     local tag = "[" .. addon.moveIndex .. "/" .. #addon.moveQueue .. "]"
     local phase = move.phase or "?"
@@ -931,7 +1047,20 @@ ExecuteNextMove = function()
         local idx = FindRaidIndex(move.name)
         if idx then
             local _, _, currentGroup = GetRaidRosterInfo(idx)
-            addon:Debug(tag .. " " .. phase .. ": " .. move.name .. " group " .. currentGroup .. " -> " .. move.targetGroup .. " (" .. reason .. ")")
+            addon:Debug(
+                tag
+                    .. " "
+                    .. phase
+                    .. ": "
+                    .. move.name
+                    .. " group "
+                    .. currentGroup
+                    .. " -> "
+                    .. move.targetGroup
+                    .. " ("
+                    .. reason
+                    .. ")"
+            )
             SetRaidSubgroup(idx, move.targetGroup)
             addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
                 addon.safetyTimer = nil
@@ -951,12 +1080,34 @@ ExecuteNextMove = function()
         if idxA and idxB then
             -- Raid leader guard (should be handled in planning, but double-check)
             if idxA == 1 or idxB == 1 then
-                addon:Debug(tag .. " SKIP: swap involving raid leader (" .. move.nameA .. " <-> " .. move.nameB .. ")")
+                addon:Debug(
+                    tag
+                        .. " SKIP: swap involving raid leader ("
+                        .. move.nameA
+                        .. " <-> "
+                        .. move.nameB
+                        .. ")"
+                )
                 ScheduleNextMove()
             else
                 local _, _, groupA = GetRaidRosterInfo(idxA)
                 local _, _, groupB = GetRaidRosterInfo(idxB)
-                addon:Debug(tag .. " " .. phase .. ": " .. move.nameA .. " (g" .. groupA .. ") <-> " .. move.nameB .. " (g" .. groupB .. ") (" .. reason .. ")")
+                addon:Debug(
+                    tag
+                        .. " "
+                        .. phase
+                        .. ": "
+                        .. move.nameA
+                        .. " (g"
+                        .. groupA
+                        .. ") <-> "
+                        .. move.nameB
+                        .. " (g"
+                        .. groupB
+                        .. ") ("
+                        .. reason
+                        .. ")"
+                )
                 SwapRaidSubgroup(idxA, idxB)
                 addon.safetyTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
                     addon.safetyTimer = nil
@@ -964,7 +1115,14 @@ ExecuteNextMove = function()
                 end)
             end
         else
-            addon:Debug(tag .. " SKIP: swap " .. move.nameA .. " <-> " .. move.nameB .. " (player left raid)")
+            addon:Debug(
+                tag
+                    .. " SKIP: swap "
+                    .. move.nameA
+                    .. " <-> "
+                    .. move.nameB
+                    .. " (player left raid)"
+            )
             ScheduleNextMove()
         end
     end
@@ -975,13 +1133,9 @@ end
 --------------------------------------------------------------------------------
 
 local function OnAssignmentRosterUpdate()
-    if addon.assignState ~= STATE_EXECUTING then
-        return
-    end
+    if addon.assignState ~= STATE_EXECUTING then return end
 
-    if AbortIfRosterChanged() then
-        return
-    end
+    if AbortIfRosterChanged() then return end
 
     if addon.debounceTimer then
         addon.debounceTimer:Cancel()
@@ -997,9 +1151,7 @@ end
 local function HasRaidPermission()
     for i = 1, 40 do
         local name, rank = GetRaidRosterInfo(i)
-        if name and UnitIsUnit(name, "player") then
-            return rank > 0
-        end
+        if name and UnitIsUnit(name, "player") then return rank > 0 end
     end
 
     return false
@@ -1034,9 +1186,7 @@ function addon:StartApply()
         boardChanged = true
     end
 
-    if self:EnsureRaidLeaderSlotOne(true) then
-        boardChanged = true
-    end
+    if self:EnsureRaidLeaderSlotOne(true) then boardChanged = true end
 
     if boardChanged then
         self:RefreshAllSlots()

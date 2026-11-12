@@ -39,40 +39,57 @@ local function GetActionButtonWidth(fontString, text)
         BOTTOM_BUTTON_MIN_WIDTH,
         math.ceil(
             fontString:GetUnboundedStringWidthForText(text)
-            + (BOTTOM_BUTTON_TEXT_PADDING * 2)
-            + BOTTOM_BUTTON_TEXT_FIT_BUFFER
+                + (BOTTOM_BUTTON_TEXT_PADDING * 2)
+                + BOTTOM_BUTTON_TEXT_FIT_BUFFER
         )
     )
 end
 
 local function CreateActionButton(parent, label)
-    local btn = addon.CreateStyledButton(parent, BOTTOM_BUTTON_MIN_WIDTH, BUTTON_HEIGHT, label)
+    local btn = addon.CreateStyledButton(
+        parent,
+        BOTTOM_BUTTON_MIN_WIDTH,
+        BUTTON_HEIGHT,
+        label
+    )
     btn.label:SetFont(FONT, BOTTOM_BUTTON_FONT_SIZE, "OUTLINE")
     btn.label:SetJustifyH("CENTER")
     btn.label:SetWordWrap(false)
 
     PixelPerfect.RegisterLayout(btn, function()
-        addon.SetStyledButtonSize(btn, GetActionButtonWidth(btn.label, label), BUTTON_HEIGHT)
+        addon.SetStyledButtonSize(
+            btn,
+            GetActionButtonWidth(btn.label, label),
+            BUTTON_HEIGHT
+        )
         btn.label:ClearAllPoints()
-        PixelPerfect.Point(btn.label, "LEFT", btn, "LEFT", BOTTOM_BUTTON_TEXT_PADDING, 0)
-        PixelPerfect.Point(btn.label, "RIGHT", btn, "RIGHT", -BOTTOM_BUTTON_TEXT_PADDING, 0)
+        PixelPerfect.Point(
+            btn.label,
+            "LEFT",
+            btn,
+            "LEFT",
+            BOTTOM_BUTTON_TEXT_PADDING,
+            0
+        )
+        PixelPerfect.Point(
+            btn.label,
+            "RIGHT",
+            btn,
+            "RIGHT",
+            -BOTTOM_BUTTON_TEXT_PADDING,
+            0
+        )
     end)
 
     return btn
 end
 
 local function ClampScalePercent(value)
-    if type(value) ~= "number" then
-        return 100
-    end
+    if type(value) ~= "number" then return 100 end
 
-    if value < FRAME_SCALE_MIN then
-        return FRAME_SCALE_MIN
-    end
+    if value < FRAME_SCALE_MIN then return FRAME_SCALE_MIN end
 
-    if value > FRAME_SCALE_MAX then
-        return FRAME_SCALE_MAX
-    end
+    if value > FRAME_SCALE_MAX then return FRAME_SCALE_MAX end
 
     return value
 end
@@ -85,9 +102,7 @@ end
 
 local function GetSavedScalePercent(owner)
     local scale = owner.db and owner.db.profile.frameScale
-    if type(scale) ~= "number" then
-        scale = 1
-    end
+    if type(scale) ~= "number" then scale = 1 end
 
     return SnapScalePercent(scale * 100)
 end
@@ -122,9 +137,7 @@ local function CreateLeadershipHelpButton(parent)
 end
 
 function addon:RefreshLayoutHeader()
-    if not self.layoutNameText then
-        return
-    end
+    if not self.layoutNameText then return end
 
     if self.selectedLayout then
         self.layoutNameText:SetText(self.selectedLayout.name)
@@ -144,19 +157,21 @@ function addon:RefreshLayoutHeader()
         )
     end
 
-    addon.SetStyledButtonEnabled(self.layoutSaveButton, self.selectedLayout ~= nil)
+    addon.SetStyledButtonEnabled(
+        self.layoutSaveButton,
+        self.selectedLayout ~= nil
+    )
     addon.SetStyledButtonEnabled(self.layoutClearButton, not self:IsGridEmpty())
 end
 
 function addon:CreateMainFrame()
-    if self.mainFrame then
-        return
-    end
+    if self.mainFrame then return end
 
     local frame = CreateFrame("Frame", "RGMFrame", UIParent)
     local initialScale = GetSavedScalePercent(self)
     frame:SetScale(initialScale / 100)
-    frame.bg = PixelPerfect.CreateSurface(frame, MAIN_BACKGROUND, COLOR_BLACK, 1)
+    frame.bg =
+        PixelPerfect.CreateSurface(frame, MAIN_BACKGROUND, COLOR_BLACK, 1)
     frame:SetFrameStrata("HIGH")
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
@@ -176,9 +191,7 @@ function addon:CreateMainFrame()
     titleBar:EnableMouse(true)
 
     titleBar:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then
-            frame:StartMoving()
-        end
+        if button == "LeftButton" then frame:StartMoving() end
     end)
 
     titleBar:SetScript("OnMouseUp", function()
@@ -198,7 +211,12 @@ function addon:CreateMainFrame()
     -- Close button
     local close = addon.CreateCloseButton(titleBar, frame)
 
-    local scaleButton = addon.CreateStyledButton(titleBar, SCALE_BUTTON_WIDTH, SCALE_BUTTON_HEIGHT, "")
+    local scaleButton = addon.CreateStyledButton(
+        titleBar,
+        SCALE_BUTTON_WIDTH,
+        SCALE_BUTTON_HEIGHT,
+        ""
+    )
     scaleButton.label:SetFont(FONT, 10, "OUTLINE")
     SetScaleButtonText(scaleButton, initialScale)
 
@@ -308,8 +326,18 @@ function addon:CreateMainFrame()
         PixelPerfect.Width(frame, FRAME_WIDTH)
 
         gridHeader:ClearAllPoints()
-        PixelPerfect.Point(gridHeader, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, contentTop)
-        gridHeader:SetSize(gridArea:GetWidth(), PixelPerfect.Scale(gridHeader, GRID_HEADER_HEIGHT))
+        PixelPerfect.Point(
+            gridHeader,
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            UI_SPACING,
+            contentTop
+        )
+        gridHeader:SetSize(
+            gridArea:GetWidth(),
+            PixelPerfect.Scale(gridHeader, GRID_HEADER_HEIGHT)
+        )
 
         btnClear:ClearAllPoints()
         PixelPerfect.Point(btnClear, "TOPRIGHT", gridHeader, "TOPRIGHT", 0, 0)
@@ -321,19 +349,48 @@ function addon:CreateMainFrame()
         PixelPerfect.Point(btnSave, "RIGHT", btnSaveAs, "LEFT", -UI_SPACING, 0)
 
         layoutNameText:ClearAllPoints()
-        PixelPerfect.Point(layoutNameText, "TOPLEFT", gridHeader, "TOPLEFT", 0, 0)
-        PixelPerfect.Point(layoutNameText, "TOPRIGHT", btnSave, "TOPLEFT", -UI_SPACING, 0)
+        PixelPerfect.Point(
+            layoutNameText,
+            "TOPLEFT",
+            gridHeader,
+            "TOPLEFT",
+            0,
+            0
+        )
+        PixelPerfect.Point(
+            layoutNameText,
+            "TOPRIGHT",
+            btnSave,
+            "TOPLEFT",
+            -UI_SPACING,
+            0
+        )
 
         helperText:ClearAllPoints()
-        PixelPerfect.Point(helperText, "TOPLEFT", layoutNameText, "BOTTOMLEFT", 0, -1)
+        PixelPerfect.Point(
+            helperText,
+            "TOPLEFT",
+            layoutNameText,
+            "BOTTOMLEFT",
+            0,
+            -1
+        )
 
         gridArea:ClearAllPoints()
-        PixelPerfect.Point(gridArea, "TOPLEFT", frame, "TOPLEFT", UI_SPACING, gridTop)
+        PixelPerfect.Point(
+            gridArea,
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            UI_SPACING,
+            gridTop
+        )
 
         local sidePadding = PixelPerfect.Scale(frame, UI_SPACING)
         local columnGap = PixelPerfect.Scale(frame, UI_SPACING)
         local contentTopOffset = PixelPerfect.Scale(frame, contentTop)
-        local unassignedWidth = PixelPerfect.Scale(unassignedArea, UNASSIGNED_WIDTH)
+        local unassignedWidth =
+            PixelPerfect.Scale(unassignedArea, UNASSIGNED_WIDTH)
 
         unassignedArea:ClearAllPoints()
         unassignedArea:SetPoint(
@@ -343,18 +400,30 @@ function addon:CreateMainFrame()
             sidePadding + gridArea:GetWidth() + columnGap,
             contentTopOffset
         )
-        unassignedArea:SetPoint("BOTTOMLEFT", gridArea, "BOTTOMRIGHT", columnGap, 0)
+        unassignedArea:SetPoint(
+            "BOTTOMLEFT",
+            gridArea,
+            "BOTTOMRIGHT",
+            columnGap,
+            0
+        )
         unassignedArea:SetWidth(unassignedWidth)
 
         layoutArea:ClearAllPoints()
         layoutArea:SetPoint("TOPLEFT", unassignedArea, "TOPRIGHT", columnGap, 0)
-        layoutArea:SetPoint("BOTTOMLEFT", unassignedArea, "BOTTOMRIGHT", columnGap, 0)
+        layoutArea:SetPoint(
+            "BOTTOMLEFT",
+            unassignedArea,
+            "BOTTOMRIGHT",
+            columnGap,
+            0
+        )
         layoutArea:SetWidth(
             frame:GetWidth()
-            - (sidePadding * 2)
-            - gridArea:GetWidth()
-            - (columnGap * 2)
-            - unassignedWidth
+                - (sidePadding * 2)
+                - gridArea:GetWidth()
+                - (columnGap * 2)
+                - unassignedWidth
         )
 
         local gridTopInset = -PixelPerfect.Scale(gridArea, gridTop)
@@ -368,10 +437,10 @@ function addon:CreateMainFrame()
 
         frame:SetHeight(
             gridTopInset
-            + gridArea:GetHeight()
-            + bottomBarGap
-            + bottomBarHeight
-            + bottomPadding
+                + gridArea:GetHeight()
+                + bottomBarGap
+                + bottomBarHeight
+                + bottomPadding
         )
         self:RestoreFramePosition(frame)
     end
@@ -447,7 +516,14 @@ function addon:CreateMainFrame()
         PixelPerfect.Height(titleBar, TITLE_HEIGHT)
 
         titleBar.text:ClearAllPoints()
-        PixelPerfect.Point(titleBar.text, "LEFT", titleBar, "LEFT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            titleBar.text,
+            "LEFT",
+            titleBar,
+            "LEFT",
+            UI_SPACING,
+            0
+        )
 
         close:ClearAllPoints()
         PixelPerfect.Point(close, "RIGHT", titleBar, "RIGHT", -UI_SPACING, 1)
@@ -456,27 +532,76 @@ function addon:CreateMainFrame()
         PixelPerfect.Point(scaleButton, "RIGHT", close, "LEFT", -UI_SPACING, 0)
 
         leadershipHelp:ClearAllPoints()
-        PixelPerfect.Point(leadershipHelp, "RIGHT", scaleButton, "LEFT", -UI_SPACING, 0)
+        PixelPerfect.Point(
+            leadershipHelp,
+            "RIGHT",
+            scaleButton,
+            "LEFT",
+            -UI_SPACING,
+            0
+        )
 
         LayoutMainContent()
 
         btnLoadRoster:ClearAllPoints()
         PixelPerfect.Point(btnLoadRoster, "LEFT", bottomBar, "LEFT", 0, 0)
         btnApply:ClearAllPoints()
-        PixelPerfect.Point(btnApply, "LEFT", btnLoadRoster, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnApply,
+            "LEFT",
+            btnLoadRoster,
+            "RIGHT",
+            UI_SPACING,
+            0
+        )
         btnSplitOddEven:ClearAllPoints()
-        PixelPerfect.Point(btnSplitOddEven, "LEFT", btnApply, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnSplitOddEven,
+            "LEFT",
+            btnApply,
+            "RIGHT",
+            UI_SPACING,
+            0
+        )
         btnSplitHalves:ClearAllPoints()
-        PixelPerfect.Point(btnSplitHalves, "LEFT", btnSplitOddEven, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnSplitHalves,
+            "LEFT",
+            btnSplitOddEven,
+            "RIGHT",
+            UI_SPACING,
+            0
+        )
         btnInvite:ClearAllPoints()
-        PixelPerfect.Point(btnInvite, "LEFT", btnSplitHalves, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnInvite,
+            "LEFT",
+            btnSplitHalves,
+            "RIGHT",
+            UI_SPACING,
+            0
+        )
         btnDisband:ClearAllPoints()
-        PixelPerfect.Point(btnDisband, "LEFT", btnInvite, "RIGHT", UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnDisband,
+            "LEFT",
+            btnInvite,
+            "RIGHT",
+            UI_SPACING,
+            0
+        )
 
         btnImport:ClearAllPoints()
         PixelPerfect.Point(btnImport, "RIGHT", bottomBar, "RIGHT", 0, 0)
         btnExport:ClearAllPoints()
-        PixelPerfect.Point(btnExport, "RIGHT", btnImport, "LEFT", -UI_SPACING, 0)
+        PixelPerfect.Point(
+            btnExport,
+            "RIGHT",
+            btnImport,
+            "LEFT",
+            -UI_SPACING,
+            0
+        )
     end)
 
     frame:HookScript("OnShow", function()
@@ -529,9 +654,7 @@ end
 
 function addon:ShowToast(message)
     local frame = self.mainFrame
-    if not frame then
-        return
-    end
+    if not frame then return end
 
     if not frame.toast then
         local toast = frame:CreateFontString(nil, "OVERLAY")
@@ -546,9 +669,7 @@ function addon:ShowToast(message)
     toast:SetAlpha(1)
     toast:Show()
 
-    if toast.fadeTimer then
-        toast.fadeTimer:Cancel()
-    end
+    if toast.fadeTimer then toast.fadeTimer:Cancel() end
 
     toast.fadeTimer = C_Timer.NewTimer(1.5, function()
         toast:Hide()
@@ -571,7 +692,14 @@ function addon:RestoreFramePosition(frame)
     frame:ClearAllPoints()
 
     if pos then
-        PixelPerfect.Point(frame, pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+        PixelPerfect.Point(
+            frame,
+            pos.point,
+            UIParent,
+            pos.relPoint,
+            pos.x,
+            pos.y
+        )
     else
         PixelPerfect.Point(frame, "CENTER", UIParent, "CENTER", 0, 0)
     end

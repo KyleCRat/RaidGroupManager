@@ -304,7 +304,10 @@ local function GetEntryRowTooltipLines(row)
 
     if addon.unassignedMode == MODE_RAID then
         leadershipLines = addon:GetRaidAssistTooltipLines(row.playerName)
-    elseif addon.unassignedMode == MODE_ROSTER then
+    elseif
+        addon.unassignedMode == MODE_ROSTER
+        or addon.unassignedMode == MODE_GUILD
+    then
         leadershipLines = addon:GetRosterAssistTooltipLines(row.playerName)
     end
 
@@ -351,7 +354,10 @@ local function CreateEntryRow(parent, index)
         if button == "MiddleButton" and self.playerName then
             if addon.unassignedMode == MODE_RAID then
                 addon:ToggleRaidAssist(self.playerName)
-            elseif addon.unassignedMode == MODE_ROSTER then
+            elseif
+                addon.unassignedMode == MODE_ROSTER
+                or addon.unassignedMode == MODE_GUILD
+            then
                 addon:ToggleRosterLeader(self.playerName)
             end
         end
@@ -830,10 +836,17 @@ function addon:RefreshUnassigned()
             row.nameText:SetText(displayName)
             row.playerName = entry.normalizedName
             row.template = nil
-            SetRowLeadershipIconState(
-                row,
-                self:GetLeadershipIconTextureForRank(entry.rank)
-            )
+            if self.unassignedMode == MODE_GUILD then
+                SetRowLeaderState(
+                    row,
+                    self:IsRosterLeader(entry.normalizedName)
+                )
+            else
+                SetRowLeadershipIconState(
+                    row,
+                    self:GetLeadershipIconTextureForRank(entry.rank)
+                )
+            end
 
             -- Class color
             local classColor = entry.class

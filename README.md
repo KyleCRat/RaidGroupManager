@@ -48,7 +48,7 @@ Four browsing modes via tab bar:
 
 ### Assistant Management
 - Middle-click group slots or Raid tab rows to promote or demote raid assistants when you are raid leader
-- Middle-click Roster tab members to save who should be assistant in your ideal raid roster
+- Middle-click Guild or Roster tab members to save who should be assistant in your ideal raid roster
 - Saved assistant choices are checked when you form or take over a raid, and when marked members join
 - Changing a saved choice while you are raid leader also immediately promotes or demotes that member
 - Live assistant changes stay separate from saved choices; routine roster updates do not undo live demotions

@@ -124,8 +124,8 @@ local function CreateLeadershipHelpButton(parent)
     btn:SetScript("OnEnter", function(self)
         addon:ShowTooltip(self, "Leadership Controls", {
             "Middle-click group slots or Raid rows to change raid assistants.",
-            "Middle-click Roster rows to choose who is automatically promoted.",
-            "Roster choices are saved for invites and raids you lead.",
+            "Middle-click Guild or Roster rows to choose who is automatically promoted.",
+            "These choices are saved for invites and raids you lead.",
         }, "ANCHOR_TOPLEFT")
     end)
 

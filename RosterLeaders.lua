@@ -210,9 +210,10 @@ function addon:ToggleRosterLeader(name)
     local isLeader = not self:IsRosterLeader(normalized)
     self:SetRosterLeader(normalized, isLeader)
     self:Print(
-        (isLeader and "Marked " or "Unmarked ")
+        (isLeader and "Enabled" or "Disabled")
+            .. " automatic assistant promotion for "
             .. normalized
-            .. " as roster leader."
+            .. "."
     )
 
     self:OnRosterLeaderStatusChanged(normalized, isLeader)

@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Added middle-click automatic assistant choices to Guild rows, with the same crown indicators and live updates as the Roster tab
+
 ## [12.1.5-17] - 2026-10-21
 
 ### Fixed

@@ -111,7 +111,11 @@ function Inspect:Finish(request, specID, roster)
     if self.entries[entry.name] == entry then
         if specID then
             self.entries[entry.name] = nil
-            addon.RoleDetection:StoreSpec(entry.name, specID)
+            addon.RoleDetection:StoreSpec(
+                entry.name,
+                specID,
+                roster[entry.name]
+            )
         else
             entry.retryAt = GetTime() + RETRY_DELAY
             addon:Debug(

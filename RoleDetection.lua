@@ -19,10 +19,18 @@ end
 
 local function GetKnownRole(member)
     if member.role == "TANK" or member.role == "HEALER" then
-        return member.role
+        return member.role, "1: assigned role", member.role
     end
 
-    return ClassSpecRoles:GetCombatRoleForClass(member.class, member.role)
+    local role = ClassSpecRoles:GetCombatRoleForClass(member.class, member.role)
+    if role then
+        local source = member.role == "DAMAGER" and "2: class + assigned DPS"
+            or "2: class-only rule"
+
+        return role, source, member.class
+    end
+
+    return nil
 end
 
 local function GetPlayerSpecID()
@@ -65,44 +73,89 @@ local function GetHeuristicRole(member)
         return nil
     end
 
-    if agility > intellect then return "MELEE" end
+    if agility > intellect then return "MELEE", "agility > intellect" end
 
-    if intellect > agility then return "RANGED" end
+    if intellect > agility then return "RANGED", "intellect > agility" end
 
     return nil
 end
 
 local function ResolveRole(member, name)
-    local knownRole = member and GetKnownRole(member)
-    if knownRole then return knownRole end
+    if member then
+        local role, source, detail = GetKnownRole(member)
+        if role then return role, source, detail end
+    end
 
     local normalized =
         addon:NormalizeName(member and member.normalizedName or name)
     local specID = RoleDetection.cache[normalized]
+    local specSource = "3: cached inspected spec"
     if member and IsPlayerUnit(member.unitToken) then
         specID = GetPlayerSpecID()
+        specSource = "3: current player spec"
     end
 
     local specRole = ClassSpecRoles:GetCombatRoleForSpecID(specID)
-    if specRole then return specRole end
+    if specRole then return specRole, specSource, specID end
 
-    local heuristicRole = member and GetHeuristicRole(member)
-    if heuristicRole then return heuristicRole end
+    if member then
+        local role, detail = GetHeuristicRole(member)
+        if role then return role, "4: live stat heuristic", detail end
+    end
 
     local imported = addon:GetImportedRosterEntry(normalized)
-    if imported and imported.role then return imported.role end
+    if imported and imported.role then
+        return imported.role, "5: imported roster"
+    end
 
     local class = member and member.class or (imported and imported.class)
 
-    return ClassSpecRoles:GetDefaultCombatRole(class)
+    return ClassSpecRoles:GetDefaultCombatRole(class),
+        "6: default fallback",
+        class or "unknown class"
+end
+
+local function DebugRoleDecision(member, name, role, source, detail)
+    if not addon.debugMode then return end
+
+    name = addon:NormalizeName(member and member.normalizedName or name)
+    if not name or RoleDetection.specChangeTimers[name] then return end
+
+    local previous = RoleDetection.debugRoles[name]
+    if
+        previous
+        and previous.role == role
+        and previous.source == source
+        and previous.detail == detail
+    then
+        return
+    end
+
+    RoleDetection.debugRoles[name] = {
+        role = role,
+        source = source,
+        detail = detail,
+    }
+    local reason = source
+    if detail then reason = reason .. "; " .. tostring(detail) end
+
+    addon:Debug(
+        name
+            .. " role: "
+            .. ClassSpecRoles:GetRoleDisplayName(role)
+            .. " ("
+            .. reason
+            .. ")"
+    )
 end
 
 -- Roster records are short-lived snapshots, so memoization lasts only one pass.
 function addon:GetCombatRole(member, name)
     if member and member.combatRole then return member.combatRole end
 
-    local role = ResolveRole(member, name)
+    local role, source, detail = ResolveRole(member, name)
     if member then member.combatRole = role end
+    DebugRoleDecision(member, name, role, source, detail)
 
     return role
 end
@@ -115,6 +168,7 @@ function RoleDetection:Initialize()
     self.roster = {}
     self.specChangeTimers = {}
     self.changedNames = {}
+    self.debugRoles = {}
     self.ready = false
 
     -- Keep the existing name -> spec ID saved data; metadata is additive.
@@ -126,6 +180,24 @@ function RoleDetection:Initialize()
     end
 
     addon.Inspect:Initialize()
+end
+
+function RoleDetection:DebugRoster(roster)
+    if not addon.debugMode then return end
+
+    -- Resolve even with the UI closed, reusing the event's snapshot when possible.
+    roster = roster or addon:GetGroupDisplayRoster()
+    for name in pairs(self.roster) do
+        if not roster[name] then self.debugRoles[name] = nil end
+    end
+    for _, member in pairs(roster) do
+        addon:GetCombatRole(member)
+    end
+end
+
+function RoleDetection:OnDebugModeChanged()
+    wipe(self.debugRoles)
+    if self.enabled and self.ready then self:DebugRoster() end
 end
 
 function RoleDetection:GetInspectPriority(member)
@@ -173,12 +245,13 @@ function RoleDetection:QueueDisplayRefresh(name)
     end)
 end
 
-function RoleDetection:StoreSpec(name, specID)
+function RoleDetection:StoreSpec(name, specID, member)
     local changed = self.cache[name] ~= specID
     self.cache[name] = specID
     self.verifiedAt[name] = GetServerTime()
     self.dirty[name] = nil
     addon:Debug(name .. " spec cached: " .. specID)
+    if addon.debugMode then addon:GetCombatRole(member, name) end
     if changed then self:QueueDisplayRefresh(name) end
 end
 
@@ -201,6 +274,7 @@ function RoleDetection:Reset()
     wipe(self.verifiedAt)
     wipe(self.dirty)
     wipe(self.roster)
+    wipe(self.debugRoles)
     if self.enabled then self:QueueDisplayRefresh() end
 end
 
@@ -212,7 +286,11 @@ function RoleDetection:UpdateRoster()
         self:Reset()
         self.inRaid = inRaid
     end
-    if not inRaid then return end
+    if not inRaid then
+        self:DebugRoster()
+
+        return
+    end
 
     local roster = addon:GetRaidRoster()
     if not next(roster) then return end
@@ -250,6 +328,7 @@ function RoleDetection:UpdateRoster()
         end
     end
 
+    self:DebugRoster(roster)
     self.roster = roster
     addon.Inspect:Prune(roster)
     addon.Inspect:Wake(roster)
@@ -299,7 +378,12 @@ end
 function RoleDetection:OnSpecChanged(unit)
     if issecretvalue(unit) or not unit then return end
 
+    local name, realm = UnitFullName(unit)
+    if issecretvalue(name) or issecretvalue(realm) or not name then return end
+
+    name = addon:NormalizeName(addon:BuildFullName(name, realm))
     if IsPlayerUnit(unit) then
+        self.debugRoles[name] = nil
         self:UpdateRoster()
         self:QueueDisplayRefresh()
 
@@ -307,16 +391,14 @@ function RoleDetection:OnSpecChanged(unit)
     end
     if not self.ready or not IsInRaid() then return end
 
-    local name, realm = UnitFullName(unit)
-    if issecretvalue(name) or issecretvalue(realm) or not name then return end
-
-    name = addon:NormalizeName(addon:BuildFullName(name, realm))
     if not self.roster[name] then return end
 
     self:InvalidateSpec(name)
     if self.specChangeTimers[name] then self.specChangeTimers[name]:Cancel() end
     self.specChangeTimers[name] = C_Timer.NewTimer(SPEC_CHANGE_DELAY, function()
         self.specChangeTimers[name] = nil
+        -- A new spec may still resolve to the same role through a class rule.
+        self.debugRoles[name] = nil
         self:UpdateRoster()
         self:QueueDisplayRefresh(name)
     end)
@@ -346,6 +428,7 @@ function RoleDetection:Disable()
         timer:Cancel()
     end
     wipe(self.specChangeTimers)
+    wipe(self.debugRoles)
     if self.displayTimer then
         self.displayTimer:Cancel()
         self.displayTimer = nil

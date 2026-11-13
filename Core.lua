@@ -208,6 +208,7 @@ function addon:SlashCommand(input)
         self:Print(
             "Debug mode " .. (self.debugMode and "enabled" or "disabled")
         )
+        self.RoleDetection:OnDebugModeChanged()
 
         return
     end

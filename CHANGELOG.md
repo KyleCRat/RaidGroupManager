@@ -4,6 +4,7 @@
 
 ### Added
 - Added middle-click automatic assistant choices to Guild rows, with the same crown indicators and live updates as the Roster tab
+- Debug mode now reports each character's role and the numbered detection source, including spec changes resolved without inspection; unchanged refreshes do not repeat messages
 
 ### Changed
 - Reduced inspections by resolving certain roles directly from class and assigned role, with slow cached-spec refreshes after reloads and faster checks for new members, spec changes, or longer logouts

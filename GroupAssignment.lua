@@ -1096,9 +1096,53 @@ local function CancelPendingTimers(pending)
     end
 end
 
+local function DebugMoveResult(run, result, failureReason)
+    if not addon.debugMode then return end
+
+    local move = run.moves[run.index]
+    if not move then return end
+
+    local description
+    if move.type == "set" then
+        description = "Move "
+            .. move.name
+            .. " group "
+            .. move.fromGroup
+            .. " -> "
+            .. move.targetGroup
+    else
+        description = "Swap "
+            .. move.nameA
+            .. " (g"
+            .. move.fromGroupA
+            .. ") <-> "
+            .. move.nameB
+            .. " (g"
+            .. move.fromGroupB
+            .. ")"
+    end
+
+    local details = move.phase .. ": " .. move.reason
+    if failureReason then details = details .. "; " .. failureReason end
+    addon:Debug(
+        "["
+            .. run.index
+            .. "/"
+            .. #run.moves
+            .. "] "
+            .. description
+            .. ": "
+            .. result
+            .. " ("
+            .. details
+            .. ")"
+    )
+end
+
 local function AbortApply(run, reason)
     if activeRun ~= run then return end
 
+    DebugMoveResult(run, "Failed", reason)
     addon:Print(
         "Apply stopped: "
             .. reason
@@ -1173,7 +1217,6 @@ local function ExecuteNextMove(run, raidState, groupCounts)
     end
 
     local targets = {}
-    local description
     if move.type == "set" then
         if raidState[move.name].currentGroup ~= move.fromGroup then
             AbortApply(run, "the source group changed for " .. move.name)
@@ -1186,11 +1229,6 @@ local function ExecuteNextMove(run, raidState, groupCounts)
             return
         end
         targets[move.name] = move.targetGroup
-        description = move.name
-            .. " group "
-            .. move.fromGroup
-            .. " -> "
-            .. move.targetGroup
     else
         local memberA, memberB = raidState[move.nameA], raidState[move.nameB]
         if memberA.raidIndex == 1 or memberB.raidIndex == 1 then
@@ -1208,14 +1246,6 @@ local function ExecuteNextMove(run, raidState, groupCounts)
         end
         targets[move.nameA], targets[move.nameB] =
             move.fromGroupB, move.fromGroupA
-        description = move.nameA
-            .. " (g"
-            .. move.fromGroupA
-            .. ") <-> "
-            .. move.nameB
-            .. " (g"
-            .. move.fromGroupB
-            .. ")"
     end
 
     local pending = { targets = targets }
@@ -1223,19 +1253,6 @@ local function ExecuteNextMove(run, raidState, groupCounts)
     pending.timeoutTimer = C_Timer.NewTimer(SAFETY_TIMEOUT, function()
         ProcessApplyState(run, pending, true)
     end)
-    addon:Debug(
-        "["
-            .. run.index
-            .. "/"
-            .. #run.moves
-            .. "] "
-            .. move.phase
-            .. ": "
-            .. description
-            .. " ("
-            .. move.reason
-            .. ")"
-    )
 
     -- Resolve indices from this live snapshot, never from the original plan.
     lastMoveAt = GetTime()
@@ -1291,7 +1308,7 @@ ProcessApplyState = function(run, pending, timedOut)
         for name, targetGroup in pairs(pending.targets) do
             run.expectedGroups[name] = targetGroup
         end
-        addon:Debug("[" .. run.index .. "/" .. #run.moves .. "] confirmed")
+        DebugMoveResult(run, "Succeeded")
         run.pending = nil
         run.completed = run.completed + 1
         run.index = run.index + 1
@@ -1434,4 +1451,7 @@ function addon:StopApply()
         self.applyButton:Enable()
         self.applyButton.label:SetTextColor(1, 1, 1)
     end
+
+    -- Refresh changes consumed while Apply owned the roster event handler.
+    self:OnRosterUpdate()
 end

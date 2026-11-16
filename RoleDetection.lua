@@ -383,7 +383,6 @@ function RoleDetection:OnSpecChanged(unit)
 
     name = addon:NormalizeName(addon:BuildFullName(name, realm))
     if IsPlayerUnit(unit) then
-        self.debugRoles[name] = nil
         self:UpdateRoster()
         self:QueueDisplayRefresh()
 
@@ -397,8 +396,6 @@ function RoleDetection:OnSpecChanged(unit)
     if self.specChangeTimers[name] then self.specChangeTimers[name]:Cancel() end
     self.specChangeTimers[name] = C_Timer.NewTimer(SPEC_CHANGE_DELAY, function()
         self.specChangeTimers[name] = nil
-        -- A new spec may still resolve to the same role through a class rule.
-        self.debugRoles[name] = nil
         self:UpdateRoster()
         self:QueueDisplayRefresh(name)
     end)

@@ -4,14 +4,16 @@
 
 ### Added
 - Added middle-click automatic assistant choices to Guild rows, with the same crown indicators and live updates as the Roster tab
-- Debug mode now reports each character's role and the numbered detection source, including spec changes resolved without inspection; unchanged refreshes do not repeat messages
+- Debug mode now reports each character's role and the numbered detection source, including spec changes resolved without inspection; unchanged decisions do not repeat on spec-change events or refreshes
 
 ### Changed
 - Reduced inspections by resolving certain roles directly from class and assigned role, with slow cached-spec refreshes after reloads and faster checks for new members, spec changes, or longer logouts
 - Reduced repeated roster and role lookups when refreshing group slots and resolving layouts
 - Apply advances on confirmed moves with at least 50 ms between requests, replacing the fixed delay after each roster update
+- Apply debug output now reports each move once as Succeeded or Failed, with action details and failure reasons, instead of separate request and confirmation messages
 
 ### Fixed
+- Fixed group slots retaining placeholder colors when a joining member's name/class data arrives late or roster changes occur during Apply
 - Fixed player role detection when WoW's deprecated API fallbacks are disabled
 - Prevented role display and group splitting errors when character stats are restricted
 - Improved role fallbacks to use imported roster information before assumptions, including role and class balancing before characters join your group

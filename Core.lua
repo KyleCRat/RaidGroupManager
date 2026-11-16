@@ -103,6 +103,7 @@ end
 function addon:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "OnRosterUpdate")
     self:RegisterEvent("UNIT_CONNECTION", "OnRosterUpdate")
+    self:RegisterEvent("UNIT_NAME_UPDATE", "OnUnitNameUpdate")
     self:RegisterEvent("ENCOUNTER_START", "OnEncounterStart")
     self:RegisterEvent("ENCOUNTER_END", "OnEncounterEnd")
     self.RoleDetection:Enable()
@@ -121,6 +122,22 @@ function addon:OnRosterUpdate()
     local roster = self:GetGroupDisplayRoster()
     self:RefreshAllSlots(roster)
     self:RefreshUnassigned(roster)
+end
+
+function addon:OnUnitNameUpdate(_, unit)
+    if issecretvalue(unit) or not unit then return end
+
+    if
+        unit ~= "player"
+        and not unit:match("^raid%d+$")
+        and not unit:match("^party%d+$")
+    then
+        return
+    end
+
+    -- Class/name data can arrive after the member's initial roster update.
+    self.RoleDetection:UpdateRoster()
+    self:OnRosterUpdate()
 end
 
 function addon:OnEncounterStart()

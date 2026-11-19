@@ -97,6 +97,12 @@ Four browsing modes via tab bar:
 - Custom role icons distinguishing melee DPS from ranged DPS
 - Scale-aware pixel snapping for consistent grid spacing and interface borders
 
+### Update Notes
+- Read update highlights and full release notes in **Settings > AddOns > Raid Group Manager** or with `/rgm changelog`
+- Use `/changelog` to browse notes from all addons using the shared changelog window
+- Read status and the **Show changelog for Raid Group Manager on login** preference are shared across all characters, independently of layouts and profiles
+- Turn off automatic notices in the changelog window or Settings; manual browsing remains available
+
 ## Slash Commands
 
 | Command | Description |
@@ -105,15 +111,21 @@ Four browsing modes via tab bar:
 | `/rgm apply <name>` | Apply a saved layout by name |
 | `/rgm presets` | Re-add preset layouts to your list |
 | `/rgm disband`, `/rgm d` | Confirm and disband the current raid |
+| `/rgm changelog` | Show RGM update highlights and release notes |
+| `/changelog` | Browse notes from all participating addons |
 | `/rgm debug` | Toggle debug messages |
 | `/rgm help` | Show command help |
 
 ## Dependencies
 
-All libraries are bundled in the `Libs/` folder, with LibPopupSlider maintained as a Git submodule:
+All libraries are bundled in the `Libs/` folder. LibPopupSlider, LibModernSettings, and LibChangelog are pinned Git submodules:
 - Ace3 (AceAddon, AceDB, AceConsole, AceEvent, AceSerializer)
 - LibDataBroker-1.1
 - LibDBIcon-1.0
 - LibPopupSlider-1.0
+- LibModernSettings-1.0
+- LibChangelog-1.0
 
 Development clones should initialize embedded submodules with `git submodule update --init --recursive`.
+
+For release-note maintenance, see [Authoring Update Notes](Docs/CHANGELOG_AUTHORING.md).

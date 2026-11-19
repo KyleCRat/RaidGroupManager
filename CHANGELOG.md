@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Added in-game update highlights and full release notes through Settings > Raid Group Manager, `/rgm changelog`, and the shared `/changelog` window; read status and automatic-notice preferences are shared across all characters
 - Added middle-click automatic assistant choices to Guild rows, with the same crown indicators and live updates as the Roster tab
 - Debug mode now reports each character's role and the numbered detection source, including spec changes resolved without inspection; unchanged decisions do not repeat on spec-change events or refreshes
 

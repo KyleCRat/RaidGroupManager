@@ -38,3 +38,10 @@ Validate owned Lua with luac5.1 -p and resolve TOC/XML load paths. Do not write
 automated addon tests unless explicitly requested; use static review and
 in-game checks. Reusable libraries retain automated tests. Do not claim in-game
 validation from static tooling. Keep CHANGELOG.md current for behavioral work.
+
+## In-Game Changelog
+
+Follow `Docs/CHANGELOG_AUTHORING.md` when preparing release notes. Generated
+`Changelog/ReleaseNotes.lua` is a release artifact; do not edit it by hand or
+regenerate it during routine development. LibChangelog read status and notice
+preferences must remain in account-wide `db.global.changelog`, outside profiles.

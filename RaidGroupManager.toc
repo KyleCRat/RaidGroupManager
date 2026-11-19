@@ -1,5 +1,6 @@
 ## Interface: 120100, 120105
 ## Title: Raid Group Manager
+## IconTexture: Interface\Icons\Achievement_General_StayClassy
 ## Notes: Organize and apply raid group layouts
 ## Author: Yvairel
 ## Version: 12.1.5-17
@@ -10,6 +11,9 @@ embeds.xml
 
 # Addon files
 Core.lua
+Changelog\ReleaseNotes.lua
+Changelog\Highlights.lua
+Changelog.lua
 RaidRules.lua
 RosterLeaders.lua
 ClassSpecRoles.lua

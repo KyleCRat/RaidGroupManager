@@ -1,6 +1,7 @@
 std = "wow"
-# LibPopupSlider is maintained and linted from its own repository root.
-exclude = ["Libs/**"]
+# Embedded libraries are linted from their own repository roots.
+# Release notes are generated and validated during release preparation.
+exclude = ["Libs/**", "Changelog/ReleaseNotes.lua"]
 
 [lints]
 global_usage = "allow"

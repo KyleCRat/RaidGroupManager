@@ -10,4 +10,6 @@
   <Script file="Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua"/>
   <Include file="Libs\LibDBIcon-1.0\LibDBIcon-1.0\lib.xml"/>
   <Include file="Libs\LibPopupSlider-1.0\LibPopupSlider-1.0.xml"/>
+  <Include file="Libs\LibModernSettings-1.0\embed.xml"/>
+  <Include file="Libs\LibChangelog-1.0\embed.xml"/>
 </Ui>

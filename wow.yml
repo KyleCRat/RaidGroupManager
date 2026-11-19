@@ -19,6 +19,8 @@ globals:
         any: true
     ClearInspectPlayer:
         any: true
+    CopyTable:
+        any: true
     CreateFrame:
         any: true
     date:
@@ -84,6 +86,10 @@ globals:
     PlaySound:
         any: true
     SetRaidSubgroup:
+        any: true
+    Settings:
+        any: true
+    SettingsPanel:
         any: true
     SOUNDKIT:
         any: true

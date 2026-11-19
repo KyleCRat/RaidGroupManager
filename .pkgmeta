@@ -10,6 +10,12 @@ externals:
     Libs/LibPopupSlider-1.0:
         url: https://github.com/KyleCRat/LibPopupSlider.git
         tag: 1.2.1
+    Libs/LibModernSettings-1.0:
+        url: https://github.com/KyleCRat/LibModernSettings.git
+        tag: 1.12.0
+    Libs/LibChangelog-1.0:
+        url: https://github.com/KyleCRat/LibChangelog.git
+        tag: 1.0.1
 
 ignore:
     - AGENTS.md
@@ -20,5 +26,16 @@ ignore:
     - "Libs/LibPopupSlider-1.0/selene.toml"
     - "Libs/LibPopupSlider-1.0/wow.yml"
     - "Libs/LibPopupSlider-1.0/tests"
+    - Libs/LibModernSettings-1.0/AGENTS.md
+    - Libs/LibModernSettings-1.0/selene.toml
+    - Libs/LibModernSettings-1.0/wow.yml
+    - Libs/LibModernSettings-1.0/tests
+    - Libs/LibModernSettings-1.0/tools
+    - Libs/LibChangelog-1.0/AGENTS.md
+    - Libs/LibChangelog-1.0/selene.toml
+    - Libs/LibChangelog-1.0/wow.yml
+    - Libs/LibChangelog-1.0/tests
+    - Libs/LibChangelog-1.0/tools
+    - Libs/LibChangelog-1.0/examples
     - "*.png"
     - "*.afdesign"

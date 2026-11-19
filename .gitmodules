@@ -2,3 +2,9 @@
 	path = Libs/LibPopupSlider-1.0
 	url = https://github.com/KyleCRat/LibPopupSlider.git
 	branch = main
+[submodule "Libs/LibChangelog-1.0"]
+	path = Libs/LibChangelog-1.0
+	url = https://github.com/KyleCRat/LibChangelog.git
+[submodule "Libs/LibModernSettings-1.0"]
+	path = Libs/LibModernSettings-1.0
+	url = https://github.com/KyleCRat/LibModernSettings.git

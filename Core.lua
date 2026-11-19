@@ -58,6 +58,9 @@ addon.PANEL_BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.8 }
 local playerRealm = nil
 
 local defaults = {
+    global = {
+        changelog = { autoShow = true },
+    },
     profile = {
         minimap = { hide = false },
         layouts = {},
@@ -98,6 +101,7 @@ function addon:OnInitialize()
     self:InstallPresetLayouts()
     self:RegisterChatCommand("rgm", "SlashCommand")
     self:SetupMinimapButton()
+    self:InitializeChangelog()
 end
 
 function addon:OnEnable()
@@ -219,6 +223,12 @@ function addon:SlashCommand(input)
         return
     end
 
+    if cmd == "changelog" then
+        self:ShowChangelog()
+
+        return
+    end
+
     if cmd == "debug" then
         self.debugMode = not self.debugMode
         self.db.profile.debugMode = self.debugMode
@@ -236,6 +246,7 @@ function addon:SlashCommand(input)
         self:Print("  /rgm apply <name> - Apply a saved layout")
         self:Print("  /rgm presets - Add preset layouts to your list")
         self:Print("  /rgm disband or /rgm d - Disband the raid")
+        self:Print("  /rgm changelog - Show update notes")
         self:Print("  /rgm debug - Toggle debug messages")
         self:Print("  /rgm help - Show this help")
 
